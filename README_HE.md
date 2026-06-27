@@ -1,19 +1,21 @@
-# ADAMA Production BI — Sprint 5.1 Cloud + UI Restore
+# ADAMA Production BI — Sprint 6
 
-מה תוקן:
-- הוחזר המראה והמבנה של Sprint 4.
-- נשמר חיבור Supabase מ-Sprint 5.
-- נשמר מסך Database.
-- נשמר SQL מלא: supabase/schema.sql.
-- טעינת Excel שומרת לענן כאשר Supabase מחובר.
-- המערכת עדיין עובדת מקומית אם Supabase לא מוגדר.
+מה חדש:
+- נוסף תפריט תאריכים אמיתי בתוך הדשבורד הראשי.
+- מיקום התפריט: מתחת לכותרת "דשבורד ראשי" ולפני כרטיסי KPI.
+- נוספו תצוגות: יומי, חודשי, רבעוני, שנתי, טווח חופשי.
+- נוספו כפתורי תקופה קודמת / תקופה נוכחית / תקופה הבאה.
+- נוספו מסננים: מתקן, קו אריזה, משמרת, פקודת ייצור.
+- כל ה-KPI והגרפים בדשבורד מחושבים לפי הנתונים המסוננים.
+- מודול איכות כולל גם סינון תקופתי.
 
-Netlify Environment Variables:
-- VITE_SUPABASE_URL
-- VITE_SUPABASE_ANON_KEY
-
+Netlify:
 Build command:
 npm run build
 
 Publish directory:
 dist
+
+Environment Variables:
+VITE_SUPABASE_URL
+VITE_SUPABASE_ANON_KEY

@@ -76,3 +76,105 @@ input:disabled, select:disabled, button:disabled { opacity: .45; cursor: not-all
   .form-grid .wide{grid-column:span 1}
   .page{padding:18px}
 }
+
+
+/* Sprint 6 — Date & BI filters */
+.date-filter-panel {
+  background: linear-gradient(180deg, rgba(27,34,41,.98), rgba(20,26,33,.98));
+  border: 1px solid rgba(54,194,180,.35);
+  border-radius: 20px;
+  padding: 18px;
+  margin: 0 0 18px;
+  box-shadow: 0 12px 28px rgba(0,0,0,.18);
+}
+.date-filter-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+.date-filter-title {
+  font-size: 20px;
+  font-weight: 900;
+  color: var(--text);
+}
+.date-filter-sub {
+  color: var(--muted);
+  font-size: 13px;
+  margin-top: 4px;
+}
+.active-range {
+  color: var(--teal);
+  border: 1px solid rgba(54,194,180,.42);
+  background: rgba(54,194,180,.10);
+  border-radius: 14px;
+  padding: 10px 14px;
+  font-weight: 900;
+  min-width: 240px;
+  text-align: center;
+}
+.active-range span {
+  display: block;
+  color: #9fc6ff;
+  direction: ltr;
+  margin-top: 4px;
+  font-size: 13px;
+}
+.date-mode-row,
+.date-nav-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.date-mode-btn {
+  background: var(--panel2);
+  border: 1px solid var(--border);
+  color: #b6c7e6;
+  border-radius: 999px;
+  padding: 9px 14px;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 900;
+}
+.date-mode-btn:hover,
+.date-mode-btn.active {
+  color: var(--amber);
+  border-color: rgba(244,166,35,.65);
+  background: rgba(244,166,35,.13);
+}
+.date-fields-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(160px, 1fr));
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.date-fields-grid label {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 900;
+}
+.filter-status-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+.filter-status-row > div {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 8px 14px;
+  color: var(--muted);
+}
+.filter-status-row b {
+  color: var(--text);
+}
+@media(max-width:1000px){
+  .date-filter-head{flex-direction:column}
+  .active-range{width:100%; min-width:0}
+  .date-fields-grid{grid-template-columns:1fr}
+}

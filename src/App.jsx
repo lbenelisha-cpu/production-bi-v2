@@ -32,7 +32,7 @@ export default function App() {
     database: <Database settings={settings} entries={entries} quality={quality} setSettings={setSettings} setEntries={setEntries} setQuality={setQuality} />,
     facilities: <Settings settings={settings} setSettings={setSettings} />,
     production: <Production entries={entries} setEntries={setEntries} settings={settings} />,
-    quality: <Quality quality={quality} />,
+    quality: <Quality quality={quality} settings={settings} />,
     orders: <Placeholder title="הזמנות" subtitle="פתוחות, סגורות ופער מתוכנן מול נמסר" />,
     analytics: <Placeholder title="מגמות וניתוח" subtitle="השוואות תקופה, תחזיות ו־OEE" />,
     reports: <Placeholder title="דוחות Excel" subtitle="ייצוא דוח הנהלה, Raw Data ותרשימים" />,

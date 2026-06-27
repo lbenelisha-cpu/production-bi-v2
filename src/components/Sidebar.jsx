@@ -1,18 +1,16 @@
-import { BarChart3, Building2, ClipboardList, Database, FlaskConical, Home, LineChart, MessageCircle, Settings, ShieldCheck, FileSpreadsheet, Cloud } from "lucide-react";
-
-const nav = [
-  { id: "dashboard", label: "דשבורד", icon: Home },
-  { id: "data", label: "טעינת נתונים", icon: Database },
-  { id: "database", label: "Database", icon: Cloud },
-  { id: "facilities", label: "מתקנים ויעדים", icon: Building2 },
-  { id: "production", label: "ייצור ואריזה", icon: BarChart3 },
-  { id: "quality", label: "איכות", icon: FlaskConical },
-  { id: "orders", label: "הזמנות", icon: ClipboardList },
-  { id: "analytics", label: "מגמות", icon: LineChart },
-  { id: "reports", label: "דוחות Excel", icon: FileSpreadsheet },
-  { id: "whatsapp", label: "WhatsApp", icon: MessageCircle },
-  { id: "settings", label: "הגדרות", icon: Settings },
-  { id: "admin", label: "מנהל", icon: ShieldCheck }
+const items = [
+  ["dashboard", "📊", "דשבורד"],
+  ["data", "📂", "טעינת נתונים"],
+  ["database", "☁️", "Database"],
+  ["facilities", "🏭", "הגדרות מתקנים"],
+  ["production", "🏷️", "ייצור ואריזה"],
+  ["quality", "✅", "איכות"],
+  ["orders", "📋", "הזמנות"],
+  ["analytics", "📈", "מגמות"],
+  ["reports", "📄", "דוחות Excel"],
+  ["whatsapp", "💬", "WhatsApp"],
+  ["settings", "⚙️", "הגדרות"],
+  ["admin", "🔐", "ניהול"]
 ];
 
 export default function Sidebar({ active, setActive }) {
@@ -26,15 +24,16 @@ export default function Sidebar({ active, setActive }) {
         <div className="brand-mark">BI</div>
       </div>
       <nav>
-        {nav.map(item => {
-          const Icon = item.icon;
-          return (
-            <button key={item.id} className={active === item.id ? "nav-item active" : "nav-item"} onClick={() => setActive(item.id)}>
-              <Icon size={19} />
-              <span>{item.label}</span>
-            </button>
-          );
-        })}
+        {items.map(([key, icon, label]) => (
+          <button
+            key={key}
+            className={`nav-item ${active === key ? "active" : ""}`}
+            onClick={() => setActive(key)}
+          >
+            <span>{icon}</span>
+            <strong>{label}</strong>
+          </button>
+        ))}
       </nav>
     </aside>
   );

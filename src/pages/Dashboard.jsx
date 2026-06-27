@@ -1,19 +1,52 @@
+import { useMemo, useState } from "react";
 import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis, BarChart, Bar } from "recharts";
 import KpiCard from "../components/KpiCard.jsx";
+import DateFilterBar from "../components/DateFilterBar.jsx";
 import { fmt } from "../services/storage.js";
 import { byFacility, summarizeEntries, summarizeQuality, trendByDate } from "../services/calculations.js";
+import { buildRange, defaultDateFilter, filterByDashboardFilters, filterByDateRange } from "../services/dateFilters.js";
 
 export default function Dashboard({ entries, quality, settings }) {
-  const summary = summarizeEntries(entries, settings);
-  const q = summarizeQuality(quality);
-  const trend = trendByDate(entries, settings);
-  const facilityRows = byFacility(entries, settings);
+  const [dateFilter, setDateFilter] = useState(defaultDateFilter);
+  const [extraFilters, setExtraFilters] = useState({ facility: "all", line: "all", shift: "all", order: "" });
+
+  const range = useMemo(() => buildRange(dateFilter), [dateFilter]);
+
+  const filteredEntries = useMemo(
+    () => filterByDashboardFilters(entries, range, extraFilters),
+    [entries, range, extraFilters]
+  );
+
+  const filteredQuality = useMemo(() => {
+    const dateFiltered = filterByDateRange(quality, range);
+    if (extraFilters.facility === "all") return dateFiltered;
+    return dateFiltered.filter(q => q.facility === extraFilters.facility);
+  }, [quality, range, extraFilters.facility]);
+
+  const summary = summarizeEntries(filteredEntries, settings);
+  const q = summarizeQuality(filteredQuality);
+  const trend = trendByDate(filteredEntries, settings);
+  const facilityRows = byFacility(filteredEntries, settings);
 
   return (
     <section className="page">
       <div className="page-head">
         <div><h2>דשבורד ראשי</h2><p>תמונת מצב ייצור, אריזה, איכות והזמנות</p></div>
-        <div className="version-badge">Sprint 5.1</div>
+        <div className="version-badge">Sprint 6</div>
+      </div>
+
+      <DateFilterBar
+        dateFilter={dateFilter}
+        setDateFilter={setDateFilter}
+        extraFilters={extraFilters}
+        setExtraFilters={setExtraFilters}
+        settings={settings}
+      />
+
+      <div className="filter-status-row">
+        <div>טווח פעיל: <b>{range.start} - {range.end}</b></div>
+        <div>רשומות ייצור/אריזה: <b>{fmt(filteredEntries.length)}</b> מתוך {fmt(entries.length)}</div>
+        <div>רשומות איכות: <b>{fmt(filteredQuality.length)}</b> מתוך {fmt(quality.length)}</div>
       </div>
 
       <div className="kpi-grid">
@@ -39,7 +72,7 @@ export default function Dashboard({ entries, quality, settings }) {
                 <Line type="monotone" dataKey="target" name="יעד" stroke="#94a3b8" strokeWidth={2} />
               </LineChart>
             </ResponsiveContainer>
-          ) : <div className="empty-mini">אין עדיין נתונים. עבור לטעינת נתונים או ייצור ואריזה.</div>}
+          ) : <div className="empty-mini">אין נתונים להצגה בטווח שנבחר</div>}
         </div>
 
         <div className="panel">
@@ -55,7 +88,7 @@ export default function Dashboard({ entries, quality, settings }) {
                 <Bar dataKey="target" name="יעד" fill="#f4a623" />
               </BarChart>
             </ResponsiveContainer>
-          ) : <div className="empty-mini">אין נתונים לפי מתקן</div>}
+          ) : <div className="empty-mini">אין נתונים לפי מתקן בטווח שנבחר</div>}
         </div>
       </div>
     </section>
