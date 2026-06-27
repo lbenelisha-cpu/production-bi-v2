@@ -1,7 +1,56 @@
-export function daysInMonth(dateStr){const d=dateStr?new Date(dateStr):new Date();return new Date(d.getFullYear(),d.getMonth()+1,0).getDate()}
-export function facilityDailyTarget(f,dateStr,field="packagingTarget"){const raw=Number(f?.[field]||0);if(!raw)return 0;if(f.targetType==="monthly")return raw/daysInMonth(dateStr);return raw}
-export function lineTargetByEntry(e,s){if(!e.packagingLine)return 0;const line=s.lines.find(l=>l.id===e.packagingLine);return Number(line?.dailyTarget||0)}
-export function entryTarget(e,s,field="packagingTarget"){const f=s.facilities.find(x=>x.id===e.facility);if(!f)return 0;if(f.targetType==="packagingLines")return lineTargetByEntry(e,s);return facilityDailyTarget(f,e.date,field)}
-export function summarizeEntries(entries,s){const production=entries.reduce((a,e)=>a+Number(e.production||0),0);const packaging=entries.reduce((a,e)=>a+Number(e.packaging||0),0);const target=entries.reduce((a,e)=>a+entryTarget(e,s,"packagingTarget"),0);const dates=new Set(entries.map(e=>e.date).filter(Boolean));const facs=new Set(entries.map(e=>e.facility).filter(Boolean));const achievement=target>0?Math.round(packaging/target*100):0;return{production,packaging,target,achievement,workingDays:dates.size,facilities:facs.size}}
-export function trendByDate(entries,s){const m={};entries.forEach(e=>{if(!m[e.date])m[e.date]={date:e.date,production:0,packaging:0,target:0};m[e.date].production+=Number(e.production||0);m[e.date].packaging+=Number(e.packaging||0);m[e.date].target+=entryTarget(e,s,"packagingTarget")});return Object.values(m).sort((a,b)=>a.date.localeCompare(b.date))}
-export function byFacility(entries,s){const m={};entries.forEach(e=>{if(!m[e.facility])m[e.facility]={facility:e.facility,production:0,packaging:0,target:0};m[e.facility].production+=Number(e.production||0);m[e.facility].packaging+=Number(e.packaging||0);m[e.facility].target+=entryTarget(e,s,"packagingTarget")});return Object.values(m).map(x=>({...x,achievement:x.target>0?Math.round(x.packaging/x.target*100):0}))}
+export function daysInMonth(dateStr) {
+  const d = dateStr ? new Date(dateStr) : new Date();
+  return new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+}
+export function facilityDailyTarget(facility, dateStr, targetField = "packagingTarget") {
+  const raw = Number(facility?.[targetField] || 0);
+  if (!raw) return 0;
+  if (facility.targetType === "monthly") return raw / daysInMonth(dateStr);
+  return raw;
+}
+export function lineTargetByEntry(entry, settings) {
+  if (!entry.packagingLine) return 0;
+  const line = settings.lines.find(l => l.id === entry.packagingLine);
+  return Number(line?.dailyTarget || 0);
+}
+export function entryTarget(entry, settings, targetField = "packagingTarget") {
+  const facility = settings.facilities.find(f => f.id === entry.facility);
+  if (!facility) return 0;
+  if (facility.targetType === "packagingLines") return lineTargetByEntry(entry, settings);
+  return facilityDailyTarget(facility, entry.date, targetField);
+}
+export function summarizeEntries(entries, settings) {
+  const production = entries.reduce((s, e) => s + Number(e.production || 0), 0);
+  const packaging = entries.reduce((s, e) => s + Number(e.packaging || 0), 0);
+  const target = entries.reduce((s, e) => s + entryTarget(e, settings, "packagingTarget"), 0);
+  const dates = new Set(entries.map(e => e.date).filter(Boolean));
+  const facilities = new Set(entries.map(e => e.facility).filter(Boolean));
+  const achievement = target > 0 ? Math.round((packaging / target) * 100) : 0;
+  return { production, packaging, target, achievement, workingDays: dates.size, facilities: facilities.size };
+}
+export function summarizeQuality(rows) {
+  const ok = rows.filter(x => x.status === "ok").length;
+  const pending = rows.filter(x => x.status === "pending").length;
+  const bad = rows.filter(x => x.status === "bad").length;
+  return { total: rows.length, ok, pending, bad };
+}
+export function trendByDate(entries, settings) {
+  const map = {};
+  entries.forEach(e => {
+    if (!map[e.date]) map[e.date] = { date: e.date, production: 0, packaging: 0, target: 0 };
+    map[e.date].production += Number(e.production || 0);
+    map[e.date].packaging += Number(e.packaging || 0);
+    map[e.date].target += entryTarget(e, settings, "packagingTarget");
+  });
+  return Object.values(map).sort((a, b) => a.date.localeCompare(b.date));
+}
+export function byFacility(entries, settings) {
+  const map = {};
+  entries.forEach(e => {
+    if (!map[e.facility]) map[e.facility] = { facility: e.facility, production: 0, packaging: 0, target: 0 };
+    map[e.facility].production += Number(e.production || 0);
+    map[e.facility].packaging += Number(e.packaging || 0);
+    map[e.facility].target += entryTarget(e, settings, "packagingTarget");
+  });
+  return Object.values(map).map(x => ({ ...x, achievement: x.target > 0 ? Math.round((x.packaging / x.target) * 100) : 0 }));
+}

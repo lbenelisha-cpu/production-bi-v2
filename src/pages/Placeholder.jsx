@@ -1,1 +1,3 @@
-export default function Placeholder({title,subtitle}){return <section className="page"><div className="page-head"><div><h2>{title}</h2><p>{subtitle||"מודול זה ייבנה בספרינטים הבאים"}</p></div><div className="version-badge">בפיתוח</div></div><div className="panel empty-module"><h3>המודול מוכן להמשך פיתוח</h3><p>בשלב הבא נעביר לכאן את הלוגיקה הקיימת מ־V1 בצורה מודולרית ומסודרת.</p></div></section>}
+export default function Placeholder({ title, subtitle }) {
+  return <section className="page"><div className="page-head"><div><h2>{title}</h2><p>{subtitle || "מודול זה ייבנה בספרינטים הבאים"}</p></div><div className="version-badge">בפיתוח</div></div><div className="panel empty-module"><h3>המודול מוכן להמשך פיתוח</h3><p>בשלב הבא נעביר לכאן את הלוגיקה הקיימת מ־V1 בצורה מודולרית ומסודרת.</p></div></section>;
+}
