@@ -20,26 +20,16 @@ const pageMap = {
 
 export default function App() {
   const [active, setActive] = useState(localStorage.getItem("adama_bi_active_page") || "dashboard");
-
+  useEffect(() => localStorage.setItem("adama_bi_active_page", active), [active]);
   useEffect(() => {
-    localStorage.setItem("adama_bi_active_page", active);
-  }, [active]);
-
-  useEffect(() => {
-    if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.register("/service-worker.js").catch(() => {});
-    }
+    if ("serviceWorker" in navigator) navigator.serviceWorker.register("/service-worker.js").catch(() => {});
   }, []);
-
   return (
     <div className="app-shell">
       <Sidebar active={active} setActive={setActive} />
       <main className="main-content">
         <header className="topbar">
-          <div>
-            <strong>ADAMA Production BI</strong>
-            <span>מערכת ניהול ייצור, אריזה ואיכות</span>
-          </div>
+          <div><strong>ADAMA Production BI</strong><span>מערכת ניהול ייצור, אריזה ואיכות</span></div>
           <button onClick={() => window.location.reload()}>רענן</button>
         </header>
         {pageMap[active] || pageMap.dashboard}

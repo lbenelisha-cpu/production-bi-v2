@@ -18,18 +18,14 @@ export default function Sidebar({ active, setActive }) {
     <aside className="sidebar">
       <div className="brand">
         <div className="brand-mark">BI</div>
-        <div>
-          <h1>ADAMA</h1>
-          <p>Production BI</p>
-        </div>
+        <div><h1>ADAMA</h1><p>Production BI</p></div>
       </div>
       <nav>
         {nav.map(item => {
           const Icon = item.icon;
           return (
             <button key={item.id} className={active === item.id ? "nav-item active" : "nav-item"} onClick={() => setActive(item.id)}>
-              <Icon size={19} />
-              <span>{item.label}</span>
+              <Icon size={19} /><span>{item.label}</span>
             </button>
           );
         })}

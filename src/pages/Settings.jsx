@@ -1,16 +1,15 @@
 import { useState } from "react";
-import { facilityTargets as defaultFacilities, packagingLineTargets as defaultLines } from "../data/defaults.js";
+import { facilityTargets as defaultFacilities, packagingLineTargets as defaultLines, normalizeFacilityId } from "../data/defaults.js";
 
 const STORAGE_KEY = "adama_production_bi_settings_v1";
 
 function loadSettings() {
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
-    return {
-      facilities: saved.facilities || defaultFacilities,
-      lines: saved.lines || defaultLines,
-      audit: saved.audit || []
-    };
+    const facilities = (saved.facilities || defaultFacilities)
+      .map(f => ({ ...f, id: normalizeFacilityId(f.id), name: f.id === "28" ? "מתקן 1528" : f.name }))
+      .filter((f, index, arr) => arr.findIndex(x => x.id === f.id) === index);
+    return { facilities, lines: saved.lines || defaultLines, audit: saved.audit || [] };
   } catch {
     return { facilities: defaultFacilities, lines: defaultLines, audit: [] };
   }
@@ -28,6 +27,16 @@ export default function Settings() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(finalState));
   };
 
+  const resetDefaults = () => {
+    const next = {
+      facilities: defaultFacilities,
+      lines: defaultLines,
+      audit: [{ at: new Date().toLocaleString("he-IL"), reason: "איפוס מתקנים לברירת מחדל: 28 אוחד ל־1528" }]
+    };
+    setSettings(next);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+  };
+
   const updateFacility = (idx, field, value) => {
     if (!isAdmin) return;
     const facilities = settings.facilities.map((f, i) => i === idx ? { ...f, [field]: field.includes("Target") ? Number(value || 0) : value } : f);
@@ -43,10 +52,7 @@ export default function Settings() {
   return (
     <section className="page">
       <div className="page-head">
-        <div>
-          <h2>הגדרות מערכת</h2>
-          <p>יעדי ייצור ואריזה ניתנים לשינוי ללא שינוי קוד</p>
-        </div>
+        <div><h2>הגדרות מערכת</h2><p>יעדי ייצור ואריזה ניתנים לשינוי ללא שינוי קוד</p></div>
         <div className={isAdmin ? "admin-ok" : "admin-lock"}>{isAdmin ? "מנהל פעיל" : "מצב צפייה"}</div>
       </div>
 
@@ -59,31 +65,23 @@ export default function Settings() {
       </div>
 
       <div className="panel">
+        <div className="panel-title">עדכון רשימת מתקנים</div>
+        <p className="muted">לחץ כדי להסיר כפילות 28 ולאחד אותו ל־1528, כולל רשימת המתקנים החדשה.</p>
+        <button className="action-btn" onClick={resetDefaults}>עדכן לברירת מחדל</button>
+      </div>
+
+      <div className="panel">
         <div className="panel-title">יעדי מתקנים</div>
         <div className="table-wrap">
           <table>
-            <thead>
-              <tr>
-                <th>מתקן</th><th>שם</th><th>יחידה</th><th>סוג יעד</th><th>יעד ייצור</th><th>יעד אריזה</th><th>פעיל</th>
-              </tr>
-            </thead>
+            <thead><tr><th>מתקן</th><th>שם</th><th>יחידה</th><th>סוג יעד</th><th>יעד ייצור</th><th>יעד אריזה</th><th>פעיל</th></tr></thead>
             <tbody>
               {settings.facilities.map((f, idx) => (
                 <tr key={f.id}>
                   <td>{f.id}</td>
                   <td><input disabled={!isAdmin} value={f.name} onChange={e => updateFacility(idx, "name", e.target.value)} /></td>
-                  <td>
-                    <select disabled={!isAdmin} value={f.unit} onChange={e => updateFacility(idx, "unit", e.target.value)}>
-                      <option>ליטר</option><option>ק״ג</option><option>טון</option>
-                    </select>
-                  </td>
-                  <td>
-                    <select disabled={!isAdmin} value={f.targetType} onChange={e => updateFacility(idx, "targetType", e.target.value)}>
-                      <option value="daily">יומי</option>
-                      <option value="monthly">חודשי</option>
-                      <option value="packagingLines">לפי קווי אריזה</option>
-                    </select>
-                  </td>
+                  <td><select disabled={!isAdmin} value={f.unit} onChange={e => updateFacility(idx, "unit", e.target.value)}><option>ליטר</option><option>ק״ג</option><option>טון</option></select></td>
+                  <td><select disabled={!isAdmin} value={f.targetType} onChange={e => updateFacility(idx, "targetType", e.target.value)}><option value="daily">יומי</option><option value="monthly">חודשי</option><option value="packagingLines">לפי קווי אריזה</option></select></td>
                   <td><input disabled={!isAdmin} type="number" value={f.productionTarget} onChange={e => updateFacility(idx, "productionTarget", e.target.value)} /></td>
                   <td><input disabled={!isAdmin} type="number" value={f.packagingTarget} onChange={e => updateFacility(idx, "packagingTarget", e.target.value)} /></td>
                   <td><input disabled={!isAdmin} type="checkbox" checked={f.active} onChange={e => updateFacility(idx, "active", e.target.checked)} /></td>
@@ -110,9 +108,7 @@ export default function Settings() {
       <div className="panel">
         <div className="panel-title">היסטוריית שינויים</div>
         {settings.audit.length === 0 ? <p className="muted">אין שינויים עדיין</p> : (
-          <ul className="audit-list">
-            {settings.audit.map((a, i) => <li key={i}><span>{a.at}</span> — {a.reason}</li>)}
-          </ul>
+          <ul className="audit-list">{settings.audit.map((a, i) => <li key={i}><span>{a.at}</span> — {a.reason}</li>)}</ul>
         )}
       </div>
     </section>

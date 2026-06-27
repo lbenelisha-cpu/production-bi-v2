@@ -7,11 +7,8 @@ export default function Dashboard() {
   return (
     <section className="page">
       <div className="page-head">
-        <div>
-          <h2>דשבורד ראשי</h2>
-          <p>תמונת מצב ייצור, אריזה, איכות והזמנות</p>
-        </div>
-        <div className="version-badge">V2 Sprint 1</div>
+        <div><h2>דשבורד ראשי</h2><p>תמונת מצב ייצור, אריזה, איכות והזמנות</p></div>
+        <div className="version-badge">Facilities Update</div>
       </div>
 
       <div className="kpi-grid">
@@ -37,7 +34,6 @@ export default function Dashboard() {
             </LineChart>
           </ResponsiveContainer>
         </div>
-
         <div className="panel">
           <div className="panel-title">איכות</div>
           <div className="quality-stack">
@@ -49,7 +45,7 @@ export default function Dashboard() {
       </div>
 
       <div className="panel">
-        <div className="panel-title">מחווני מתקנים</div>
+        <div className="panel-title">מחווני מתקנים — 28 מאוחד ל־1528</div>
         <div className="facility-mini-grid">
           {facilityTargets.filter(f => f.active).map(f => (
             <div className="facility-chip-card" key={f.id}>

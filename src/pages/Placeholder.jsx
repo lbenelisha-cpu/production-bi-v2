@@ -2,10 +2,7 @@ export default function Placeholder({ title, subtitle }) {
   return (
     <section className="page">
       <div className="page-head">
-        <div>
-          <h2>{title}</h2>
-          <p>{subtitle || "מודול זה ייבנה בספרינטים הבאים"}</p>
-        </div>
+        <div><h2>{title}</h2><p>{subtitle || "מודול זה ייבנה בספרינטים הבאים"}</p></div>
         <div className="version-badge">בפיתוח</div>
       </div>
       <div className="panel empty-module">
