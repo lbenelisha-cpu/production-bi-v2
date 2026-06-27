@@ -1,0 +1,19 @@
+{
+  "component": "DateRangeMenu",
+  "version": "1.0.0",
+  "language": "he",
+  "direction": "rtl",
+  "modes": [
+    "day",
+    "month",
+    "quarter",
+    "year",
+    "custom"
+  ],
+  "output": {
+    "viewMode": "day | month | quarter | year | custom",
+    "startDate": "YYYY-MM-DD",
+    "endDate": "YYYY-MM-DD",
+    "label": "Hebrew display label"
+  }
+}
