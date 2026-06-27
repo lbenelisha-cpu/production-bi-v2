@@ -1,14 +1,17 @@
-# ADAMA Production BI — Sprint 3
+# ADAMA Production BI — Sprint 4 Supabase Ready
 
 נוסף:
-- מסך טעינת נתונים.
-- טעינת קובץ Excel ייצור/אריזה.
-- טעינת קובץ Excel איכות.
-- זיהוי אוטומטי לפי כותרות.
-- מרכז מקורות נתונים.
-- מסך איכות עם כרטיסים לחיצים.
-- הדשבורד מציג גם נתוני איכות.
+- הכנה לחיבור Supabase.
+- מסך Database.
+- קובץ SQL: supabase/schema.sql
+- קובץ .env.example
+- תלות @supabase/supabase-js
+- מצב מקומי ממשיך לעבוד עד שמגדירים Supabase.
 
 Netlify:
 Build command: npm run build
 Publish directory: dist
+
+Environment Variables:
+VITE_SUPABASE_URL
+VITE_SUPABASE_ANON_KEY

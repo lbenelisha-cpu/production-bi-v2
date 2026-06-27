@@ -2,35 +2,11 @@ import { useEffect, useState } from "react";
 import Sidebar from "./components/Sidebar.jsx";
 import Dashboard from "./pages/Dashboard.jsx";
 import DataImport from "./pages/DataImport.jsx";
+import Database from "./pages/Database.jsx";
 import Settings from "./pages/Settings.jsx";
 import Production from "./pages/Production.jsx";
 import Quality from "./pages/Quality.jsx";
 import Placeholder from "./pages/Placeholder.jsx";
 import { loadEntries, loadImportStatus, loadQuality, loadSettings, saveEntries, saveImportStatus, saveQuality } from "./services/storage.js";
 import "./styles/main.css";
-export default function App() {
-  const [active, setActive] = useState(localStorage.getItem("adama_bi_active_page") || "dashboard");
-  const [settings, setSettings] = useState(loadSettings);
-  const [entries, setEntriesState] = useState(loadEntries);
-  const [quality, setQualityState] = useState(loadQuality);
-  const [importStatus, setImportStatusState] = useState(loadImportStatus);
-  const setEntries = next => { setEntriesState(next); saveEntries(next); };
-  const setQuality = next => { setQualityState(next); saveQuality(next); };
-  const setImportStatus = next => { setImportStatusState(next); saveImportStatus(next); };
-  useEffect(() => localStorage.setItem("adama_bi_active_page", active), [active]);
-  useEffect(() => { if ("serviceWorker" in navigator) navigator.serviceWorker.register("/service-worker.js").catch(() => {}); }, []);
-  const pages = {
-    dashboard: <Dashboard entries={entries} quality={quality} settings={settings} />,
-    data: <DataImport entries={entries} setEntries={setEntries} quality={quality} setQuality={setQuality} importStatus={importStatus} setImportStatus={setImportStatus} />,
-    facilities: <Settings settings={settings} setSettings={setSettings} />,
-    production: <Production entries={entries} setEntries={setEntries} settings={settings} />,
-    quality: <Quality quality={quality} />,
-    orders: <Placeholder title="הזמנות" subtitle="פתוחות, סגורות ופער מתוכנן מול נמסר" />,
-    analytics: <Placeholder title="מגמות וניתוח" subtitle="השוואות תקופה, תחזיות ו־OEE" />,
-    reports: <Placeholder title="דוחות Excel" subtitle="ייצוא דוח הנהלה, Raw Data ותרשימים" />,
-    whatsapp: <Placeholder title="WhatsApp" subtitle="טקסט מעוצב, תמונת הנהלה ושיתוף" />,
-    settings: <Settings settings={settings} setSettings={setSettings} />,
-    admin: <Placeholder title="ניהול והרשאות" subtitle="משתמשים, הרשאות ו־Audit Log" />
-  };
-  return <div className="app-shell"><Sidebar active={active} setActive={setActive}/><main className="main-content"><header className="topbar"><div><strong>ADAMA Production BI</strong><span>מערכת ניהול ייצור, אריזה ואיכות</span></div><button onClick={()=>window.location.reload()}>רענן</button></header>{pages[active] || pages.dashboard}</main></div>;
-}
+export default function App(){const[active,setActive]=useState(localStorage.getItem("adama_bi_active_page")||"dashboard");const[settings,setSettings]=useState(loadSettings);const[entries,setEntriesState]=useState(loadEntries);const[quality,setQualityState]=useState(loadQuality);const[importStatus,setImportStatusState]=useState(loadImportStatus);const setEntries=next=>{setEntriesState(next);saveEntries(next)};const setQuality=next=>{setQualityState(next);saveQuality(next)};const setImportStatus=next=>{setImportStatusState(next);saveImportStatus(next)};useEffect(()=>localStorage.setItem("adama_bi_active_page",active),[active]);useEffect(()=>{if("serviceWorker"in navigator)navigator.serviceWorker.register("/service-worker.js").catch(()=>{})},[]);const pages={dashboard:<Dashboard entries={entries} quality={quality} settings={settings}/>,data:<DataImport entries={entries} setEntries={setEntries} quality={quality} setQuality={setQuality} importStatus={importStatus} setImportStatus={setImportStatus}/>,database:<Database settings={settings} entries={entries} quality={quality} setSettings={setSettings} setEntries={setEntries} setQuality={setQuality}/>,facilities:<Settings settings={settings} setSettings={setSettings}/>,production:<Production entries={entries} setEntries={setEntries} settings={settings}/>,quality:<Quality quality={quality}/>,orders:<Placeholder title="הזמנות" subtitle="פתוחות, סגורות ופער מתוכנן מול נמסר"/>,analytics:<Placeholder title="מגמות וניתוח" subtitle="השוואות תקופה, תחזיות ו־OEE"/>,reports:<Placeholder title="דוחות Excel" subtitle="ייצוא דוח הנהלה, Raw Data ותרשימים"/>,whatsapp:<Placeholder title="WhatsApp" subtitle="טקסט מעוצב, תמונת הנהלה ושיתוף"/>,settings:<Settings settings={settings} setSettings={setSettings}/>,admin:<Placeholder title="ניהול והרשאות" subtitle="משתמשים, הרשאות ו־Audit Log"/>};return <div className="app-shell"><Sidebar active={active} setActive={setActive}/><main className="main-content"><header className="topbar"><div><strong>ADAMA Production BI</strong><span>מערכת ניהול ייצור, אריזה ואיכות</span></div><button onClick={()=>window.location.reload()}>רענן</button></header>{pages[active]||pages.dashboard}</main></div>}
