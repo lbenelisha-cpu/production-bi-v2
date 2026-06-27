@@ -1,0 +1,26 @@
+{
+  "name": "ADAMA Production BI - Sprint 6 Date Filter",
+  "version": "6.0.0",
+  "description": "תפריט תאריכים משובץ בדשבורד הראשי כולל סינון נתונים בפועל",
+  "placement": "מתחת לכותרת דשבורד ראשי ולפני כרטיסי KPI",
+  "files": [
+    "DashboardScreen.jsx",
+    "DateFilterBar.jsx",
+    "dateRangeUtils.js",
+    "AppExample.jsx",
+    "integration_notes.md"
+  ],
+  "features": [
+    "יומי",
+    "חודשי",
+    "רבעוני",
+    "שנתי",
+    "טווח חופשי",
+    "תקופה קודמת",
+    "תקופה נוכחית",
+    "תקופה הבאה",
+    "סינון productionRows",
+    "סינון qualityRows",
+    "סינון eventRows"
+  ]
+}

@@ -1,21 +1,29 @@
-import React, { useState } from "react";
-import { View, Text } from "react-native";
-import DateRangeMenu from "./DateRangeMenu";
+import React from "react";
+import DashboardScreen from "./DashboardScreen";
+
+const productionRows = [
+  { date: "2026-06-01", facility: "1542", production: 42000, packaging: 39000, targetPackaging: 60000 },
+  { date: "2026-06-10", facility: "1543", production: 61000, packaging: 58000, targetPackaging: 80000 },
+  { date: "2026-07-02", facility: "1519", production: 24000, packaging: 21000, targetPackaging: 50000 },
+  { date: "2026-04-15", facility: "1528", production: 76000, packaging: 0, targetPackaging: 0 },
+];
+
+const qualityRows = [
+  { date: "2026-06-01", lot: "A100", status: "תקין" },
+  { date: "2026-07-02", lot: "B200", status: "חריג" },
+];
+
+const eventRows = [
+  { date: "2026-06-10", type: "איכות", text: "בדיקת איכות" },
+  { date: "2026-05-20", type: "סביבה", text: "אירוע סביבתי" },
+];
 
 export default function AppExample() {
-  const [range, setRange] = useState(null);
-
   return (
-    <View style={{ flex: 1, backgroundColor: "#111417", padding: 16 }}>
-      <DateRangeMenu onChange={setRange} />
-
-      <Text style={{ color: "#fff", marginTop: 20, textAlign: "right" }}>
-        כאן הדשבורד יקבל את הטווח:
-      </Text>
-
-      <Text style={{ color: "#36C2B4", marginTop: 8, textAlign: "right" }}>
-        {range ? JSON.stringify(range, null, 2) : "בחר תקופה"}
-      </Text>
-    </View>
+    <DashboardScreen
+      productionRows={productionRows}
+      qualityRows={qualityRows}
+      eventRows={eventRows}
+    />
   );
 }

@@ -10,10 +10,6 @@ export function todayISO() {
 export function parseDateOnly(value) {
   if (!value) return null;
 
-  // Supports:
-  // 2026-06-27
-  // 27/06/2026
-  // Date object
   if (value instanceof Date && !isNaN(value)) {
     return `${value.getFullYear()}-${pad2(value.getMonth() + 1)}-${pad2(value.getDate())}`;
   }
@@ -43,9 +39,31 @@ export function lastDayOfMonth(year, month) {
   return new Date(year, month, 0).getDate();
 }
 
+export function addDays(iso, delta) {
+  const [y, m, d] = iso.split("-").map(Number);
+  const date = new Date(y, m - 1, d);
+  date.setDate(date.getDate() + delta);
+  return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
+}
+
+export function shiftMonth(ym, delta) {
+  const [y, m] = ym.split("-").map(Number);
+  const d = new Date(y, m - 1 + delta, 1);
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}`;
+}
+
+export function getQuarterFromDate(date = new Date()) {
+  return Math.floor(date.getMonth() / 3) + 1;
+}
+
 export function calcDateRange(state) {
   if (state.viewMode === "day") {
-    return { viewMode: "day", startDate: state.day, endDate: state.day, label: `יומי | ${state.day}` };
+    return {
+      viewMode: "day",
+      startDate: state.day,
+      endDate: state.day,
+      label: `יומי | ${state.day}`,
+    };
   }
 
   if (state.viewMode === "month") {
@@ -86,33 +104,29 @@ export function calcDateRange(state) {
   };
 }
 
-/**
- * מסנן רשומות לפי טווח תאריכים.
- *
- * rows: מערך נתונים מהאקסל / מסד הנתונים
- * range: הפלט של DateRangeMenu
- * dateField: שם עמודת התאריך, ברירת מחדל "date"
- *
- * דוגמא:
- * filterRowsByDateRange(rows, range, "reportDate")
- */
+export function getRowDate(row, dateField) {
+  return (
+    parseDateOnly(row?.[dateField]) ||
+    parseDateOnly(row?.date) ||
+    parseDateOnly(row?.Date) ||
+    parseDateOnly(row?.תאריך) ||
+    parseDateOnly(row?.["תאריך דיווח"]) ||
+    parseDateOnly(row?.report_date) ||
+    parseDateOnly(row?.production_date) ||
+    parseDateOnly(row?.createdAt)
+  );
+}
+
 export function filterRowsByDateRange(rows, range, dateField = "date") {
   if (!Array.isArray(rows)) return [];
   if (!range || !range.startDate || !range.endDate) return rows;
 
   const start = parseDateOnly(range.startDate);
   const end = parseDateOnly(range.endDate);
-
   if (!start || !end) return rows;
 
   return rows.filter((row) => {
-    const rowDate =
-      parseDateOnly(row?.[dateField]) ||
-      parseDateOnly(row?.date) ||
-      parseDateOnly(row?.תאריך) ||
-      parseDateOnly(row?.report_date) ||
-      parseDateOnly(row?.production_date);
-
+    const rowDate = getRowDate(row, dateField);
     if (!rowDate) return false;
     return rowDate >= start && rowDate <= end;
   });
