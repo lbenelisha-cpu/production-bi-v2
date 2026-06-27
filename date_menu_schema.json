@@ -1,19 +1,18 @@
 {
   "component": "DateRangeMenu",
-  "version": "1.0.0",
-  "language": "he",
-  "direction": "rtl",
-  "modes": [
-    "day",
-    "month",
-    "quarter",
-    "year",
-    "custom"
-  ],
+  "version": "2.0.0",
+  "includesFiltering": true,
   "output": {
     "viewMode": "day | month | quarter | year | custom",
     "startDate": "YYYY-MM-DD",
     "endDate": "YYYY-MM-DD",
     "label": "Hebrew display label"
-  }
+  },
+  "filterFunction": "filterRowsByDateRange(rows, range, dateField)",
+  "defaultDateFields": [
+    "date",
+    "תאריך",
+    "report_date",
+    "production_date"
+  ]
 }

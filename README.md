@@ -1,33 +1,39 @@
-# תפריט תאריכים לאפליקציית הדשבורד
+# Date Menu Component V2 — כולל סינון בפועל
 
-החבילה כוללת קומפוננטה מוכנה לאפליקציה:
+הגרסה הזאת כבר לא רק מציגה תפריט תאריכים.
+היא כוללת גם פונקציה שמסננת נתונים לפי התאריך שנבחר.
 
 ## קבצים
-- `DateRangeMenu.jsx` — הקומפוננטה הראשית.
-- `dateRangeUtils.js` — פונקציות חישוב טווחי תאריכים.
-- `AppExample.jsx` — דוגמת שילוב באפליקציה.
-- `date_menu_schema.json` — מבנה הפלט שהדשבורד יקבל.
+- `DateRangeMenu.jsx` — תפריט התאריכים.
+- `dateRangeUtils.js` — חישוב טווח + סינון רשומות.
+- `DashboardExample.jsx` — דוגמה מלאה שבה הנתונים באמת מסתננים.
+- `date_menu_schema.json` — מבנה הפלט.
 
-## סוגי תצוגה
-- יומי
-- חודשי
-- רבעוני
-- שנתי
-- טווח חופשי
-
-## פלט לדשבורד
-```json
-{
-  "viewMode": "month",
-  "startDate": "2026-06-01",
-  "endDate": "2026-06-30",
-  "label": "חודשי | 2026-06"
-}
+## הפונקציה החשובה
+```js
+filterRowsByDateRange(rows, range, "date")
 ```
 
-## שילוב
-```jsx
-<DateRangeMenu onChange={(range) => {
-  // כאן מסננים את נתוני הדשבורד לפי range.startDate / range.endDate
-}} />
+היא מחזירה רק רשומות שהתאריך שלהן נמצא בתוך:
+```js
+range.startDate <= row.date <= range.endDate
 ```
+
+## שמות תאריך נתמכים אוטומטית
+הפונקציה מזהה:
+- `date`
+- `תאריך`
+- `report_date`
+- `production_date`
+
+או שאפשר להעביר שם עמודה:
+```js
+filterRowsByDateRange(rows, range, "תאריך דיווח")
+```
+
+## דוגמה
+```js
+const filteredRows = filterRowsByDateRange(allRows, selectedRange, "date");
+```
+
+עכשיו הדשבורד צריך להשתמש ב־`filteredRows` במקום `allRows`.

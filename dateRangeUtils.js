@@ -7,6 +7,38 @@ export function todayISO() {
   return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
 }
 
+export function parseDateOnly(value) {
+  if (!value) return null;
+
+  // Supports:
+  // 2026-06-27
+  // 27/06/2026
+  // Date object
+  if (value instanceof Date && !isNaN(value)) {
+    return `${value.getFullYear()}-${pad2(value.getMonth() + 1)}-${pad2(value.getDate())}`;
+  }
+
+  const s = String(value).trim();
+
+  if (/^\d{4}-\d{1,2}-\d{1,2}$/.test(s)) {
+    const [y, m, d] = s.split("-");
+    return `${y}-${pad2(Number(m))}-${pad2(Number(d))}`;
+  }
+
+  if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(s)) {
+    const [d, m, y] = s.split("/");
+    return `${y}-${pad2(Number(m))}-${pad2(Number(d))}`;
+  }
+
+  const t = Date.parse(s);
+  if (!isNaN(t)) {
+    const d = new Date(t);
+    return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+  }
+
+  return null;
+}
+
 export function lastDayOfMonth(year, month) {
   return new Date(year, month, 0).getDate();
 }
@@ -52,4 +84,36 @@ export function calcDateRange(state) {
     endDate: state.endDate,
     label: `טווח חופשי | ${state.startDate} עד ${state.endDate}`,
   };
+}
+
+/**
+ * מסנן רשומות לפי טווח תאריכים.
+ *
+ * rows: מערך נתונים מהאקסל / מסד הנתונים
+ * range: הפלט של DateRangeMenu
+ * dateField: שם עמודת התאריך, ברירת מחדל "date"
+ *
+ * דוגמא:
+ * filterRowsByDateRange(rows, range, "reportDate")
+ */
+export function filterRowsByDateRange(rows, range, dateField = "date") {
+  if (!Array.isArray(rows)) return [];
+  if (!range || !range.startDate || !range.endDate) return rows;
+
+  const start = parseDateOnly(range.startDate);
+  const end = parseDateOnly(range.endDate);
+
+  if (!start || !end) return rows;
+
+  return rows.filter((row) => {
+    const rowDate =
+      parseDateOnly(row?.[dateField]) ||
+      parseDateOnly(row?.date) ||
+      parseDateOnly(row?.תאריך) ||
+      parseDateOnly(row?.report_date) ||
+      parseDateOnly(row?.production_date);
+
+    if (!rowDate) return false;
+    return rowDate >= start && rowDate <= end;
+  });
 }
