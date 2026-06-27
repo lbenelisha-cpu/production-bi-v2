@@ -1,1 +1,46 @@
-import{facilityTargets,packagingLineTargets}from"../data/defaults.js";export const loadSettings=()=>JSON.parse(localStorage.getItem("adama_settings")||"null")||{facilities:facilityTargets,lines:packagingLineTargets,audit:[]};export const saveSettings=s=>localStorage.setItem("adama_settings",JSON.stringify(s));export const loadEntries=()=>JSON.parse(localStorage.getItem("adama_entries")||"[]");export const saveEntries=e=>{try{localStorage.setItem("adama_entries",JSON.stringify(e))}catch{}};export const loadQuality=()=>JSON.parse(localStorage.getItem("adama_quality")||"[]");export const saveQuality=q=>{try{localStorage.setItem("adama_quality",JSON.stringify(q))}catch{}};export const fmt=n=>Math.round(Number(n||0)).toLocaleString("en-US");
+import { facilityTargets, packagingLineTargets, normalizeFacilityId } from "../data/defaults.js";
+
+export const SETTINGS_KEY = "adama_production_bi_settings_v2";
+export const ENTRIES_KEY = "adama_production_bi_entries_v1";
+export const QUALITY_KEY = "adama_production_bi_quality_v1";
+export const IMPORT_STATUS_KEY = "adama_production_bi_import_status_v1";
+
+export function loadSettings() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(SETTINGS_KEY) || "{}");
+    const facilities = (saved.facilities || facilityTargets)
+      .map(f => ({ ...f, id: normalizeFacilityId(f.id), name: f.id === "28" ? "מתקן 1528" : f.name }))
+      .filter((f, index, arr) => arr.findIndex(x => x.id === f.id) === index);
+    return { facilities, lines: saved.lines || packagingLineTargets, audit: saved.audit || [] };
+  } catch {
+    return { facilities: facilityTargets, lines: packagingLineTargets, audit: [] };
+  }
+}
+export function saveSettings(settings) { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); }
+
+export function loadEntries() {
+  try { return JSON.parse(localStorage.getItem(ENTRIES_KEY) || "[]").map(e => ({ ...e, facility: normalizeFacilityId(e.facility) })); }
+  catch { return []; }
+}
+export function saveEntries(entries) {
+  try { localStorage.setItem(ENTRIES_KEY, JSON.stringify(entries)); }
+  catch (e) { console.warn("LocalStorage entries full", e); }
+}
+
+export function loadQuality() {
+  try { return JSON.parse(localStorage.getItem(QUALITY_KEY) || "[]").map(e => ({ ...e, facility: normalizeFacilityId(e.facility) })); }
+  catch { return []; }
+}
+export function saveQuality(rows) {
+  try { localStorage.setItem(QUALITY_KEY, JSON.stringify(rows)); }
+  catch (e) { console.warn("LocalStorage quality full", e); }
+}
+
+export function loadImportStatus() {
+  try { return JSON.parse(localStorage.getItem(IMPORT_STATUS_KEY) || "{}"); }
+  catch { return {}; }
+}
+export function saveImportStatus(status) { localStorage.setItem(IMPORT_STATUS_KEY, JSON.stringify(status)); }
+
+export function fmt(n) { return Math.round(Number(n || 0)).toLocaleString("en-US"); }
+export function todayISO() { return new Date().toISOString().slice(0, 10); }

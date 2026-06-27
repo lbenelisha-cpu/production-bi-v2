@@ -1,5 +1,4 @@
-
--- ADAMA Production BI — Sprint 5 Cloud Schema
+-- ADAMA Production BI — Sprint 5.1 Cloud Schema
 -- Run once in Supabase SQL Editor.
 
 create extension if not exists pgcrypto;
@@ -28,8 +27,8 @@ create table if not exists packaging_lines (
 create table if not exists production_entries (
   id text primary key,
   date date,
-  facility text references facilities(id) on update cascade on delete set null,
-  packaging_line text references packaging_lines(id) on update cascade on delete set null,
+  facility text,
+  packaging_line text,
   shift text,
   production numeric default 0,
   packaging numeric default 0,
@@ -44,12 +43,12 @@ create table if not exists production_entries (
 create table if not exists quality_entries (
   id text primary key,
   date date,
-  facility text references facilities(id) on update cascade on delete set null,
+  facility text,
   order_no text,
   batch text,
   material text,
   inspection_lot text,
-  status text check (status in ('ok','pending','bad')) default 'ok',
+  status text default 'ok',
   source text,
   created_at timestamptz default now(),
   updated_at timestamptz default now()
@@ -58,12 +57,12 @@ create table if not exists quality_entries (
 create table if not exists events (
   id text primary key,
   date date,
-  facility text references facilities(id) on update cascade on delete set null,
-  event_type text check (event_type in ('quality','environment','safety','production','other')) default 'other',
+  facility text,
+  event_type text default 'other',
   title text,
   description text,
-  severity text check (severity in ('low','medium','high','critical')) default 'medium',
-  status text check (status in ('open','closed','in_progress')) default 'open',
+  severity text default 'medium',
+  status text default 'open',
   created_at timestamptz default now()
 );
 
@@ -71,7 +70,7 @@ create table if not exists app_users (
   id uuid primary key default gen_random_uuid(),
   email text unique,
   full_name text,
-  role text check (role in ('admin','manager','viewer')) default 'viewer',
+  role text default 'viewer',
   active boolean default true,
   created_at timestamptz default now()
 );
@@ -86,7 +85,8 @@ create table if not exists app_audit_log (
   details jsonb
 );
 
-insert into facilities (id,name,unit,target_type,production_target,packaging_target,active,display_order) values
+insert into facilities (id, name, unit, target_type, production_target, packaging_target, active, display_order)
+values
 ('1543','מתקן 1543','ליטר','packagingLines',0,0,true,1),
 ('1542','מתקן 1542','ליטר','packagingLines',0,0,true,2),
 ('1541','מתקן 1541','ליטר','monthly',210000,210000,true,3),
@@ -97,14 +97,27 @@ insert into facilities (id,name,unit,target_type,production_target,packaging_tar
 ('1523','מתקן 1523','ליטר','daily',40000,40000,true,8),
 ('1521','מתקן 1521','ליטר','daily',0,0,true,9),
 ('1519','מתקן 1519','ק״ג','daily',0,0,true,10)
-on conflict (id) do update set name=excluded.name,unit=excluded.unit,target_type=excluded.target_type,
-production_target=excluded.production_target,packaging_target=excluded.packaging_target,active=excluded.active,display_order=excluded.display_order,updated_at=now();
+on conflict (id) do update set
+  name = excluded.name,
+  unit = excluded.unit,
+  target_type = excluded.target_type,
+  production_target = excluded.production_target,
+  packaging_target = excluded.packaging_target,
+  active = excluded.active,
+  display_order = excluded.display_order,
+  updated_at = now();
 
-insert into packaging_lines (id,name,daily_target,unit,active) values
+insert into packaging_lines (id, name, daily_target, unit, active)
+values
 ('1L','קו 1 ליטר',18000,'ליטר',true),
 ('5L','קו 5 ליטר',60000,'ליטר',true),
 ('10_20L','קו 10/20 ליטר',60000,'ליטר',true)
-on conflict (id) do update set name=excluded.name,daily_target=excluded.daily_target,unit=excluded.unit,active=excluded.active,updated_at=now();
+on conflict (id) do update set
+  name = excluded.name,
+  daily_target = excluded.daily_target,
+  unit = excluded.unit,
+  active = excluded.active,
+  updated_at = now();
 
 alter table facilities enable row level security;
 alter table packaging_lines enable row level security;
@@ -114,37 +127,23 @@ alter table events enable row level security;
 alter table app_users enable row level security;
 alter table app_audit_log enable row level security;
 
-drop policy if exists "bi public read facilities" on facilities;
-create policy "bi public read facilities" on facilities for select using (true);
-drop policy if exists "bi public write facilities" on facilities;
-create policy "bi public write facilities" on facilities for all using (true) with check (true);
+drop policy if exists "bi public all facilities" on facilities;
+create policy "bi public all facilities" on facilities for all using (true) with check (true);
 
-drop policy if exists "bi public read packaging_lines" on packaging_lines;
-create policy "bi public read packaging_lines" on packaging_lines for select using (true);
-drop policy if exists "bi public write packaging_lines" on packaging_lines;
-create policy "bi public write packaging_lines" on packaging_lines for all using (true) with check (true);
+drop policy if exists "bi public all packaging_lines" on packaging_lines;
+create policy "bi public all packaging_lines" on packaging_lines for all using (true) with check (true);
 
-drop policy if exists "bi public read production_entries" on production_entries;
-create policy "bi public read production_entries" on production_entries for select using (true);
-drop policy if exists "bi public write production_entries" on production_entries;
-create policy "bi public write production_entries" on production_entries for all using (true) with check (true);
+drop policy if exists "bi public all production_entries" on production_entries;
+create policy "bi public all production_entries" on production_entries for all using (true) with check (true);
 
-drop policy if exists "bi public read quality_entries" on quality_entries;
-create policy "bi public read quality_entries" on quality_entries for select using (true);
-drop policy if exists "bi public write quality_entries" on quality_entries;
-create policy "bi public write quality_entries" on quality_entries for all using (true) with check (true);
+drop policy if exists "bi public all quality_entries" on quality_entries;
+create policy "bi public all quality_entries" on quality_entries for all using (true) with check (true);
 
-drop policy if exists "bi public read events" on events;
-create policy "bi public read events" on events for select using (true);
-drop policy if exists "bi public write events" on events;
-create policy "bi public write events" on events for all using (true) with check (true);
+drop policy if exists "bi public all events" on events;
+create policy "bi public all events" on events for all using (true) with check (true);
 
-drop policy if exists "bi public read users" on app_users;
-create policy "bi public read users" on app_users for select using (true);
-drop policy if exists "bi public write users" on app_users;
-create policy "bi public write users" on app_users for all using (true) with check (true);
+drop policy if exists "bi public all app_users" on app_users;
+create policy "bi public all app_users" on app_users for all using (true) with check (true);
 
-drop policy if exists "bi public read audit" on app_audit_log;
-create policy "bi public read audit" on app_audit_log for select using (true);
-drop policy if exists "bi public write audit" on app_audit_log;
-create policy "bi public write audit" on app_audit_log for insert with check (true);
+drop policy if exists "bi public all app_audit_log" on app_audit_log;
+create policy "bi public all app_audit_log" on app_audit_log for all using (true) with check (true);
