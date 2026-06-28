@@ -1,0 +1,41 @@
+import { BarChart3, Building2, ClipboardList, Database, FlaskConical, Home, LineChart, MessageCircle, Settings, ShieldCheck, FileSpreadsheet, Cloud } from "lucide-react";
+
+const nav = [
+  { id: "dashboard", label: "דשבורד", icon: Home },
+  { id: "data", label: "טעינת נתונים", icon: Database },
+  { id: "database", label: "Database", icon: Cloud },
+  { id: "facilities", label: "מתקנים ויעדים", icon: Building2 },
+  { id: "production", label: "ייצור ואריזה", icon: BarChart3 },
+  { id: "quality", label: "איכות", icon: FlaskConical },
+  { id: "orders", label: "הזמנות", icon: ClipboardList },
+  { id: "analytics", label: "מגמות", icon: LineChart },
+  { id: "reports", label: "דוחות Excel", icon: FileSpreadsheet },
+  { id: "whatsapp", label: "WhatsApp", icon: MessageCircle },
+  { id: "settings", label: "הגדרות", icon: Settings },
+  { id: "admin", label: "מנהל", icon: ShieldCheck }
+];
+
+export default function Sidebar({ active, setActive }) {
+  return (
+    <aside className="sidebar">
+      <div className="brand">
+        <div>
+          <h1>ADAMA</h1>
+          <p>Production BI</p>
+        </div>
+        <div className="brand-mark">BI</div>
+      </div>
+      <nav>
+        {nav.map(item => {
+          const Icon = item.icon;
+          return (
+            <button key={item.id} className={active === item.id ? "nav-item active" : "nav-item"} onClick={() => setActive(item.id)}>
+              <Icon size={19} />
+              <span>{item.label}</span>
+            </button>
+          );
+        })}
+      </nav>
+    </aside>
+  );
+}

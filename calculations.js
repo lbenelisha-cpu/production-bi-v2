@@ -1,0 +1,74 @@
+import { useMemo, useState } from "react";
+import { fmt, todayISO } from "../services/storage.js";
+import { entryTarget, summarizeEntries } from "../services/calculations.js";
+
+const emptyForm = { date: todayISO(), facility: "1542", packagingLine: "5L", shift: "בוקר", production: "", packaging: "", order: "", batch: "", note: "" };
+
+export default function Production({ entries, setEntries, settings }) {
+  const [form, setForm] = useState(emptyForm);
+  const [filterFacility, setFilterFacility] = useState("all");
+  const [filterDate, setFilterDate] = useState("");
+
+  const filtered = useMemo(() => entries.filter(e => (filterFacility === "all" || e.facility === filterFacility) && (!filterDate || e.date === filterDate)), [entries, filterFacility, filterDate]);
+  const summary = summarizeEntries(filtered, settings);
+
+  const update = (field, value) => setForm(prev => ({ ...prev, [field]: value }));
+  const addEntry = () => {
+    if (!form.date || !form.facility) return alert("חובה לבחור תאריך ומתקן");
+    const entry = { ...form, id: Date.now().toString(), production: Number(form.production || 0), packaging: Number(form.packaging || 0) };
+    setEntries([entry, ...entries]);
+    setForm({ ...emptyForm, date: form.date, facility: form.facility, packagingLine: form.packagingLine });
+  };
+
+  return (
+    <section className="page">
+      <div className="page-head"><div><h2>ייצור ואריזה</h2><p>הזנת דיווחים, סינון וחישוב יעד</p></div><div className="version-badge">מודול פעיל</div></div>
+      <div className="kpi-grid">
+        <div className="kpi-card teal"><div className="kpi-label">אריזה בטווח</div><div className="kpi-value">{fmt(summary.packaging)}</div></div>
+        <div className="kpi-card amber"><div className="kpi-label">יעד בטווח</div><div className="kpi-value">{fmt(summary.target)}</div></div>
+        <div className={`kpi-card ${summary.achievement >= 100 ? "green" : "red"}`}><div className="kpi-label">עמידה ביעד</div><div className="kpi-value">{summary.achievement}%</div></div>
+        <div className="kpi-card"><div className="kpi-label">רשומות</div><div className="kpi-value">{filtered.length}</div></div>
+      </div>
+
+      <div className="panel">
+        <div className="panel-title">הוספת דיווח ידני</div>
+        <div className="form-grid">
+          <label>תאריך<input type="date" value={form.date} onChange={e => update("date", e.target.value)} /></label>
+          <label>מתקן<select value={form.facility} onChange={e => update("facility", e.target.value)}>{settings.facilities.filter(f=>f.active).map(f=><option key={f.id} value={f.id}>{f.id} - {f.name}</option>)}</select></label>
+          <label>קו אריזה<select value={form.packagingLine} onChange={e => update("packagingLine", e.target.value)}>{settings.lines.map(l=><option key={l.id} value={l.id}>{l.name}</option>)}</select></label>
+          <label>משמרת<select value={form.shift} onChange={e => update("shift", e.target.value)}><option>בוקר</option><option>ערב</option><option>לילה</option><option>יממה</option></select></label>
+          <label>ייצור<input type="number" value={form.production} onChange={e => update("production", e.target.value)} /></label>
+          <label>אריזה<input type="number" value={form.packaging} onChange={e => update("packaging", e.target.value)} /></label>
+          <label>פקודה<input value={form.order} onChange={e => update("order", e.target.value)} /></label>
+          <label>Batch<input value={form.batch} onChange={e => update("batch", e.target.value)} /></label>
+          <label className="wide">הערה<input value={form.note} onChange={e => update("note", e.target.value)} /></label>
+          <button className="action-btn" onClick={addEntry}>הוסף דיווח</button>
+        </div>
+      </div>
+
+      <div className="panel">
+        <div className="panel-title">סינון רשומות</div>
+        <div className="filter-row">
+          <select value={filterFacility} onChange={e => setFilterFacility(e.target.value)}>
+            <option value="all">כל המתקנים</option>
+            {settings.facilities.filter(f=>f.active).map(f=><option key={f.id} value={f.id}>{f.id}</option>)}
+          </select>
+          <input type="date" value={filterDate} onChange={e => setFilterDate(e.target.value)} />
+          <button className="secondary-btn" onClick={() => { setFilterDate(""); setFilterFacility("all"); }}>נקה סינון</button>
+        </div>
+      </div>
+
+      <div className="panel">
+        <div className="panel-title">פירוט דיווחים</div>
+        {filtered.length ? (
+          <div className="table-wrap">
+            <table>
+              <thead><tr><th>תאריך</th><th>מתקן</th><th>קו</th><th>משמרת</th><th>ייצור</th><th>אריזה</th><th>יעד</th><th>פקודה</th><th>Batch</th><th>הערה</th></tr></thead>
+              <tbody>{filtered.slice(0, 1000).map(e => <tr key={e.id}><td>{e.date}</td><td>{e.facility}</td><td>{e.packagingLine}</td><td>{e.shift}</td><td>{fmt(e.production)}</td><td>{fmt(e.packaging)}</td><td>{fmt(entryTarget(e, settings))}</td><td>{e.order}</td><td>{e.batch}</td><td>{e.note}</td></tr>)}</tbody>
+            </table>
+          </div>
+        ) : <div className="empty-mini">אין רשומות להצגה</div>}
+      </div>
+    </section>
+  );
+}
