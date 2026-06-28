@@ -1,5 +1,19 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
-<rect width="512" height="512" rx="96" fill="#111827"/>
-<rect x="86" y="86" width="340" height="340" rx="72" fill="#f4a623"/>
-<text x="256" y="294" font-size="132" text-anchor="middle" font-family="Arial, sans-serif" font-weight="900" fill="#111827">BI</text>
-</svg>
+{
+  "name": "ADAMA Production BI",
+  "short_name": "Production BI",
+  "description": "מערכת BI לניהול ייצור, אריזה, איכות, יעדים ודוחות",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#111827",
+  "dir": "rtl",
+  "lang": "he",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

@@ -1,3 +1,5 @@
-const CACHE_NAME="adama-production-bi-sprint5-1";
-self.addEventListener("install",event=>{self.skipWaiting()});
-self.addEventListener("activate",event=>{event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE_NAME).map(k=>caches.delete(k)))));self.clients.claim()});
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+<rect width="512" height="512" rx="96" fill="#111827"/>
+<rect x="86" y="86" width="340" height="340" rx="72" fill="#f4a623"/>
+<text x="256" y="294" font-size="132" text-anchor="middle" font-family="Arial, sans-serif" font-weight="900" fill="#111827">BI</text>
+</svg>

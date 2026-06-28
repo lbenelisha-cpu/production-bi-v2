@@ -1,53 +1,66 @@
-import { useEffect, useState } from "react";
-import Sidebar from "./components/Sidebar.jsx";
-import Dashboard from "./pages/Dashboard.jsx";
-import DataImport from "./pages/DataImport.jsx";
-import Database from "./pages/Database.jsx";
-import Settings from "./pages/Settings.jsx";
-import Production from "./pages/Production.jsx";
-import Quality from "./pages/Quality.jsx";
-import Placeholder from "./pages/Placeholder.jsx";
-import { loadEntries, loadImportStatus, loadQuality, loadSettings, saveEntries, saveImportStatus, saveQuality } from "./services/storage.js";
-import "./styles/main.css";
+import { useRef, useState } from "react";
+import { parseExcelFile } from "../services/excelImport.js";
+import { fmt } from "../services/storage.js";
+import { supabaseEnabled } from "../services/supabaseClient.js";
+import { cloudReplaceEntries, cloudReplaceQuality } from "../services/cloudStorage.js";
 
-export default function App() {
-  const [active, setActive] = useState(localStorage.getItem("adama_bi_active_page") || "dashboard");
-  const [settings, setSettings] = useState(loadSettings);
-  const [entries, setEntriesState] = useState(loadEntries);
-  const [quality, setQualityState] = useState(loadQuality);
-  const [importStatus, setImportStatusState] = useState(loadImportStatus);
+export default function DataImport({ entries, setEntries, quality, setQuality, importStatus, setImportStatus }) {
+  const inputRef = useRef(null);
+  const [message, setMessage] = useState("");
 
-  const setEntries = next => { setEntriesState(next); saveEntries(next); };
-  const setQuality = next => { setQualityState(next); saveQuality(next); };
-  const setImportStatus = next => { setImportStatusState(next); saveImportStatus(next); };
-
-  useEffect(() => localStorage.setItem("adama_bi_active_page", active), [active]);
-  useEffect(() => {
-    if ("serviceWorker" in navigator) navigator.serviceWorker.register("/service-worker.js").catch(() => {});
-  }, []);
-
-  const pages = {
-    dashboard: <Dashboard entries={entries} quality={quality} settings={settings} />,
-    data: <DataImport entries={entries} setEntries={setEntries} quality={quality} setQuality={setQuality} importStatus={importStatus} setImportStatus={setImportStatus} />,
-    database: <Database settings={settings} entries={entries} quality={quality} setSettings={setSettings} setEntries={setEntries} setQuality={setQuality} />,
-    facilities: <Settings settings={settings} setSettings={setSettings} />,
-    production: <Production entries={entries} setEntries={setEntries} settings={settings} />,
-    quality: <Quality quality={quality} />,
-    orders: <Placeholder title="הזמנות" subtitle="פתוחות, סגורות ופער מתוכנן מול נמסר" />,
-    analytics: <Placeholder title="מגמות וניתוח" subtitle="השוואות תקופה, תחזיות ו־OEE" />,
-    reports: <Placeholder title="דוחות Excel" subtitle="ייצוא דוח הנהלה, Raw Data ותרשימים" />,
-    whatsapp: <Placeholder title="WhatsApp" subtitle="טקסט מעוצב, תמונת הנהלה ושיתוף" />,
-    settings: <Settings settings={settings} setSettings={setSettings} />,
-    admin: <Placeholder title="ניהול והרשאות" subtitle="משתמשים, הרשאות ו־Audit Log" />
+  const onFile = async (file) => {
+    if (!file) return;
+    try {
+      const result = await parseExcelFile(file);
+      if (result.type === "production") {
+        setEntries(result.rows);
+        if (supabaseEnabled) await cloudReplaceEntries(result.rows);
+        setImportStatus({ ...importStatus, production: { file: file.name, at: new Date().toLocaleString("he-IL"), rows: result.rows.length } });
+      } else if (result.type === "quality") {
+        setQuality(result.rows);
+        if (supabaseEnabled) await cloudReplaceQuality(result.rows);
+        setImportStatus({ ...importStatus, quality: { file: file.name, at: new Date().toLocaleString("he-IL"), rows: result.rows.length } });
+      } else {
+        setMessage("לא הצלחתי לזהות אם זה קובץ ייצור/אריזה או איכות.");
+        return;
+      }
+      setMessage(result.message + (supabaseEnabled ? " | נשמר גם בענן" : " | נשמר מקומית"));
+    } catch (e) {
+      setMessage("שגיאה בקריאת הקובץ: " + e.message);
+    }
   };
 
   return (
-    <div className="app-shell">
-      <Sidebar active={active} setActive={setActive} />
-      <main className="main-content">
-        <header className="topbar"><div><strong>ADAMA Production BI</strong><span>מערכת ניהול ייצור, אריזה ואיכות</span></div><button onClick={() => window.location.reload()}>רענן</button></header>
-        {pages[active] || pages.dashboard}
-      </main>
-    </div>
+    <section className="page">
+      <div className="page-head">
+        <div><h2>טעינת נתונים</h2><p>טעינת Excel אחד לייצור/אריזה או לקובץ איכות</p></div>
+        <div className="version-badge">{supabaseEnabled ? "Cloud" : "Local"}</div>
+      </div>
+
+      <div className="panel import-panel">
+        <div className="panel-title">בחירת קובץ Excel</div>
+        <input ref={inputRef} type="file" accept=".xlsx,.xls,.csv" style={{display:"none"}} onChange={e => onFile(e.target.files?.[0])} />
+        <button className="action-btn" onClick={() => inputRef.current?.click()}>📂 בחר קובץ Excel</button>
+        {message && <p className="import-message">{message}</p>}
+      </div>
+
+      <div className="panel">
+        <div className="panel-title">מרכז מקורות נתונים</div>
+        <div className="source-grid">
+          <div className="source-card">
+            <strong>ייצור / אריזה</strong>
+            <span>{importStatus.production ? "✅ נטען" : "❌ לא נטען"}</span>
+            <small>{importStatus.production ? `${importStatus.production.file} | ${importStatus.production.at}` : "—"}</small>
+            <small>רשומות במערכת: {fmt(entries.length)}</small>
+          </div>
+          <div className="source-card">
+            <strong>איכות</strong>
+            <span>{importStatus.quality ? "✅ נטען" : "❌ לא נטען"}</span>
+            <small>{importStatus.quality ? `${importStatus.quality.file} | ${importStatus.quality.at}` : "—"}</small>
+            <small>רשומות במערכת: {fmt(quality.length)}</small>
+          </div>
+        </div>
+      </div>
+    </section>
   );
 }

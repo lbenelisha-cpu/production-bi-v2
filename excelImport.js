@@ -1,72 +1,40 @@
-import { useState } from "react";
-import { facilityTargets as defaultFacilities, packagingLineTargets as defaultLines, normalizeFacilityId } from "../data/defaults.js";
-import { saveSettings } from "../services/storage.js";
-import { supabaseEnabled } from "../services/supabaseClient.js";
-import { cloudSaveSettings } from "../services/cloudStorage.js";
+const items = [
+  ["dashboard", "📊", "דשבורד"],
+  ["data", "📂", "טעינת נתונים"],
+  ["database", "☁️", "Database"],
+  ["facilities", "🏭", "הגדרות מתקנים"],
+  ["production", "🏷️", "ייצור ואריזה"],
+  ["quality", "✅", "איכות"],
+  ["orders", "📋", "הזמנות"],
+  ["analytics", "📈", "מגמות"],
+  ["reports", "📄", "דוחות Excel"],
+  ["whatsapp", "💬", "WhatsApp"],
+  ["settings", "⚙️", "הגדרות"],
+  ["admin", "🔐", "ניהול"]
+];
 
-export default function Settings({ settings, setSettings }) {
-  const [adminCode, setAdminCode] = useState("");
-  const isAdmin = adminCode === "1542";
-
-  const save = async (next, reason) => {
-    const audit = [{ at: new Date().toLocaleString("he-IL"), reason }, ...(next.audit || settings.audit || [])].slice(0, 50);
-    const finalState = { ...next, audit };
-    setSettings(finalState);
-    saveSettings(finalState);
-    if (supabaseEnabled) {
-      try { await cloudSaveSettings(finalState); } catch(e) { console.warn(e); }
-    }
-  };
-
-  const resetDefaults = () => {
-    const next = { facilities: defaultFacilities, lines: defaultLines, audit: [{ at: new Date().toLocaleString("he-IL"), reason: "איפוס מתקנים לברירת מחדל" }] };
-    setSettings(next);
-    saveSettings(next);
-  };
-
-  const updateFacility = (idx, field, value) => {
-    if (!isAdmin) return;
-    const facilities = settings.facilities.map((f, i) => i === idx ? { ...f, [field]: field.includes("Target") ? Number(value || 0) : value } : f)
-      .map(f => ({ ...f, id: normalizeFacilityId(f.id) }))
-      .filter((f, index, arr) => arr.findIndex(x => x.id === f.id) === index);
-    save({ ...settings, facilities }, `עודכן יעד/הגדרה למתקן ${settings.facilities[idx].id}`);
-  };
-
-  const updateLine = (idx, value) => {
-    if (!isAdmin) return;
-    const lines = settings.lines.map((l, i) => i === idx ? { ...l, dailyTarget: Number(value || 0) } : l);
-    save({ ...settings, lines }, `עודכן יעד יומי לקו ${settings.lines[idx].name}`);
-  };
-
+export default function Sidebar({ active, setActive }) {
   return (
-    <section className="page">
-      <div className="page-head"><div><h2>הגדרות מערכת</h2><p>יעדי ייצור ואריזה ניתנים לשינוי ללא שינוי קוד</p></div><div className={isAdmin ? "admin-ok" : "admin-lock"}>{isAdmin ? "מנהל פעיל" : "מצב צפייה"}</div></div>
-      <div className="panel">
-        <div className="panel-title">כניסת מנהל</div>
-        <div className="admin-row"><input value={adminCode} onChange={e => setAdminCode(e.target.value)} placeholder="הזן קוד מנהל" type="password" /><span>קוד ברירת מחדל: 1542</span></div>
-      </div>
-      <div className="panel"><div className="panel-title">עדכון רשימת מתקנים</div><p className="muted">לחץ כדי להחזיר את רשימת ברירת המחדל.</p><button className="action-btn" onClick={resetDefaults}>עדכן לברירת מחדל</button></div>
-      <div className="panel">
-        <div className="panel-title">יעדי מתקנים</div>
-        <div className="table-wrap">
-          <table><thead><tr><th>מתקן</th><th>שם</th><th>יחידה</th><th>סוג יעד</th><th>יעד ייצור</th><th>יעד אריזה</th><th>פעיל</th></tr></thead>
-          <tbody>{settings.facilities.map((f, idx) => (
-            <tr key={f.id}>
-              <td>{f.id}</td>
-              <td><input disabled={!isAdmin} value={f.name} onChange={e => updateFacility(idx, "name", e.target.value)} /></td>
-              <td><select disabled={!isAdmin} value={f.unit} onChange={e => updateFacility(idx, "unit", e.target.value)}><option>ליטר</option><option>ק״ג</option><option>טון</option></select></td>
-              <td><select disabled={!isAdmin} value={f.targetType} onChange={e => updateFacility(idx, "targetType", e.target.value)}><option value="daily">יומי</option><option value="monthly">חודשי</option><option value="packagingLines">לפי קווי אריזה</option></select></td>
-              <td><input disabled={!isAdmin} type="number" value={f.productionTarget} onChange={e => updateFacility(idx, "productionTarget", e.target.value)} /></td>
-              <td><input disabled={!isAdmin} type="number" value={f.packagingTarget} onChange={e => updateFacility(idx, "packagingTarget", e.target.value)} /></td>
-              <td><input disabled={!isAdmin} type="checkbox" checked={f.active} onChange={e => updateFacility(idx, "active", e.target.checked)} /></td>
-            </tr>
-          ))}</tbody></table>
+    <aside className="sidebar">
+      <div className="brand">
+        <div>
+          <h1>ADAMA</h1>
+          <p>Production BI</p>
         </div>
+        <div className="brand-mark">BI</div>
       </div>
-      <div className="panel">
-        <div className="panel-title">יעדי קווי אריזה</div>
-        <div className="line-grid">{settings.lines.map((line, idx) => <div className="line-card" key={line.id}><strong>{line.name}</strong><input disabled={!isAdmin} type="number" value={line.dailyTarget} onChange={e => updateLine(idx, e.target.value)} /><span>{line.unit} / יום</span></div>)}</div>
-      </div>
-    </section>
+      <nav>
+        {items.map(([key, icon, label]) => (
+          <button
+            key={key}
+            className={`nav-item ${active === key ? "active" : ""}`}
+            onClick={() => setActive(key)}
+          >
+            <span>{icon}</span>
+            <strong>{label}</strong>
+          </button>
+        ))}
+      </nav>
+    </aside>
   );
 }

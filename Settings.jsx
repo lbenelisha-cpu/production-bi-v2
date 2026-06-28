@@ -1,41 +1,96 @@
-import { BarChart3, Building2, ClipboardList, Database, FlaskConical, Home, LineChart, MessageCircle, Settings, ShieldCheck, FileSpreadsheet, Cloud } from "lucide-react";
+import { useMemo, useState } from "react";
+import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis, BarChart, Bar } from "recharts";
+import KpiCard from "../components/KpiCard.jsx";
+import DateFilterBar from "../components/DateFilterBar.jsx";
+import { fmt } from "../services/storage.js";
+import { byFacility, summarizeEntries, summarizeQuality, trendByDate } from "../services/calculations.js";
+import { buildRange, defaultDateFilter, filterByDashboardFilters, filterByDateRange } from "../services/dateFilters.js";
 
-const nav = [
-  { id: "dashboard", label: "דשבורד", icon: Home },
-  { id: "data", label: "טעינת נתונים", icon: Database },
-  { id: "database", label: "Database", icon: Cloud },
-  { id: "facilities", label: "מתקנים ויעדים", icon: Building2 },
-  { id: "production", label: "ייצור ואריזה", icon: BarChart3 },
-  { id: "quality", label: "איכות", icon: FlaskConical },
-  { id: "orders", label: "הזמנות", icon: ClipboardList },
-  { id: "analytics", label: "מגמות", icon: LineChart },
-  { id: "reports", label: "דוחות Excel", icon: FileSpreadsheet },
-  { id: "whatsapp", label: "WhatsApp", icon: MessageCircle },
-  { id: "settings", label: "הגדרות", icon: Settings },
-  { id: "admin", label: "מנהל", icon: ShieldCheck }
-];
+export default function Dashboard({ entries, quality, settings }) {
+  const [dateFilter, setDateFilter] = useState(defaultDateFilter);
+  const [extraFilters, setExtraFilters] = useState({ facility: "all", line: "all", shift: "all", order: "" });
 
-export default function Sidebar({ active, setActive }) {
+  const range = useMemo(() => buildRange(dateFilter), [dateFilter]);
+
+  const filteredEntries = useMemo(
+    () => filterByDashboardFilters(entries, range, extraFilters),
+    [entries, range, extraFilters]
+  );
+
+  const filteredQuality = useMemo(() => {
+    const dateFiltered = filterByDateRange(quality, range);
+    if (extraFilters.facility === "all") return dateFiltered;
+    return dateFiltered.filter(q => q.facility === extraFilters.facility);
+  }, [quality, range, extraFilters.facility]);
+
+  const summary = summarizeEntries(filteredEntries, settings);
+  const q = summarizeQuality(filteredQuality);
+  const trend = trendByDate(filteredEntries, settings);
+  const facilityRows = byFacility(filteredEntries, settings);
+
   return (
-    <aside className="sidebar">
-      <div className="brand">
-        <div>
-          <h1>ADAMA</h1>
-          <p>Production BI</p>
-        </div>
-        <div className="brand-mark">BI</div>
+    <section className="page">
+      <div className="page-head">
+        <div><h2>דשבורד ראשי</h2><p>תמונת מצב ייצור, אריזה, איכות והזמנות</p></div>
+        <div className="version-badge">Sprint 6</div>
       </div>
-      <nav>
-        {nav.map(item => {
-          const Icon = item.icon;
-          return (
-            <button key={item.id} className={active === item.id ? "nav-item active" : "nav-item"} onClick={() => setActive(item.id)}>
-              <Icon size={19} />
-              <span>{item.label}</span>
-            </button>
-          );
-        })}
-      </nav>
-    </aside>
+
+      <DateFilterBar
+        dateFilter={dateFilter}
+        setDateFilter={setDateFilter}
+        extraFilters={extraFilters}
+        setExtraFilters={setExtraFilters}
+        settings={settings}
+      />
+
+      <div className="filter-status-row">
+        <div>טווח פעיל: <b>{range.start} - {range.end}</b></div>
+        <div>רשומות ייצור/אריזה: <b>{fmt(filteredEntries.length)}</b> מתוך {fmt(entries.length)}</div>
+        <div>רשומות איכות: <b>{fmt(filteredQuality.length)}</b> מתוך {fmt(quality.length)}</div>
+      </div>
+
+      <div className="kpi-grid">
+        <KpiCard label="סה״כ אריזה" value={fmt(summary.packaging)} sub="ליטר / ק״ג לפי מתקן" tone="teal" />
+        <KpiCard label="יעד אריזה" value={fmt(summary.target)} sub="מחושב מהגדרות המתקנים" tone="amber" />
+        <KpiCard label="עמידה ביעד" value={`${summary.achievement}%`} sub={summary.target ? "לפי נתונים בפועל" : "לא הוגדר יעד"} tone={summary.achievement >= 100 ? "green" : "red"} />
+        <KpiCard label="מנות איכות" value={fmt(q.total)} sub={`תקין ${fmt(q.ok)} | ממתין ${fmt(q.pending)} | חריג ${fmt(q.bad)}`} />
+      </div>
+
+      <div className="dashboard-grid">
+        <div className="panel large">
+          <div className="panel-title">מגמת ייצור ואריזה</div>
+          {trend.length ? (
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={trend}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                <XAxis dataKey="date" stroke="#94a3b8" />
+                <YAxis stroke="#94a3b8" />
+                <Tooltip />
+                <Legend />
+                <Line type="monotone" dataKey="packaging" name="אריזה" stroke="#36c2b4" strokeWidth={3} />
+                <Line type="monotone" dataKey="production" name="ייצור" stroke="#f4a623" strokeWidth={3} />
+                <Line type="monotone" dataKey="target" name="יעד" stroke="#94a3b8" strokeWidth={2} />
+              </LineChart>
+            </ResponsiveContainer>
+          ) : <div className="empty-mini">אין נתונים להצגה בטווח שנבחר</div>}
+        </div>
+
+        <div className="panel">
+          <div className="panel-title">ביצועים לפי מתקן</div>
+          {facilityRows.length ? (
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={facilityRows}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                <XAxis dataKey="facility" stroke="#94a3b8" />
+                <YAxis stroke="#94a3b8" />
+                <Tooltip />
+                <Bar dataKey="packaging" name="אריזה" fill="#36c2b4" />
+                <Bar dataKey="target" name="יעד" fill="#f4a623" />
+              </BarChart>
+            </ResponsiveContainer>
+          ) : <div className="empty-mini">אין נתונים לפי מתקן בטווח שנבחר</div>}
+        </div>
+      </div>
+    </section>
   );
 }

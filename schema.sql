@@ -1,25 +1,46 @@
-export const facilityTargets = [
-  { id: "1543", name: "מתקן 1543", unit: "ליטר", targetType: "packagingLines", productionTarget: 0, packagingTarget: 0, active: true },
-  { id: "1542", name: "מתקן 1542", unit: "ליטר", targetType: "packagingLines", productionTarget: 0, packagingTarget: 0, active: true },
-  { id: "1541", name: "מתקן 1541", unit: "ליטר", targetType: "monthly", productionTarget: 210000, packagingTarget: 210000, active: true },
-  { id: "1540", name: "מתקן 1540", unit: "ק״ג", targetType: "daily", productionTarget: 18000, packagingTarget: 18000, active: true },
-  { id: "1528", name: "מתקן 1528", unit: "ליטר", targetType: "daily", productionTarget: 80000, packagingTarget: 80000, active: true },
-  { id: "1525", name: "מתקן 1525", unit: "ליטר", targetType: "monthly", productionTarget: 130000, packagingTarget: 130000, active: true },
-  { id: "1524", name: "מתקן 1524", unit: "ליטר", targetType: "daily", productionTarget: 6000, packagingTarget: 6000, active: true },
-  { id: "1523", name: "מתקן 1523", unit: "ליטר", targetType: "daily", productionTarget: 40000, packagingTarget: 40000, active: true },
-  { id: "1521", name: "מתקן 1521", unit: "ליטר", targetType: "daily", productionTarget: 0, packagingTarget: 0, active: true },
-  { id: "1519", name: "מתקן 1519", unit: "ק״ג", targetType: "daily", productionTarget: 0, packagingTarget: 0, active: true }
-];
+import { facilityTargets, packagingLineTargets, normalizeFacilityId } from "../data/defaults.js";
 
-export const facilityAliases = { "28": "1528", "42": "1542", "43": "1543" };
+export const SETTINGS_KEY = "adama_production_bi_settings_v2";
+export const ENTRIES_KEY = "adama_production_bi_entries_v1";
+export const QUALITY_KEY = "adama_production_bi_quality_v1";
+export const IMPORT_STATUS_KEY = "adama_production_bi_import_status_v1";
 
-export function normalizeFacilityId(id) {
-  const clean = String(id || "").trim();
-  return facilityAliases[clean] || clean;
+export function loadSettings() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(SETTINGS_KEY) || "{}");
+    const facilities = (saved.facilities || facilityTargets)
+      .map(f => ({ ...f, id: normalizeFacilityId(f.id), name: f.id === "28" ? "מתקן 1528" : f.name }))
+      .filter((f, index, arr) => arr.findIndex(x => x.id === f.id) === index);
+    return { facilities, lines: saved.lines || packagingLineTargets, audit: saved.audit || [] };
+  } catch {
+    return { facilities: facilityTargets, lines: packagingLineTargets, audit: [] };
+  }
+}
+export function saveSettings(settings) { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); }
+
+export function loadEntries() {
+  try { return JSON.parse(localStorage.getItem(ENTRIES_KEY) || "[]").map(e => ({ ...e, facility: normalizeFacilityId(e.facility) })); }
+  catch { return []; }
+}
+export function saveEntries(entries) {
+  try { localStorage.setItem(ENTRIES_KEY, JSON.stringify(entries)); }
+  catch (e) { console.warn("LocalStorage entries full", e); }
 }
 
-export const packagingLineTargets = [
-  { id: "1L", name: "קו 1 ליטר", dailyTarget: 18000, unit: "ליטר" },
-  { id: "5L", name: "קו 5 ליטר", dailyTarget: 60000, unit: "ליטר" },
-  { id: "10_20L", name: "קו 10/20 ליטר", dailyTarget: 60000, unit: "ליטר" }
-];
+export function loadQuality() {
+  try { return JSON.parse(localStorage.getItem(QUALITY_KEY) || "[]").map(e => ({ ...e, facility: normalizeFacilityId(e.facility) })); }
+  catch { return []; }
+}
+export function saveQuality(rows) {
+  try { localStorage.setItem(QUALITY_KEY, JSON.stringify(rows)); }
+  catch (e) { console.warn("LocalStorage quality full", e); }
+}
+
+export function loadImportStatus() {
+  try { return JSON.parse(localStorage.getItem(IMPORT_STATUS_KEY) || "{}"); }
+  catch { return {}; }
+}
+export function saveImportStatus(status) { localStorage.setItem(IMPORT_STATUS_KEY, JSON.stringify(status)); }
+
+export function fmt(n) { return Math.round(Number(n || 0)).toLocaleString("en-US"); }
+export function todayISO() { return new Date().toISOString().slice(0, 10); }

@@ -1,89 +1,180 @@
-import * as XLSX from "xlsx";
-import { normalizeFacilityId } from "../data/defaults.js";
+@import url('https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;700;800;900&display=swap');
 
-function norm(s) { return String(s || "").trim().toLowerCase(); }
-function get(row, keys) {
-  for (const k of keys) {
-    const hit = Object.keys(row).find(h => norm(h) === norm(k) || norm(h).includes(norm(k)));
-    if (hit !== undefined) return row[hit];
-  }
-  return "";
+:root {
+  --bg: #0f1419;
+  --panel: #1b2229;
+  --panel2: #242c35;
+  --border: #334155;
+  --text: #f1f5f9;
+  --muted: #94a3b8;
+  --teal: #36c2b4;
+  --amber: #f4a623;
+  --green: #22c55e;
+  --red: #ef4444;
 }
-function dateToISO(v) {
-  if (!v) return "";
-  if (v instanceof Date) return v.toISOString().slice(0, 10);
-  if (typeof v === "number") {
-    const d = XLSX.SSF.parse_date_code(v);
-    if (d) return `${d.y}-${String(d.m).padStart(2,"0")}-${String(d.d).padStart(2,"0")}`;
-  }
-  const s = String(v).trim();
-  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0,10);
-  const m = s.match(/(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2,4})/);
-  if (m) {
-    const y = m[3].length === 2 ? "20" + m[3] : m[3];
-    return `${y}-${m[2].padStart(2,"0")}-${m[1].padStart(2,"0")}`;
-  }
-  return s;
-}
-function detectPackagingLine(row) {
-  const raw = String(get(row, ["packaging line", "line", "קו", "קו אריזה", "resource", "work center", "packaging type"]) || "").toLowerCase();
-  if (raw.includes("1l") || raw.includes("1 ליטר")) return "1L";
-  if (raw.includes("5l") || raw.includes("5 ליטר") || raw.includes("5")) return "5L";
-  if (raw.includes("10") || raw.includes("20") || raw.includes("10/20")) return "10_20L";
-  return "";
-}
-function classifyQuality(row) {
-  const text = String(get(row, ["result status", "status", "qa approval", "approval", "ud code", "usage decision", "סטטוס", "אישור"]) || "").toLowerCase();
-  const rejected = Number(get(row, ["rejected characteristics", "rejected", "חריגות"]) || 0);
-  if (text.includes("reject") || text.includes("פסול") || text.includes("contamin") || rejected > 0) return "bad";
-  if (text.includes("restrict") || text.includes("condition") || text.includes("pending") || text.includes("מותנה") || text.includes("ממתין") || text.includes("מוגבל")) return "pending";
-  return "ok";
-}
-function isQualityFile(headers) {
-  const h = headers.map(norm).join(" | ");
-  return h.includes("inspection") || h.includes("qa") || h.includes("ud code") || h.includes("result status") || h.includes("rejected characteristics");
+* { box-sizing: border-box; }
+html, body, #root { height: 100%; margin: 0; }
+body { font-family: Heebo, sans-serif; background: var(--bg); color: var(--text); direction: rtl; }
+.app-shell { min-height: 100%; display: grid; grid-template-columns: 280px 1fr; }
+.sidebar { background: #111827; border-left: 1px solid var(--border); padding: 22px 16px; position: sticky; top: 0; height: 100vh; }
+.brand { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 24px; }
+.brand-mark { width: 56px; height: 56px; border-radius: 16px; background: linear-gradient(135deg, var(--amber), #c97e0c); display: flex; align-items: center; justify-content: center; color: #111827; font-weight: 900; font-size: 20px; }
+.brand h1 { margin: 0; font-size: 24px; }
+.brand p { margin: 0; color: #93c5fd; font-size: 14px; }
+.nav-item { width: 100%; display: flex; align-items: center; gap: 10px; border: 1px solid transparent; color: #b6c7e6; background: transparent; border-radius: 12px; padding: 13px 14px; cursor: pointer; font: inherit; margin-bottom: 7px; }
+.nav-item:hover, .nav-item.active { background: rgba(54,194,180,.12); border-color: rgba(54,194,180,.35); color: var(--teal); }
+.main-content { min-width: 0; }
+.topbar { height: 78px; border-bottom: 1px solid var(--border); background: rgba(15,20,25,.9); display: flex; justify-content: space-between; align-items: center; padding: 0 30px; position: sticky; top: 0; z-index: 10; }
+.topbar div { display: flex; flex-direction: column; align-items: flex-end; }
+.topbar span { color: #93c5fd; font-size: 13px; }
+.topbar button { background: var(--panel2); border: 1px solid var(--border); color: var(--text); border-radius: 10px; padding: 8px 14px; cursor: pointer; font: inherit; }
+.page { padding: 28px; max-width: 1450px; margin: 0 auto; }
+.page-head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 22px; gap: 16px; }
+.page h2 { margin: 0; font-size: 34px; font-weight: 900; }
+.page p { color: #93c5fd; margin: 6px 0 0; }
+.version-badge, .admin-ok, .admin-lock { border-radius: 999px; padding: 9px 16px; font-weight: 900; border: 1px solid var(--border); }
+.version-badge { color: var(--amber); border-color: rgba(244,166,35,.45); background: rgba(244,166,35,.1); }
+.admin-ok { color: var(--green); border-color: rgba(34,197,94,.45); background: rgba(34,197,94,.12); }
+.admin-lock { color: var(--muted); background: var(--panel); }
+.kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 18px; }
+.kpi-card { background: var(--panel); border: 1px solid var(--border); border-radius: 18px; padding: 18px; min-height: 126px; cursor: default; }
+.kpi-card.teal { border-top: 4px solid var(--teal); }
+.kpi-card.amber { border-top: 4px solid var(--amber); }
+.kpi-card.green { border-top: 4px solid var(--green); }
+.kpi-card.red { border-top: 4px solid var(--red); }
+.kpi-label { color: #a7b8d8; font-weight: 900; font-size: 14px; }
+.kpi-value { font-size: 36px; font-weight: 900; direction: ltr; text-align: right; margin-top: 10px; }
+.kpi-sub { color: #a7b8d8; font-size: 13px; margin-top: 8px; }
+.dashboard-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; margin-bottom: 18px; }
+.panel { background: var(--panel); border: 1px solid var(--border); border-radius: 18px; padding: 20px; margin-bottom: 18px; }
+.panel-title { font-size: 20px; font-weight: 900; margin-bottom: 14px; }
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; min-width: 980px; }
+th, td { border-bottom: 1px solid var(--border); padding: 10px; text-align: right; }
+th { color: var(--muted); font-size: 13px; }
+input, select { background: var(--panel2); border: 1px solid var(--border); color: var(--text); border-radius: 10px; padding: 8px 10px; font: inherit; width: 100%; }
+input:disabled, select:disabled, button:disabled { opacity: .45; cursor: not-allowed; }
+.admin-row, .filter-row { display: grid; grid-template-columns: 240px 1fr auto; gap: 12px; align-items: center; color: var(--muted); }
+.line-grid, .source-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+.line-card, .source-card { background: var(--panel2); border: 1px solid var(--border); border-radius: 16px; padding: 16px; display: grid; gap: 10px; }
+.empty-module { min-height: 300px; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; }
+.empty-mini { min-height: 180px; display: flex; align-items: center; justify-content: center; color: var(--muted); text-align: center; }
+.muted { color: var(--muted); }
+.action-btn { background: linear-gradient(135deg,var(--amber),#c97e0c); color: #111827; border: none; border-radius: 12px; padding: 10px 16px; font: inherit; font-weight: 900; cursor: pointer; }
+.secondary-btn { background: var(--panel2); color: var(--text); border: 1px solid var(--border); border-radius: 12px; padding: 10px 16px; font: inherit; cursor: pointer; }
+.form-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; align-items: end; }
+.form-grid label { display: grid; gap: 6px; color: var(--muted); font-size: 13px; font-weight: 800; }
+.form-grid .wide { grid-column: span 3; }
+.import-panel { display: grid; gap: 12px; }
+.import-message { color: var(--teal); font-weight: 900; }
+.button-row { display: flex; gap: 12px; flex-wrap: wrap; }
+@media(max-width:1000px){
+  .app-shell{grid-template-columns:1fr}
+  .sidebar{position:relative;height:auto}
+  .sidebar nav{display:grid;grid-template-columns:repeat(2,1fr);gap:6px}
+  .kpi-grid,.dashboard-grid,.line-grid,.source-grid,.form-grid,.admin-row,.filter-row{grid-template-columns:1fr}
+  .form-grid .wide{grid-column:span 1}
+  .page{padding:18px}
 }
 
-export async function parseExcelFile(file) {
-  const buf = await file.arrayBuffer();
-  const wb = XLSX.read(buf, { type: "array", cellDates: true });
-  let allRows = [];
-  wb.SheetNames.forEach(sheetName => {
-    const sheet = wb.Sheets[sheetName];
-    const rows = XLSX.utils.sheet_to_json(sheet, { defval: "" });
-    rows.forEach(r => allRows.push({ ...r, __sheet: sheetName }));
-  });
-  if (!allRows.length) return { type: "unknown", rows: [], message: "לא נמצאו שורות בקובץ" };
-  const headers = Object.keys(allRows[0] || {});
-  const type = isQualityFile(headers) ? "quality" : "production";
 
-  if (type === "quality") {
-    const rows = allRows.map((r, i) => ({
-      id: "q_" + Date.now() + "_" + i,
-      date: dateToISO(get(r, ["date", "inspection date", "sample date", "created on", "תאריך"])),
-      facility: normalizeFacilityId(get(r, ["facility", "storage location", "site", "מתקן"])),
-      order: String(get(r, ["process order", "process order #", "order", "פקודת עבודה"]) || ""),
-      batch: String(get(r, ["batch", "batch number", "אצווה"]) || ""),
-      material: String(get(r, ["material description", "material", "שם חומר"]) || ""),
-      inspectionLot: String(get(r, ["inspection lot", "inspection lot #"]) || ""),
-      status: classifyQuality(r),
-      source: file.name
-    })).filter(r => r.order || r.batch || r.inspectionLot);
-    return { type, rows, message: `נטענו ${rows.length} רשומות איכות` };
-  }
-
-  const rows = allRows.map((r, i) => ({
-    id: "e_" + Date.now() + "_" + i,
-    date: dateToISO(get(r, ["date", "posting date", "actual finish date", "תאריך"])),
-    facility: normalizeFacilityId(get(r, ["facility", "storage location", "site", "מתקן"])),
-    packagingLine: detectPackagingLine(r),
-    shift: String(get(r, ["shift", "משמרת"]) || ""),
-    production: Number(get(r, ["production", "produced", "yield", "confirmed yield", "ייצור"]) || 0),
-    packaging: Number(get(r, ["packaging", "packed", "delivered", "process order delivered", "אריזה", "נמסר"]) || 0),
-    order: String(get(r, ["process order", "process order #", "order", "פקודת עבודה"]) || ""),
-    batch: String(get(r, ["batch", "batch number", "אצווה"]) || ""),
-    note: String(get(r, ["remarks", "note", "הערות"]) || ""),
-    source: file.name
-  })).filter(r => r.date || r.facility || r.order || r.batch || r.production || r.packaging);
-  return { type, rows, message: `נטענו ${rows.length} רשומות ייצור/אריזה` };
+/* Sprint 6 — Date & BI filters */
+.date-filter-panel {
+  background: linear-gradient(180deg, rgba(27,34,41,.98), rgba(20,26,33,.98));
+  border: 1px solid rgba(54,194,180,.35);
+  border-radius: 20px;
+  padding: 18px;
+  margin: 0 0 18px;
+  box-shadow: 0 12px 28px rgba(0,0,0,.18);
+}
+.date-filter-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+.date-filter-title {
+  font-size: 20px;
+  font-weight: 900;
+  color: var(--text);
+}
+.date-filter-sub {
+  color: var(--muted);
+  font-size: 13px;
+  margin-top: 4px;
+}
+.active-range {
+  color: var(--teal);
+  border: 1px solid rgba(54,194,180,.42);
+  background: rgba(54,194,180,.10);
+  border-radius: 14px;
+  padding: 10px 14px;
+  font-weight: 900;
+  min-width: 240px;
+  text-align: center;
+}
+.active-range span {
+  display: block;
+  color: #9fc6ff;
+  direction: ltr;
+  margin-top: 4px;
+  font-size: 13px;
+}
+.date-mode-row,
+.date-nav-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.date-mode-btn {
+  background: var(--panel2);
+  border: 1px solid var(--border);
+  color: #b6c7e6;
+  border-radius: 999px;
+  padding: 9px 14px;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 900;
+}
+.date-mode-btn:hover,
+.date-mode-btn.active {
+  color: var(--amber);
+  border-color: rgba(244,166,35,.65);
+  background: rgba(244,166,35,.13);
+}
+.date-fields-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(160px, 1fr));
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.date-fields-grid label {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 900;
+}
+.filter-status-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+.filter-status-row > div {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 8px 14px;
+  color: var(--muted);
+}
+.filter-status-row b {
+  color: var(--text);
+}
+@media(max-width:1000px){
+  .date-filter-head{flex-direction:column}
+  .active-range{width:100%; min-width:0}
+  .date-fields-grid{grid-template-columns:1fr}
 }
