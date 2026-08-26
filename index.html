@@ -513,6 +513,65 @@ td{background:rgba(255,255,255,.006)!important}
   header.glass{background:rgba(4,28,58,.12)!important}
 }
 
+
+/* ===== v1.0 ULTRA TRANSPARENT — ~50% more transparent than v0.9 ===== */
+.glass,
+.filters,.entry-card,.card,.kpi{
+  background:linear-gradient(135deg,rgba(255,255,255,.028),rgba(4,27,58,.012))!important;
+  border-color:rgba(214,236,255,.22)!important;
+  box-shadow:0 10px 28px rgba(0,8,25,.11),inset 0 1px 0 rgba(255,255,255,.16)!important;
+  backdrop-filter:blur(4px) saturate(118%)!important;
+  -webkit-backdrop-filter:blur(4px) saturate(118%)!important;
+}
+header.glass{
+  background:linear-gradient(180deg,rgba(3,23,49,.10),rgba(3,23,49,.035))!important;
+  backdrop-filter:blur(5px) saturate(118%)!important;
+  -webkit-backdrop-filter:blur(5px) saturate(118%)!important;
+}
+.filters{background:rgba(5,31,65,.038)!important}
+.entry-card{background:rgba(7,32,63,.032)!important}
+.kpi{background:rgba(6,31,62,.038)!important}
+.card{background:rgba(5,29,59,.030)!important}
+.entry-grid input,.entry-grid select,.search,
+.formgrid input,.formgrid select{
+  background:rgba(5,31,65,.055)!important;
+  border-color:rgba(208,233,255,.20)!important;
+  backdrop-filter:blur(4px)!important;
+  -webkit-backdrop-filter:blur(4px)!important;
+}
+.periods button,.datebox button,.range label{
+  background:rgba(5,34,70,.052)!important;
+}
+.notice{
+  background:rgba(21,151,72,.10)!important;
+  border-color:rgba(152,255,189,.24)!important;
+}
+table{background:rgba(3,25,52,.010)!important}
+th{background:rgba(3,27,57,.055)!important}
+td{background:rgba(255,255,255,.002)!important}
+tr:hover td{background:rgba(52,139,237,.035)!important}
+.bottom-actions button{
+  background:rgba(4,31,64,.052)!important;
+  backdrop-filter:blur(4px)!important;
+  -webkit-backdrop-filter:blur(4px)!important;
+}
+.bottom-actions button:first-child{background:rgba(13,128,68,.085)!important}
+.bottom-actions button:nth-child(3){background:rgba(102,55,168,.070)!important}
+.bottom-actions button:nth-child(4){background:rgba(4,104,211,.085)!important}
+.modal{
+  background:rgba(7,31,62,.28)!important;
+  backdrop-filter:blur(7px)!important;
+  -webkit-backdrop-filter:blur(7px)!important;
+}
+@media(max-width:900px){
+  .glass,.filters,.entry-card,.card,.kpi{
+    background:linear-gradient(135deg,rgba(255,255,255,.032),rgba(3,26,56,.014))!important;
+    backdrop-filter:blur(4px) saturate(118%)!important;
+    -webkit-backdrop-filter:blur(4px) saturate(118%)!important;
+  }
+  header.glass{background:rgba(4,28,58,.060)!important}
+}
+
 </style>
 </head>
 <body>
