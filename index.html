@@ -77,11 +77,236 @@ main{width:94vw;margin-top:13px;gap:11px}.filters{display:grid}.periods{display:
 @media(max-width:700px){.entry-grid{grid-template-columns:1fr 1fr}}
 @media(max-width:480px){.entry-grid{grid-template-columns:1fr}}
 
+
+/* ===== v0.7 ULTRA GLASS / PORT THEME ===== */
+:root{
+  color-scheme:dark;
+  --ink:#f7fbff;
+  --muted:rgba(224,238,255,.72);
+  --edge:rgba(194,224,255,.34);
+  --glass-1:rgba(11,39,75,.20);
+  --glass-2:rgba(255,255,255,.10);
+  --glass-3:rgba(255,255,255,.055);
+  --blue:#087dff;
+  --blue2:#28a3ff;
+}
+body{
+  color:var(--ink);
+  background:#061a33;
+}
+body:before,body:after{display:none!important}
+.port-scene{
+  position:fixed;inset:0;z-index:-5;overflow:hidden;
+  background:
+    radial-gradient(circle at 58% 47%,rgba(255,178,86,.78),transparent 14%),
+    radial-gradient(circle at 65% 38%,rgba(255,214,164,.42),transparent 23%),
+    linear-gradient(180deg,#153e6d 0%,#214f7a 33%,#173e64 58%,#082442 100%);
+}
+.port-scene:after{
+  content:"";position:absolute;inset:0;z-index:8;pointer-events:none;
+  background:
+    linear-gradient(90deg,rgba(3,18,38,.40),transparent 25%,transparent 75%,rgba(3,18,38,.32)),
+    linear-gradient(180deg,rgba(4,18,39,.16),transparent 46%,rgba(2,16,34,.58));
+}
+.sky-glow{
+  position:absolute;left:36%;top:12%;width:45vw;height:42vh;
+  background:radial-gradient(ellipse,rgba(255,210,154,.52),rgba(255,146,55,.15) 45%,transparent 70%);
+  filter:blur(14px)
+}
+.stack{position:absolute;display:grid;gap:7px;transform:perspective(900px) rotateY(-4deg)}
+.stack-a{left:-3vw;top:18vh;width:min(370px,28vw)}
+.stack-b{right:-2vw;top:22vh;width:min(410px,30vw);transform:perspective(900px) rotateY(5deg)}
+.stack-c{left:8vw;bottom:13vh;width:min(330px,25vw);opacity:.62}
+.bg-container{
+  position:relative;height:82px;border-radius:5px;padding:18px 24px;
+  font-size:clamp(17px,2.1vw,33px);font-weight:800;letter-spacing:.02em;
+  color:rgba(255,255,255,.76);text-shadow:0 2px 12px rgba(0,0,0,.48);
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.15),0 16px 30px rgba(0,0,0,.18);
+  overflow:hidden
+}
+.bg-container:before{
+  content:"";position:absolute;inset:0;
+  background:repeating-linear-gradient(90deg,transparent 0 20px,rgba(255,255,255,.075) 21px 23px);
+}
+.maersk{background:linear-gradient(135deg,#317ea5,#225b82)}
+.msc{background:linear-gradient(135deg,#82662d,#483b22)}
+.cma{background:linear-gradient(135deg,#1f547f,#173a60)}
+.hapag{background:linear-gradient(135deg,#b66d23,#774517)}
+.evergreen{background:linear-gradient(135deg,#197451,#0c4d39)}
+.one{background:linear-gradient(135deg,#7c3f7e,#4f285c)}
+.zim{background:linear-gradient(135deg,#3755a3,#243976)}
+.cosco{background:linear-gradient(135deg,#2d6589,#234c69)}
+.crane{
+  position:absolute;bottom:31vh;width:3px;height:32vh;background:rgba(8,27,46,.72);
+  box-shadow:0 0 0 1px rgba(255,255,255,.025)
+}
+.crane:before{
+  content:"";position:absolute;width:18vw;height:3px;top:3vh;right:0;background:rgba(8,27,46,.72);
+  transform-origin:right center;transform:rotate(-10deg)
+}
+.crane:after{
+  content:"";position:absolute;width:2px;height:15vh;top:4vh;right:8vw;background:rgba(8,27,46,.55)
+}
+.crane-a{left:39%}.crane-b{right:18%;transform:scale(.88)}
+.water-reflection{
+  position:absolute;left:0;right:0;bottom:0;height:34vh;
+  background:
+    linear-gradient(180deg,rgba(18,58,90,.18),rgba(4,22,42,.74)),
+    repeating-linear-gradient(176deg,rgba(255,201,136,.11) 0 3px,transparent 4px 13px);
+  filter:blur(.2px)
+}
+.glass{
+  background:
+    linear-gradient(135deg,rgba(255,255,255,.13),rgba(6,35,70,.12))!important;
+  border:1px solid var(--edge)!important;
+  box-shadow:
+    0 18px 54px rgba(0,9,24,.26),
+    inset 0 1px 0 rgba(255,255,255,.32),
+    inset 0 -1px 0 rgba(255,255,255,.06)!important;
+  backdrop-filter:blur(18px) saturate(140%)!important;
+  -webkit-backdrop-filter:blur(18px) saturate(140%)!important;
+}
+header.glass{
+  background:linear-gradient(180deg,rgba(5,28,57,.32),rgba(7,34,66,.12))!important;
+}
+.brand h1,.head h2,.entry-head h2,.modal h2{color:#fff;text-shadow:0 3px 18px rgba(0,0,0,.28)}
+.brand .sub,.head p,.entry-head p,.sub{color:var(--muted)!important}
+.logo{
+  background:linear-gradient(135deg,rgba(17,120,242,.78),rgba(70,190,255,.62))!important;
+  border:1px solid rgba(255,255,255,.34);
+  box-shadow:0 8px 24px rgba(0,69,165,.26),inset 0 1px 0 rgba(255,255,255,.35)!important
+}
+.btn{
+  border:1px solid rgba(190,224,255,.30)!important;
+  backdrop-filter:blur(14px);
+  -webkit-backdrop-filter:blur(14px);
+}
+.btn.primary{
+  background:linear-gradient(135deg,rgba(0,113,255,.92),rgba(18,146,255,.84))!important;
+  box-shadow:0 10px 26px rgba(0,94,235,.30),inset 0 1px 0 rgba(255,255,255,.35)!important
+}
+.btn.secondary{
+  background:rgba(5,38,76,.18)!important;
+  color:#fff!important;
+  border-color:rgba(206,230,255,.35)!important
+}
+.notice{
+  min-height:42px;padding:0 16px!important;display:inline-flex;align-items:center;gap:8px;
+  border:1px solid rgba(188,255,207,.38)!important;
+  border-radius:13px!important;
+  background:rgba(19,151,73,.16)!important;
+  color:#dcffe7!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.22),0 8px 22px rgba(0,0,0,.14);
+  backdrop-filter:blur(14px)
+}
+.notice:before{content:"";width:9px;height:9px;border-radius:50%;background:#18e75d;box-shadow:0 0 12px rgba(24,231,93,.9)}
+.filters,.entry-card,.card,.kpi{background:linear-gradient(135deg,rgba(255,255,255,.115),rgba(4,29,61,.10))!important}
+.periods button,.datebox button,.range label{
+  color:#edf7ff!important;background:rgba(5,38,77,.14)!important;
+  border:1px solid rgba(197,226,255,.20)!important;
+  backdrop-filter:blur(10px)
+}
+.periods button.active{
+  background:linear-gradient(135deg,#087cff,#169cff)!important;
+  border-color:rgba(146,210,255,.55)!important;
+  box-shadow:0 8px 26px rgba(0,108,255,.28)
+}
+.datebox input,.range input{color:#f6fbff!important}
+.kpi{min-height:94px}
+.kicon{
+  background:rgba(10,111,236,.18)!important;color:#8fd0ff!important;
+  border:1px solid rgba(133,201,255,.22);
+  box-shadow:inset 0 0 22px rgba(24,119,255,.12)
+}
+.kpi span{color:var(--muted)!important}.kpi strong{color:#fff;text-shadow:0 4px 18px rgba(0,0,0,.28)}
+.entry-grid label,.formgrid label{color:rgba(232,243,255,.88)!important}
+.entry-grid input,.entry-grid select,.formgrid input,.formgrid select,.search{
+  color:#fff!important;
+  background:rgba(4,31,66,.16)!important;
+  border:1px solid rgba(195,224,255,.26)!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.10);
+  backdrop-filter:blur(12px)
+}
+.entry-grid input::placeholder,.formgrid input::placeholder,.search input::placeholder{color:rgba(235,244,255,.55)}
+.search input{color:#fff!important}
+table{background:rgba(4,29,58,.09)!important}
+th{
+  color:rgba(233,244,255,.80)!important;
+  background:rgba(7,33,65,.23)!important;
+  border-bottom:1px solid rgba(196,224,255,.20)!important
+}
+td{
+  color:#f4f9ff!important;
+  border-bottom:1px solid rgba(191,222,255,.14)!important;
+  background:rgba(255,255,255,.018)
+}
+tr:hover td{background:rgba(68,153,255,.075)}
+.pill{background:rgba(25,114,236,.18)!important;color:#cfe9ff!important;border:1px solid rgba(118,190,255,.20)}
+.delete{background:rgba(255,55,91,.13)!important;color:#ff7792!important;border:1px solid rgba(255,119,145,.18)}
+.axistext{fill:rgba(235,246,255,.75)!important}.gridline{stroke:rgba(220,238,255,.15)!important}
+.modalbg{background:rgba(1,15,34,.42)!important}
+.modal{background:linear-gradient(135deg,rgba(16,47,83,.48),rgba(6,30,63,.31))!important}
+.close{color:#fff!important;background:rgba(255,255,255,.10)!important}
+
+/* mobile layout feels like a purpose-built phone app */
+@media(max-width:900px){
+  .port-scene .stack-a{left:-24vw;top:16vh;width:64vw;opacity:.70}
+  .port-scene .stack-b{right:-26vw;top:48vh;width:68vw;opacity:.58}
+  .port-scene .stack-c{display:none}
+  .crane-a{left:52%}.crane-b{right:4%}
+  header.glass{
+    position:relative!important;margin:10px 3vw 0;border:1px solid var(--edge)!important;border-radius:24px!important;
+    background:rgba(7,34,68,.18)!important
+  }
+  .brand{width:100%;justify-content:flex-start}
+  .actions{margin-inline-start:auto}
+  .content{padding-bottom:94px}
+  .filters{border-radius:20px}
+  .entry-card{border-radius:22px}
+  .kpis{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+  .kpi{min-height:84px}
+}
+@media(max-width:520px){
+  header{flex-wrap:wrap;gap:10px}
+  .actions{width:100%;justify-content:space-between}
+  .notice{flex:1;justify-content:center}
+  .actions .btn{width:46px!important;height:42px!important}
+  .periods{grid-template-columns:repeat(5,minmax(0,1fr))!important}
+  .periods button{font-size:9.5px!important;padding:9px 2px!important}
+  .entry-grid{grid-template-columns:1fr!important}
+  .chart-card{display:block}
+  .kpi{padding:10px!important}
+  .kicon{width:38px!important;height:38px!important}
+  .kpi strong{font-size:21px!important}
+  .tablewrap{border:1px solid rgba(194,224,255,.14);background:rgba(6,31,61,.10)}
+}
+
 </style>
 </head>
 <body>
+
+<div class="port-scene" aria-hidden="true">
+  <div class="sky-glow"></div>
+  <div class="crane crane-a"></div>
+  <div class="crane crane-b"></div>
+  <div class="stack stack-a">
+    <div class="bg-container maersk">MAERSK</div>
+    <div class="bg-container msc">MSC</div>
+    <div class="bg-container cma">CMA CGM</div>
+  </div>
+  <div class="stack stack-b">
+    <div class="bg-container hapag">Hapag-Lloyd</div>
+    <div class="bg-container evergreen">EVERGREEN</div>
+    <div class="bg-container one">ONE</div>
+  </div>
+  <div class="stack stack-c">
+    <div class="bg-container zim">ZIM</div>
+    <div class="bg-container cosco">COSCO</div>
+  </div>
+  <div class="water-reflection"></div>
+</div>
 <header class="glass">
-  <div class="brand"><div class="logo">▣</div><div><h1>מעקב מכולות</h1><div class="sub">Container Movement Control</div></div></div>
+  <div class="brand"><div class="logo">▣</div><div><h1>מעקב מכולות אוברסיס</h1><div class="sub">מעקב תנועות מכולות בזמן אמת</div></div></div>
   <div class="actions">
     <span class="notice" id="cloudStatus">בודק חיבור לענן...</span>
     <button class="btn secondary" id="exportBtn">⬇ יצוא לאקסל</button>
@@ -361,19 +586,19 @@ $('#exportBtn').onclick=exportExcel;
 
 async function initCloud(){
   if(!cloudEnabled){
-    setCloudStatus(false,'מצב מקומי — יש להגדיר Supabase');
+    setCloudStatus(false,'לא מחובר');
     render();
     return;
   }
   try{
     await cloudLoadRows();
-    setCloudStatus(true,'מחובר לענן');
+    setCloudStatus(true,'מחובר');
     render();
     setInterval(async()=>{
       try{
         await cloudLoadRows();
         render();
-        setCloudStatus(true,'מחובר לענן');
+        setCloudStatus(true,'מחובר');
       }catch(e){
         setCloudStatus(false,'שגיאת חיבור לענן');
       }
