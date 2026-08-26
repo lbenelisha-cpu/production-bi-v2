@@ -858,6 +858,39 @@ tr:hover td{background:rgba(52,139,237,.035)!important}
   .kpi strong{font-size:19px!important}
 }
 
+
+/* ===== v1.2 LOCATE BUTTON ===== */
+.entry-actions{
+  display:grid;
+  grid-template-columns:1fr 1.35fr;
+  gap:8px;
+  align-items:end;
+}
+.locate-btn{
+  height:43px;
+  color:#dff3ff!important;
+  background:rgba(4,96,194,.16)!important;
+  border:1px solid rgba(107,190,255,.38)!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.15),0 7px 18px rgba(0,76,170,.12)!important;
+}
+.locate-btn:hover{
+  background:rgba(4,112,228,.26)!important;
+}
+.locate-btn.active{
+  background:linear-gradient(135deg,rgba(0,116,255,.72),rgba(21,153,255,.62))!important;
+  color:#fff!important;
+}
+@media(max-width:900px){
+  .entry-actions{
+    grid-template-columns:1fr 1fr!important;
+    width:100%!important;
+  }
+  .locate-btn,.entry-save{
+    width:100%!important;
+    height:44px!important;
+  }
+}
+
 </style>
 </head>
 <body>
@@ -946,7 +979,10 @@ tr:hover td{background:rgba(52,139,237,.035)!important}
     <label>איתור יעד
       <input id="qTargetLocation" list="locationsList" required placeholder="הקלד או בחר איתור">
     </label>
-    <button class="btn primary entry-save" type="submit">שמור תנועה</button>
+    <div class="entry-actions">
+      <button class="btn locate-btn" type="button" id="locateBtn">⌖ איתור</button>
+      <button class="btn primary entry-save" type="submit">שמור תנועה</button>
+    </div>
   </form>
 </section>
 
@@ -1012,7 +1048,7 @@ const pad=n=>String(n).padStart(2,'0');
 const dateOnly=d=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
 const fmt=d=>new Intl.DateTimeFormat('he-IL',{dateStyle:'short',timeStyle:'short'}).format(d);
 
-let period='daily', anchor=new Date(), search='';
+let period='daily', anchor=new Date(), search='', locateCriteria=null;
 const CLOUD = {
   url: (window.APP_CONFIG?.SUPABASE_URL || '').replace(/\/$/,''),
   key: window.APP_CONFIG?.SUPABASE_ANON_KEY || '',
@@ -1084,8 +1120,20 @@ function getRange(){
 }
 function filtered(){
  const [s,e]=getRange(), q=search.trim().toLowerCase();
- return rows.filter(r=>{const d=new Date(r.movement_at); if(d<s||d>e)return false; if(!q)return true;
- return [r.container_no,r.agent,r.current_location,r.target_location,String(r.container_type)].some(v=>String(v).toLowerCase().includes(q))})
+ return rows.filter(r=>{
+   const d=new Date(r.movement_at);
+   if(locateCriteria){
+     const checks=[];
+     if(locateCriteria.container_no) checks.push(String(r.container_no||'').toLowerCase().includes(locateCriteria.container_no));
+     if(locateCriteria.agent) checks.push(String(r.agent||'').toLowerCase().includes(locateCriteria.agent));
+     if(locateCriteria.current_location) checks.push(String(r.current_location||'').toLowerCase().includes(locateCriteria.current_location));
+     if(locateCriteria.target_location) checks.push(String(r.target_location||'').toLowerCase().includes(locateCriteria.target_location));
+     return checks.length ? checks.every(Boolean) : true;
+   }
+   if(d<s||d>e)return false;
+   if(!q)return true;
+   return [r.container_no,r.agent,r.current_location,r.target_location,String(r.container_type)].some(v=>String(v||'').toLowerCase().includes(q))
+ })
 }
 function bucketKey(d){if(period==='daily')return `${dateOnly(d)}-${pad(d.getHours())}`;if(period==='yearly')return `${d.getFullYear()}-${pad(d.getMonth()+1)}`;return dateOnly(d)}
 function bucketLabel(d){if(period==='daily')return `${pad(d.getHours())}:00`;if(period==='yearly')return `${pad(d.getMonth()+1)}/${String(d.getFullYear()).slice(-2)}`;return `${pad(d.getDate())}/${pad(d.getMonth()+1)}`}
@@ -1114,10 +1162,40 @@ function render(){
  $$('.delete').forEach(b=>b.onclick=async()=>{if(!confirm('למחוק את התנועה הזאת?'))return; try{await cloudDeleteMovement(b.dataset.id);rows=rows.filter(r=>r.id!==b.dataset.id);saveLocal();render()}catch(err){alert('המחיקה נכשלה בענן: '+err.message)}});
  drawChart(cd); updateLocations()
 }
-$$('#periods button').forEach(b=>b.onclick=()=>{$$('#periods button').forEach(x=>x.classList.remove('active'));b.classList.add('active');period=b.dataset.period;$('#datebox').style.display=period==='custom'?'none':'flex';$('#customRange').style.display=period==='custom'?'flex':'none';render()});
+$$('#periods button').forEach(b=>b.onclick=()=>{locateCriteria=null;$('#locateBtn')?.classList.remove('active');$$('#periods button').forEach(x=>x.classList.remove('active'));b.classList.add('active');period=b.dataset.period;$('#datebox').style.display=period==='custom'?'none':'flex';$('#customRange').style.display=period==='custom'?'flex':'none';render()});
 $('#anchorDate').onchange=e=>{anchor=new Date(e.target.value+'T12:00:00');render()};
 function shift(delta){let d=new Date(anchor);if(period==='daily')d.setDate(d.getDate()+delta);else if(period==='weekly')d.setDate(d.getDate()+7*delta);else if(period==='monthly')d.setMonth(d.getMonth()+delta);else if(period==='yearly')d.setFullYear(d.getFullYear()+delta);anchor=d;$('#anchorDate').value=dateOnly(d);render()}
-$('#prevDate').onclick=()=>shift(-1);$('#nextDate').onclick=()=>shift(1);$('#startDate').onchange=render;$('#endDate').onchange=render;$('#search').oninput=e=>{search=e.target.value;render()};
+$('#prevDate').onclick=()=>{locateCriteria=null;$('#locateBtn')?.classList.remove('active');shift(-1)};
+$('#nextDate').onclick=()=>{locateCriteria=null;$('#locateBtn')?.classList.remove('active');shift(1)};
+$('#startDate').onchange=()=>{locateCriteria=null;$('#locateBtn')?.classList.remove('active');render()};
+$('#endDate').onchange=()=>{locateCriteria=null;$('#locateBtn')?.classList.remove('active');render()};
+$('#search').oninput=e=>{locateCriteria=null;$('#locateBtn')?.classList.remove('active');search=e.target.value;render()};
+
+$('#locateBtn').onclick=()=>{
+  const c=$('#qContainerNo').value.trim().toLowerCase();
+  const a=$('#qAgent').value.trim().toLowerCase();
+  const cl=$('#qCurrentLocation').value.trim().toLowerCase();
+  const tl=$('#qTargetLocation').value.trim().toLowerCase();
+
+  if(!c && !a && !cl && !tl){
+    alert('כדי לאתר מכולה, הזן לפחות אחד מהנתונים: מספר מכולה, סוכן, איתור נוכחי או איתור יעד.');
+    return;
+  }
+
+  locateCriteria={
+    container_no:c,
+    agent:a,
+    current_location:cl,
+    target_location:tl
+  };
+  search='';
+  $('#search').value='';
+  $('#locateBtn').classList.add('active');
+  render();
+
+  const tableCard=document.querySelector('.table-card-visual') || document.querySelector('.tablewrap');
+  if(tableCard) tableCard.scrollIntoView({behavior:'smooth',block:'start'});
+};
 $('#newBtn').onclick=()=>{$('#nowDisplay').value=fmt(new Date());$('#modalbg').classList.add('show');$('#containerNo').focus()};
 $('#closeModal').onclick=()=>$('#modalbg').classList.remove('show');$('#modalbg').onclick=e=>{if(e.target===$('#modalbg'))$('#modalbg').classList.remove('show')};
 $('#moveForm').onsubmit=async e=>{
@@ -1134,6 +1212,8 @@ $('#moveForm').onsubmit=async e=>{
     const saved=await cloudInsertMovement(payload);
     rows.unshift(saved || {id:crypto.randomUUID(),...payload});
     saveLocal();
+    locateCriteria=null;
+    $('#locateBtn')?.classList.remove('active');
     e.target.reset();
     $('#containerType').value='20';
     $('#modalbg').classList.remove('show');
