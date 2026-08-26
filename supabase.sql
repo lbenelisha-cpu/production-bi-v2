@@ -1,4 +1,3 @@
--- מעקב מכולות - בסיס נתונים
 create extension if not exists pgcrypto;
 
 create table if not exists public.container_movements (
@@ -20,8 +19,6 @@ create index if not exists container_movements_container_no_idx
 
 alter table public.container_movements enable row level security;
 
--- גרסה ראשונית: כל מי שיש לו גישה לאפליקציה יכול לקרוא/להוסיף/למחוק.
--- לפני שימוש חיצוני מומלץ להוסיף התחברות והרשאות.
 drop policy if exists "container_movements_read" on public.container_movements;
 create policy "container_movements_read"
 on public.container_movements for select

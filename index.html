@@ -83,7 +83,7 @@ main{width:94vw;margin-top:13px;gap:11px}.filters{display:grid}.periods{display:
 <header class="glass">
   <div class="brand"><div class="logo">▣</div><div><h1>מעקב מכולות</h1><div class="sub">Container Movement Control</div></div></div>
   <div class="actions">
-    <span class="notice">גרסת בדיקה מקומית</span>
+    <span class="notice" id="cloudStatus">בודק חיבור לענן...</span>
     <button class="btn secondary" id="exportBtn">⬇ יצוא לאקסל</button>
     <button class="btn primary" id="newBtn">＋ תנועה חדשה</button>
   </div>
@@ -180,12 +180,64 @@ main{width:94vw;margin-top:13px;gap:11px}.filters{display:grid}.periods{display:
 </form>
 </div>
 
+<script src="config.js"></script>
 <script>
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const pad=n=>String(n).padStart(2,'0');
 const dateOnly=d=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
 const fmt=d=>new Intl.DateTimeFormat('he-IL',{dateStyle:'short',timeStyle:'short'}).format(d);
+
 let period='daily', anchor=new Date(), search='';
+const CLOUD = {
+  url: (window.APP_CONFIG?.SUPABASE_URL || '').replace(/\/$/,''),
+  key: window.APP_CONFIG?.SUPABASE_ANON_KEY || '',
+};
+const cloudEnabled = Boolean(CLOUD.url && CLOUD.key && !CLOUD.url.includes('YOUR-PROJECT'));
+function cloudHeaders(extra={}) {
+  return {
+    apikey: CLOUD.key,
+    Authorization: `Bearer ${CLOUD.key}`,
+    'Content-Type': 'application/json',
+    ...extra
+  };
+}
+async function cloudLoadRows(){
+  if(!cloudEnabled) return false;
+  const res = await fetch(`${CLOUD.url}/rest/v1/container_movements?select=*&order=movement_at.desc`, {
+    headers: cloudHeaders()
+  });
+  if(!res.ok) throw new Error(await res.text());
+  rows = await res.json();
+  localStorage.setItem('container_movements_static', JSON.stringify(rows));
+  return true;
+}
+async function cloudInsertMovement(payload){
+  if(!cloudEnabled) return null;
+  const res = await fetch(`${CLOUD.url}/rest/v1/container_movements`, {
+    method:'POST',
+    headers: cloudHeaders({'Prefer':'return=representation'}),
+    body: JSON.stringify(payload)
+  });
+  if(!res.ok) throw new Error(await res.text());
+  const data = await res.json();
+  return data[0] || null;
+}
+async function cloudDeleteMovement(id){
+  if(!cloudEnabled) return;
+  const res = await fetch(`${CLOUD.url}/rest/v1/container_movements?id=eq.${encodeURIComponent(id)}`, {
+    method:'DELETE',
+    headers: cloudHeaders()
+  });
+  if(!res.ok) throw new Error(await res.text());
+}
+function setCloudStatus(ok, text){
+  const el=$('#cloudStatus');
+  if(!el) return;
+  el.textContent=text;
+  if(ok){el.style.background='#daf7df';el.style.color='#176b2d'}
+  else{el.style.background='#fff4cc';el.style.color='#735900'}
+}
+
 $('#anchorDate').value=dateOnly(anchor); $('#startDate').value=dateOnly(anchor); $('#endDate').value=dateOnly(anchor);
 
 function seed(){
@@ -194,7 +246,7 @@ function seed(){
  const locs=['מחסן מרכזי','נמל אשדוד','רחבה צפונית','מסוף מכולות','שער דרומי'];
  return [0,1,2,4,6,8,9].map((h,i)=>({id:crypto.randomUUID(),container_no:names[i],agent:agents[i],container_type:i%2?40:20,current_location:locs[i%locs.length],target_location:locs[(i+1)%locs.length],movement_at:new Date(Date.now()-h*3600000).toISOString()}));
 }
-let rows=JSON.parse(localStorage.getItem('container_movements_static')||'null')||seed();
+let rows=JSON.parse(localStorage.getItem('container_movements_static')||'null') || (cloudEnabled ? [] : seed());
 function saveLocal(){localStorage.setItem('container_movements_static',JSON.stringify(rows))}
 function getRange(){
  const d=new Date(anchor), s=new Date(d), e=new Date(d);
@@ -234,7 +286,7 @@ function render(){
  const fr=filtered(), c=new Set(fr.map(r=>r.container_no)).size, l=new Set(fr.flatMap(r=>[r.current_location,r.target_location])).size, cd=chartData(fr);
  $('#kpiMoves').textContent=fr.length;$('#kpiContainers').textContent=c;$('#kpiLocations').textContent=l;$('#kpiAverage').textContent=cd.length?Math.round(fr.length/cd.length):0;$('#rowsLabel').textContent=`${fr.length} רשומות מוצגות`;
  $('#tbody').innerHTML=fr.length?fr.map(r=>`<tr><td>${fmt(new Date(r.movement_at))}</td><td class="mono">${escapeHtml(r.container_no)}</td><td>${escapeHtml(r.agent)}</td><td><span class="pill">${r.container_type} פיט</span></td><td>⌖ ${escapeHtml(r.current_location)}</td><td>⌖ ${escapeHtml(r.target_location)}</td><td><button class="delete" data-id="${r.id}">🗑</button></td></tr>`).join(''):`<tr><td class="empty" colspan="7">אין תנועות בטווח שנבחר</td></tr>`;
- $$('.delete').forEach(b=>b.onclick=()=>{if(confirm('למחוק את התנועה הזאת?')){rows=rows.filter(r=>r.id!==b.dataset.id);saveLocal();render()}});
+ $$('.delete').forEach(b=>b.onclick=async()=>{if(!confirm('למחוק את התנועה הזאת?'))return; try{await cloudDeleteMovement(b.dataset.id);rows=rows.filter(r=>r.id!==b.dataset.id);saveLocal();render()}catch(err){alert('המחיקה נכשלה בענן: '+err.message)}});
  drawChart(cd); updateLocations()
 }
 $$('#periods button').forEach(b=>b.onclick=()=>{$$('#periods button').forEach(x=>x.classList.remove('active'));b.classList.add('active');period=b.dataset.period;$('#datebox').style.display=period==='custom'?'none':'flex';$('#customRange').style.display=period==='custom'?'flex':'none';render()});
@@ -243,7 +295,28 @@ function shift(delta){let d=new Date(anchor);if(period==='daily')d.setDate(d.get
 $('#prevDate').onclick=()=>shift(-1);$('#nextDate').onclick=()=>shift(1);$('#startDate').onchange=render;$('#endDate').onchange=render;$('#search').oninput=e=>{search=e.target.value;render()};
 $('#newBtn').onclick=()=>{$('#nowDisplay').value=fmt(new Date());$('#modalbg').classList.add('show');$('#containerNo').focus()};
 $('#closeModal').onclick=()=>$('#modalbg').classList.remove('show');$('#modalbg').onclick=e=>{if(e.target===$('#modalbg'))$('#modalbg').classList.remove('show')};
-$('#moveForm').onsubmit=e=>{e.preventDefault();rows.unshift({id:crypto.randomUUID(),container_no:$('#containerNo').value.trim().toUpperCase(),agent:$('#agent').value.trim(),container_type:Number($('#containerType').value),current_location:$('#currentLocation').value.trim(),target_location:$('#targetLocation').value.trim(),movement_at:new Date().toISOString()});saveLocal();e.target.reset();$('#containerType').value='20';$('#modalbg').classList.remove('show');render()};
+$('#moveForm').onsubmit=async e=>{
+  e.preventDefault();
+  const payload={
+    container_no:$('#containerNo').value.trim().toUpperCase(),
+    agent:$('#agent').value.trim(),
+    container_type:Number($('#containerType').value),
+    current_location:$('#currentLocation').value.trim(),
+    target_location:$('#targetLocation').value.trim(),
+    movement_at:new Date().toISOString()
+  };
+  try{
+    const saved=await cloudInsertMovement(payload);
+    rows.unshift(saved || {id:crypto.randomUUID(),...payload});
+    saveLocal();
+    e.target.reset();
+    $('#containerType').value='20';
+    $('#modalbg').classList.remove('show');
+    render();
+  }catch(err){
+    alert('השמירה בענן נכשלה: '+err.message);
+  }
+};
 function exportExcel(){
  const fr=filtered(), [s,e]=getRange();
  const esc=s=>String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
@@ -252,29 +325,61 @@ function exportExcel(){
  const blob=new Blob(['\ufeff',html],{type:'application/vnd.ms-excel'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`מעקב_מכולות_${dateOnly(s)}_${dateOnly(e)}.xls`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)
 }
 
-$('#quickEntryForm').onsubmit=e=>{
+$('#quickEntryForm').onsubmit=async e=>{
   e.preventDefault();
   const c=$('#qContainerNo').value.trim().toUpperCase();
   const a=$('#qAgent').value.trim();
   const cl=$('#qCurrentLocation').value.trim();
   const tl=$('#qTargetLocation').value.trim();
   if(!c||!a||!cl||!tl){alert('יש למלא את כל השדות');return}
-  rows.unshift({
-    id:crypto.randomUUID(),
+  const payload={
     container_no:c,
     agent:a,
     container_type:Number($('#qContainerType').value),
     current_location:cl,
     target_location:tl,
     movement_at:new Date().toISOString()
-  });
-  saveLocal();
-  e.target.reset();
-  $('#qContainerType').value='20';
-  render();
+  };
+  try{
+    const saved=await cloudInsertMovement(payload);
+    rows.unshift(saved || {id:crypto.randomUUID(),...payload});
+    saveLocal();
+    e.target.reset();
+    $('#qContainerType').value='20';
+    render();
+  }catch(err){
+    alert('השמירה בענן נכשלה: '+err.message);
+  }
 };
 
-$('#exportBtn').onclick=exportExcel;render();
+$('#exportBtn').onclick=exportExcel;
+
+async function initCloud(){
+  if(!cloudEnabled){
+    setCloudStatus(false,'מצב מקומי — יש להגדיר Supabase');
+    render();
+    return;
+  }
+  try{
+    await cloudLoadRows();
+    setCloudStatus(true,'מחובר לענן');
+    render();
+    setInterval(async()=>{
+      try{
+        await cloudLoadRows();
+        render();
+        setCloudStatus(true,'מחובר לענן');
+      }catch(e){
+        setCloudStatus(false,'שגיאת חיבור לענן');
+      }
+    },15000);
+  }catch(err){
+    console.error(err);
+    setCloudStatus(false,'שגיאת חיבור לענן');
+    render();
+  }
+}
+initCloud();
 </script>
 </body>
 </html>
