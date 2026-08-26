@@ -465,6 +465,54 @@ tr:hover td{background:rgba(52,139,237,.075)!important}
   .bottom-actions button{min-height:54px;font-size:10px;padding:5px}
 }
 
+
+/* ===== v0.9 HIGH TRANSPARENCY — approved reference ===== */
+.glass,
+.filters,.entry-card,.card,.kpi{
+  background:linear-gradient(135deg,rgba(255,255,255,.055),rgba(4,27,58,.025))!important;
+  border-color:rgba(210,234,255,.26)!important;
+  box-shadow:0 12px 34px rgba(0,8,25,.16),inset 0 1px 0 rgba(255,255,255,.22)!important;
+  backdrop-filter:blur(7px) saturate(125%)!important;
+  -webkit-backdrop-filter:blur(7px) saturate(125%)!important;
+}
+header.glass{
+  background:linear-gradient(180deg,rgba(3,23,49,.19),rgba(3,23,49,.075))!important;
+  backdrop-filter:blur(8px) saturate(125%)!important;
+}
+.filters{background:rgba(5,31,65,.075)!important}
+.entry-card{background:rgba(7,32,63,.065)!important}
+.kpi{background:rgba(6,31,62,.075)!important}
+.card{background:rgba(5,29,59,.06)!important}
+.entry-grid input,.entry-grid select,.search,
+.formgrid input,.formgrid select{
+  background:rgba(5,31,65,.105)!important;
+  border-color:rgba(205,232,255,.23)!important;
+  backdrop-filter:blur(6px)!important;
+  -webkit-backdrop-filter:blur(6px)!important;
+}
+.periods button,.datebox button,.range label{
+  background:rgba(5,34,70,.10)!important;
+}
+table{background:rgba(3,25,52,.025)!important}
+th{background:rgba(3,27,57,.105)!important}
+td{background:rgba(255,255,255,.006)!important}
+.bottom-actions button{
+  background:rgba(4,31,64,.10)!important;
+  backdrop-filter:blur(7px)!important;
+  -webkit-backdrop-filter:blur(7px)!important;
+}
+.bottom-actions button:first-child{background:rgba(13,128,68,.15)!important}
+.bottom-actions button:nth-child(3){background:rgba(102,55,168,.13)!important}
+.bottom-actions button:nth-child(4){background:rgba(4,104,211,.15)!important}
+@media(max-width:900px){
+  .glass,.filters,.entry-card,.card,.kpi{
+    background:linear-gradient(135deg,rgba(255,255,255,.06),rgba(3,26,56,.03))!important;
+    backdrop-filter:blur(6px) saturate(125%)!important;
+    -webkit-backdrop-filter:blur(6px) saturate(125%)!important;
+  }
+  header.glass{background:rgba(4,28,58,.12)!important}
+}
+
 </style>
 </head>
 <body>
