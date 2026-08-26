@@ -891,6 +891,119 @@ tr:hover td{background:rgba(52,139,237,.035)!important}
   }
 }
 
+
+/* ===== v1.4 READABILITY — image 1 reference ===== */
+/* Keep the clean port background visible, but strengthen the glass directly behind data/text. */
+.glass,
+.filters,
+.entry-card,
+.card,
+.kpi{
+  background:
+    linear-gradient(135deg,rgba(7,31,62,.18),rgba(3,23,49,.12))!important;
+  border-color:rgba(214,236,255,.25)!important;
+  box-shadow:
+    0 12px 30px rgba(0,8,25,.15),
+    inset 0 1px 0 rgba(255,255,255,.18)!important;
+  backdrop-filter:blur(5px) saturate(120%)!important;
+  -webkit-backdrop-filter:blur(5px) saturate(120%)!important;
+}
+
+/* Header stays slightly lighter so the background remains visible. */
+header.glass{
+  background:
+    linear-gradient(180deg,rgba(4,27,56,.18),rgba(4,27,56,.10))!important;
+}
+
+/* Inputs/search: a little darker for clear text entry. */
+.entry-grid input,
+.entry-grid select,
+.search,
+.formgrid input,
+.formgrid select{
+  background:rgba(5,31,65,.22)!important;
+  border-color:rgba(208,233,255,.24)!important;
+  color:#fff!important;
+  backdrop-filter:blur(5px)!important;
+  -webkit-backdrop-filter:blur(5px)!important;
+}
+
+/* Filters/buttons keep glass look but text becomes easier to read. */
+.periods button,
+.datebox button,
+.range label{
+  background:rgba(5,34,70,.18)!important;
+}
+
+/* Table gets a slightly stronger reading layer without hiding the port image. */
+table{
+  background:rgba(3,25,52,.10)!important;
+}
+th{
+  background:rgba(3,27,57,.24)!important;
+}
+td{
+  background:rgba(4,25,53,.08)!important;
+}
+tr:hover td{
+  background:rgba(46,123,214,.12)!important;
+}
+
+/* Bottom action strip readability. */
+.bottom-actions button{
+  background:rgba(4,31,64,.20)!important;
+}
+.bottom-actions button:first-child{
+  background:rgba(13,128,68,.22)!important;
+}
+.bottom-actions button:nth-child(3){
+  background:rgba(102,55,168,.20)!important;
+}
+.bottom-actions button:nth-child(4){
+  background:rgba(4,104,211,.22)!important;
+}
+
+/* Improve text contrast without making the whole cards opaque. */
+.brand h1,
+.entry-head h2,
+.head h2,
+.kpi strong,
+th,
+td,
+.entry-grid label,
+.formgrid label{
+  text-shadow:0 2px 8px rgba(0,0,0,.36)!important;
+}
+.entry-head p,
+.head p,
+.brand .sub{
+  text-shadow:0 1px 6px rgba(0,0,0,.34)!important;
+}
+
+/* Mobile: same readability balance, slightly stronger than desktop. */
+@media(max-width:900px){
+  .glass,
+  .filters,
+  .entry-card,
+  .card,
+  .kpi{
+    background:
+      linear-gradient(135deg,rgba(7,31,62,.22),rgba(3,23,49,.15))!important;
+  }
+
+  .entry-grid input,
+  .entry-grid select,
+  .search,
+  .formgrid input,
+  .formgrid select{
+    background:rgba(5,31,65,.26)!important;
+  }
+
+  tbody tr{
+    background:rgba(4,29,59,.18)!important;
+  }
+}
+
 </style>
 </head>
 <body>
