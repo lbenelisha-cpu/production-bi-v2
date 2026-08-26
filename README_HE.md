@@ -1,29 +1,44 @@
-export const facilityTargets = [
-  { id: "1542", name: "מתקן 1542 / אריזה 42", unit: "ליטר", targetType: "packagingLines", productionTarget: 0, packagingTarget: 0, active: true },
-  { id: "1543", name: "מתקן 1543 / אריזה 43", unit: "ליטר", targetType: "daily", productionTarget: 0, packagingTarget: 80000, active: true },
-  { id: "1519", name: "מתקן 1519 / אריזה 19", unit: "ק״ג", targetType: "daily", productionTarget: 0, packagingTarget: 50000, active: true },
-  { id: "1528", name: "מתקן 1528", unit: "ליטר", targetType: "daily", productionTarget: 80000, packagingTarget: 0, active: true },
-  { id: "1524", name: "מתקן 1524", unit: "ליטר", targetType: "daily", productionTarget: 25000, packagingTarget: 0, active: true },
-  { id: "1523", name: "מתקן 1523", unit: "ליטר", targetType: "daily", productionTarget: 60000, packagingTarget: 0, active: true }
-];
+# מעקב מכולות
 
-export const packagingLineTargets = [
-  { id: "1L", name: "קו אריזה 1 ליטר", dailyTarget: 20000, unit: "ליטר", active: true },
-  { id: "5L", name: "קו אריזה 5 ליטר", dailyTarget: 60000, unit: "ליטר", active: true },
-  { id: "10_20L", name: "קו אריזה 10/20 ליטר", dailyTarget: 60000, unit: "ליטר", active: true }
-];
+אפליקציה חדשה למעקב אחרי תנועות פנימיות של מכולות בין איתורים.
 
-export function normalizeFacilityId(value) {
-  const s = String(value || "").trim();
-  if (!s) return "";
-  const digits = s.replace(/[^\d]/g, "");
-  const map = {
-    "42": "1542",
-    "43": "1543",
-    "19": "1519",
-    "28": "1528",
-    "24": "1524",
-    "23": "1523",
-  };
-  return map[digits] || digits || s;
-}
+## מה כלול
+- תצוגה רספונסיבית למחשב ולטלפון.
+- עיצוב Liquid Glass / מים שקופים.
+- ברירת מחדל: תצוגה יומית.
+- מסננים: יומי, שבועי, חודשי, שנתי וטווח תאריכים ידני.
+- הזנת: מספר מכולה, סוכן, 20/40 פיט, איתור נוכחי, איתור יעד.
+- תאריך ושעה נקלטים אוטומטית בעת השמירה.
+- האיתורים נבנים אוטומטית מהאיתורים שכבר הוזנו בעבר ומופיעים כהצעות.
+- מחיקת תנועה.
+- גרף תנועות לפי זמן.
+- חיפוש.
+- יצוא לאקסל של הנתונים המוצגים בלבד + גיליון סיכום.
+
+## חשוב: Netlify לעומת מסד נתונים
+Netlify מארח את האפליקציה, אבל אינו מסד הנתונים של התנועות.
+לשמירה משותפת מכל המחשבים/טלפונים יש לחבר Supabase.
+
+## התקנה
+1. פתח פרויקט Supabase.
+2. הרץ ב-SQL Editor את `supabase.sql`.
+3. העתק `.env.example` ל-`.env`.
+4. מלא:
+   - `VITE_SUPABASE_URL`
+   - `VITE_SUPABASE_ANON_KEY`
+5. הרץ:
+   npm install
+   npm run dev
+
+## Netlify
+Build command:
+npm run build
+
+Publish directory:
+dist
+
+ב-Netlify יש להוסיף את שני משתני הסביבה של Supabase.
+
+## מצב בדיקה
+אם לא הוגדר Supabase, האפליקציה עובדת במצב מקומי עם נתוני דמה/LocalStorage.
+זה נועד רק לבדיקת העיצוב והתפעול.
