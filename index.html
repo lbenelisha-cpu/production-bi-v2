@@ -281,6 +281,190 @@ tr:hover td{background:rgba(68,153,255,.075)}
   .tablewrap{border:1px solid rgba(194,224,255,.14);background:rgba(6,31,61,.10)}
 }
 
+
+/* =========================================================
+   OVERSEAS v0.8 — approved desktop + iPhone visual language
+   ========================================================= */
+:root{
+  --glass-bg: rgba(7, 31, 62, .22);
+  --glass-bg-strong: rgba(8, 35, 70, .30);
+  --glass-border: rgba(205, 229, 255, .30);
+  --text-main: #f7fbff;
+  --text-soft: rgba(233, 244, 255, .76);
+  --blue: #087cff;
+  --green: #19dd70;
+}
+html,body{min-height:100%;background:#071d38!important;color:var(--text-main)!important}
+body{
+  background-image:
+    linear-gradient(180deg,rgba(4,20,42,.22),rgba(3,17,36,.42)),
+    url("./public/overseas-port-reference.jpg")!important;
+  background-size:cover!important;
+  background-position:center top!important;
+  background-attachment:fixed!important;
+  background-repeat:no-repeat!important;
+}
+body:before,body:after,.port-scene{display:none!important}
+.glass{
+  background:linear-gradient(135deg,rgba(255,255,255,.105),rgba(2,24,52,.095))!important;
+  border:1px solid var(--glass-border)!important;
+  box-shadow:
+    0 18px 42px rgba(0,10,28,.25),
+    inset 0 1px 0 rgba(255,255,255,.27)!important;
+  backdrop-filter:blur(12px) saturate(140%)!important;
+  -webkit-backdrop-filter:blur(12px) saturate(140%)!important;
+}
+header.glass{
+  position:relative!important;
+  padding:15px clamp(18px,3.2vw,48px)!important;
+  background:rgba(4,25,52,.25)!important;
+  border-inline:0!important;border-top:0!important;
+}
+.brand{gap:12px!important}
+.logo{
+  background:rgba(18,83,150,.44)!important;
+  border:1px solid rgba(210,235,255,.38)!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.23),0 10px 25px rgba(0,0,0,.18)!important
+}
+.brand h1{color:#fff!important;font-size:clamp(22px,2vw,31px)!important;text-shadow:0 3px 16px rgba(0,0,0,.28)}
+.brand .sub{color:var(--text-soft)!important}
+.shipping-logos{
+  flex:1;display:flex;justify-content:center;align-items:center;gap:20px;
+  margin:0 22px;white-space:nowrap;overflow:hidden;
+  color:rgba(255,255,255,.90);font-weight:800;font-size:14px;letter-spacing:.01em
+}
+.shipping-logos span:nth-child(2){color:#d7b25f}
+.shipping-logos span:nth-child(4){color:#ff9b2f}
+.shipping-logos span:nth-child(5){color:#79d29b}
+.shipping-logos span:nth-child(6){color:#d779d5}
+.shipping-logos span:nth-child(7){color:#d7e3ee}
+.top-info{display:flex;align-items:center;gap:8px}
+.clock-chip,.date-chip{
+  min-height:42px;padding:0 13px;border:1px solid rgba(204,230,255,.27);border-radius:13px;
+  background:rgba(5,32,65,.18);display:inline-flex;align-items:center;gap:7px;
+  color:#f4f9ff;font-size:12px;backdrop-filter:blur(12px)
+}
+.actions{align-items:center!important}
+.notice{
+  min-height:42px!important;padding:0 15px!important;border-radius:13px!important;
+  background:rgba(21,151,72,.17)!important;color:#e4ffec!important;
+  border:1px solid rgba(152,255,189,.32)!important;display:inline-flex!important;align-items:center!important;gap:8px
+}
+.notice:before{content:"";width:9px;height:9px;border-radius:50%;background:#19ea63;box-shadow:0 0 11px rgba(25,234,99,.85)}
+main{width:min(1510px,95vw)!important;margin:12px auto 34px!important;gap:13px!important}
+.filters,.entry-card,.card,.kpi{
+  background:linear-gradient(135deg,rgba(255,255,255,.105),rgba(7,31,64,.08))!important
+}
+.filters{padding:11px 14px!important}
+.periods button,.datebox button,.range label{
+  color:#f1f8ff!important;background:rgba(7,37,74,.18)!important;
+  border:1px solid rgba(193,223,255,.19)!important
+}
+.periods button.active{
+  background:linear-gradient(135deg,#0677ff,#1398ff)!important;
+  box-shadow:0 8px 22px rgba(0,105,255,.28)!important
+}
+.datebox input,.range input{color:#fff!important}
+.entry-card{padding:14px 18px!important}
+.entry-head{margin-bottom:10px!important}
+.entry-head h2,.head h2{color:#fff!important;text-shadow:0 2px 12px rgba(0,0,0,.25)}
+.entry-head p,.head p{color:var(--text-soft)!important}
+.entry-grid{
+  grid-template-columns:1.15fr 1fr .75fr 1.05fr 1.05fr .85fr!important;
+  gap:10px!important
+}
+.entry-grid label{color:rgba(240,247,255,.88)!important}
+.entry-grid input,.entry-grid select,.search{
+  color:#fff!important;
+  background:rgba(5,31,65,.18)!important;
+  border:1px solid rgba(198,227,255,.25)!important;
+  backdrop-filter:blur(11px)!important
+}
+.entry-grid input::placeholder,.search input::placeholder{color:rgba(236,245,255,.55)!important}
+.entry-grid select option{color:#15263a}
+.primary{
+  background:linear-gradient(135deg,#087cff,#1098ff)!important;
+  color:#fff!important;border:1px solid rgba(152,215,255,.40)!important;
+  box-shadow:0 10px 26px rgba(0,104,255,.27)!important
+}
+.secondary{
+  color:#fff!important;background:rgba(7,36,72,.18)!important;border:1px solid rgba(202,229,255,.25)!important
+}
+.kpis{grid-template-columns:repeat(4,1fr)!important}
+.kpi{min-height:92px!important}
+.kicon{
+  border:1px solid rgba(125,196,255,.24)!important;background:rgba(10,105,222,.18)!important;
+  color:#8fd0ff!important
+}
+.kpi:nth-child(1) .kicon{color:#7ec5ff!important}
+.kpi:nth-child(2) .kicon{color:#bb8cff!important;background:rgba(133,63,205,.15)!important}
+.kpi:nth-child(3) .kicon{color:#75ef9e!important;background:rgba(22,170,77,.16)!important}
+.kpi:nth-child(4) .kicon{color:#ffb268!important;background:rgba(221,111,27,.15)!important}
+.kpi span{color:var(--text-soft)!important}.kpi strong{color:#fff!important}
+.card{padding:14px 18px!important}
+.table-card-visual{order:0}
+.chart-card-visual{order:1}
+table{background:rgba(4,27,56,.09)!important}
+th{background:rgba(4,29,59,.20)!important;color:rgba(239,247,255,.82)!important}
+td{color:#f6faff!important;background:rgba(255,255,255,.012)!important}
+th,td{border-bottom:1px solid rgba(199,226,255,.13)!important}
+tr:hover td{background:rgba(52,139,237,.075)!important}
+.pill{background:rgba(24,112,227,.18)!important;color:#d6ebff!important}
+.search input{color:#fff!important}
+.delete{background:rgba(244,55,80,.13)!important;color:#ff788e!important;border:1px solid rgba(255,120,142,.18)}
+#chart{height:250px!important}
+.axistext{fill:rgba(236,246,255,.76)!important}.gridline{stroke:rgba(220,238,255,.16)!important}
+.modal{background:rgba(7,31,62,.52)!important}.modalbg{background:rgba(0,12,29,.45)!important}
+.formgrid label{color:#eef7ff!important}
+.formgrid input,.formgrid select{color:#fff!important;background:rgba(6,32,65,.28)!important;border-color:rgba(198,227,255,.24)!important}
+.bottom-actions{
+  display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:0
+}
+.bottom-actions button{
+  min-height:54px;border-radius:15px;border:1px solid rgba(196,224,255,.25);
+  background:rgba(4,33,68,.17);color:#fff;font-weight:800;backdrop-filter:blur(12px)
+}
+.bottom-actions button:first-child{background:rgba(17,133,72,.20);border-color:rgba(108,244,167,.25)}
+.bottom-actions button:nth-child(3){background:rgba(108,56,172,.18)}
+.bottom-actions button:nth-child(4){background:rgba(4,107,216,.23)}
+.mobile-footer{display:none}
+
+/* dedicated iPhone/mobile composition */
+@media(max-width:900px){
+  body{
+    background-position:40% top!important;
+    background-attachment:scroll!important
+  }
+  header.glass{
+    margin:8px 3vw 0!important;border:1px solid var(--glass-border)!important;border-radius:22px!important;
+    padding:12px!important;flex-wrap:wrap
+  }
+  .brand{width:100%;justify-content:center;text-align:center}
+  .brand .logo{position:absolute;right:13px;top:12px}
+  .shipping-logos{display:none}
+  .top-info{width:100%;justify-content:center;order:3}
+  .actions{width:100%;justify-content:center;order:4}
+  .actions .btn{display:none!important}
+  .notice{min-width:112px;justify-content:center}
+  main{width:94vw!important;margin-top:10px!important;padding-bottom:76px}
+  .filters{display:grid!important;gap:8px!important}
+  .periods{display:grid!important;grid-template-columns:repeat(5,minmax(0,1fr))!important}
+  .periods button{padding:8px 3px!important;font-size:10px!important}
+  .datebox,.range{justify-content:center!important}
+  .entry-card{padding:13px!important}
+  .entry-grid{grid-template-columns:1fr!important}
+  .entry-save{width:100%!important}
+  .kpis{grid-template-columns:repeat(2,1fr)!important;gap:8px!important}
+  .kpi{min-height:76px!important;padding:10px!important}
+  .kpi:last-child:nth-child(odd){grid-column:1/-1}
+  .card{padding:12px!important}
+  #chart{height:215px!important}
+  .head{align-items:stretch!important;flex-direction:column!important}
+  .search{min-width:0!important;width:100%!important}
+  .bottom-actions{grid-template-columns:repeat(4,1fr);position:fixed;z-index:30;bottom:8px;left:3vw;right:3vw;gap:6px}
+  .bottom-actions button{min-height:54px;font-size:10px;padding:5px}
+}
+
 </style>
 </head>
 <body>
@@ -306,9 +490,19 @@ tr:hover td{background:rgba(68,153,255,.075)}
   <div class="water-reflection"></div>
 </div>
 <header class="glass">
-  <div class="brand"><div class="logo">▣</div><div><h1>מעקב מכולות אוברסיס</h1><div class="sub">מעקב תנועות מכולות בזמן אמת</div></div></div>
-  <div class="actions">
+  <div class="brand">
+    <div class="logo">▣</div>
+    <div><h1>מעקב מכולות אוברסיס</h1><div class="sub">מעקב תנועות מכולות בזמן אמת</div></div>
+  </div>
+  <div class="shipping-logos" aria-label="חברות ספנות">
+    <span>MAERSK</span><span>MSC</span><span>CMA CGM</span><span>Hapag-Lloyd</span><span>EVERGREEN</span><span>ONE</span><span>ZIM</span><span>COSCO</span>
+  </div>
+  <div class="top-info">
     <span class="notice" id="cloudStatus">בודק חיבור לענן...</span>
+    <span class="date-chip" id="todayChip">📅 --/--/----</span>
+    <span class="clock-chip" id="clockChip">◷ --:--:--</span>
+  </div>
+  <div class="actions">
     <button class="btn secondary" id="exportBtn">⬇ יצוא לאקסל</button>
     <button class="btn primary" id="newBtn">＋ תנועה חדשה</button>
   </div>
@@ -370,12 +564,7 @@ tr:hover td{background:rgba(68,153,255,.075)}
   <div class="kpi glass"><div class="kicon">◴</div><div><span>ממוצע תנועות</span><strong id="kpiAverage">0</strong></div></div>
 </section>
 
-<section class="card glass">
-  <div class="head"><div><h2>מספר תנועות מכולות</h2><p>ציר Y — מספר מכולות · ציר X — תאריך / שעה</p></div></div>
-  <svg id="chart" viewBox="0 0 1000 320" preserveAspectRatio="none"></svg>
-</section>
-
-<section class="card glass">
+<section class="card glass table-card-visual">
   <div class="head">
     <div><h2>רשימת תנועות</h2><p id="rowsLabel">0 רשומות מוצגות</p></div>
     <div class="search">⌕ <input id="search" placeholder="חיפוש מכולה, סוכן או איתור..."></div>
@@ -387,6 +576,19 @@ tr:hover td{background:rgba(68,153,255,.075)}
   </table>
   </div>
 </section>
+
+<section class="card glass chart-card-visual">
+  <div class="head"><div><h2>מספר תנועות מכולות</h2><p>ציר Y — מספר מכולות · ציר X — תאריך / שעה</p></div></div>
+  <svg id="chart" viewBox="0 0 1000 320" preserveAspectRatio="none"></svg>
+</section>
+
+<section class="bottom-actions">
+  <button id="exportBottom">▣ יצוא לאקסל</button>
+  <button type="button">🚚 משאיות ממתינות</button>
+  <button type="button">▥ מכולות ללא תנועה</button>
+  <button type="button" id="refreshBottom">⟳ רענון נתונים</button>
+</section>
+
 </main>
 
 <div class="modalbg" id="modalbg">
@@ -583,6 +785,27 @@ $('#quickEntryForm').onsubmit=async e=>{
 };
 
 $('#exportBtn').onclick=exportExcel;
+
+
+function updateHeaderClock(){
+  const now=new Date();
+  const d=new Intl.DateTimeFormat('he-IL',{day:'2-digit',month:'2-digit',year:'numeric'}).format(now);
+  const t=new Intl.DateTimeFormat('he-IL',{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).format(now);
+  const dc=$('#todayChip'), cc=$('#clockChip');
+  if(dc) dc.textContent='📅 '+d;
+  if(cc) cc.textContent='◷ '+t;
+}
+updateHeaderClock();
+setInterval(updateHeaderClock,1000);
+const exportBottom=$('#exportBottom');
+if(exportBottom) exportBottom.onclick=()=>exportExcel();
+const refreshBottom=$('#refreshBottom');
+if(refreshBottom) refreshBottom.onclick=async()=>{
+  if(cloudEnabled){
+    try{await cloudLoadRows();render();setCloudStatus(true,'מחובר');}
+    catch(e){setCloudStatus(false,'שגיאת חיבור לענן');}
+  }else render();
+};
 
 async function initCloud(){
   if(!cloudEnabled){
