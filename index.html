@@ -64,6 +64,19 @@ main{width:94vw;margin-top:13px;gap:11px}.filters{display:grid}.periods{display:
 .datebox{justify-content:center}.range{justify-content:center}.kpis{grid-template-columns:repeat(2,1fr);gap:9px}.kpi{padding:12px}.kpi strong{font-size:22px}
 .card{padding:13px;border-radius:20px}#chart{height:240px}.head{align-items:stretch;flex-direction:column}.search{min-width:0;width:100%}.formgrid{grid-template-columns:1fr}
 }
+
+.entry-card{border-radius:24px;padding:18px}
+.entry-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px}
+.entry-head h2{margin:0 0 3px;font-size:19px}.entry-head p{margin:0;color:#74879d;font-size:12px}
+.entry-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:11px;align-items:end}
+.entry-grid label{display:grid;gap:6px;color:#5b7188;font-size:12px;font-weight:700}
+.entry-grid input,.entry-grid select{width:100%;border:1px solid rgba(174,201,225,.55);border-radius:12px;padding:11px;background:rgba(255,255,255,.72);outline:0;color:#17385c}
+.entry-grid input:focus,.entry-grid select:focus{border-color:#65a9f3;box-shadow:0 0 0 3px rgba(40,130,245,.1)}
+.entry-save{height:43px;align-self:end}
+@media(max-width:1100px){.entry-grid{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:700px){.entry-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:480px){.entry-grid{grid-template-columns:1fr}}
+
 </style>
 </head>
 <body>
@@ -92,6 +105,37 @@ main{width:94vw;margin-top:13px;gap:11px}.filters{display:grid}.periods{display:
     <label>מתאריך <input id="startDate" type="date"></label>
     <label>עד <input id="endDate" type="date"></label>
   </div>
+</section>
+
+
+<section class="entry-card glass">
+  <div class="entry-head">
+    <div>
+      <h2>הזנת תנועה חדשה</h2>
+      <p>התאריך והשעה נקלטים אוטומטית מהמחשב בעת השמירה</p>
+    </div>
+  </div>
+  <form id="quickEntryForm" class="entry-grid">
+    <label>מספר מכולה
+      <input id="qContainerNo" required placeholder="לדוגמה MSCU1234567">
+    </label>
+    <label>סוכן
+      <input id="qAgent" required placeholder="שם הסוכן">
+    </label>
+    <label>סוג מכולה
+      <select id="qContainerType">
+        <option value="20">20 פיט</option>
+        <option value="40">40 פיט</option>
+      </select>
+    </label>
+    <label>איתור נוכחי
+      <input id="qCurrentLocation" list="locationsList" required placeholder="הקלד או בחר איתור">
+    </label>
+    <label>איתור יעד
+      <input id="qTargetLocation" list="locationsList" required placeholder="הקלד או בחר איתור">
+    </label>
+    <button class="btn primary entry-save" type="submit">שמור תנועה</button>
+  </form>
 </section>
 
 <section class="kpis">
@@ -207,6 +251,29 @@ function exportExcel(){
  const html=`<html dir="rtl"><head><meta charset="utf-8"></head><body><h2>מעקב מכולות</h2><p>מתאריך: ${esc(fmt(s))} | עד: ${esc(fmt(e))}</p><p>סה"כ תנועות: ${fr.length}</p><table border="1"><tr><th>תאריך ושעה</th><th>מספר מכולה</th><th>סוכן</th><th>סוג מכולה (פיט)</th><th>איתור נוכחי</th><th>איתור יעד</th></tr>${trs}</table></body></html>`;
  const blob=new Blob(['\ufeff',html],{type:'application/vnd.ms-excel'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`מעקב_מכולות_${dateOnly(s)}_${dateOnly(e)}.xls`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)
 }
+
+$('#quickEntryForm').onsubmit=e=>{
+  e.preventDefault();
+  const c=$('#qContainerNo').value.trim().toUpperCase();
+  const a=$('#qAgent').value.trim();
+  const cl=$('#qCurrentLocation').value.trim();
+  const tl=$('#qTargetLocation').value.trim();
+  if(!c||!a||!cl||!tl){alert('יש למלא את כל השדות');return}
+  rows.unshift({
+    id:crypto.randomUUID(),
+    container_no:c,
+    agent:a,
+    container_type:Number($('#qContainerType').value),
+    current_location:cl,
+    target_location:tl,
+    movement_at:new Date().toISOString()
+  });
+  saveLocal();
+  e.target.reset();
+  $('#qContainerType').value='20';
+  render();
+};
+
 $('#exportBtn').onclick=exportExcel;render();
 </script>
 </body>
