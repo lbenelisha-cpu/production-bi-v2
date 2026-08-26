@@ -180,7 +180,12 @@ main{width:94vw;margin-top:13px;gap:11px}.filters{display:grid}.periods{display:
 </form>
 </div>
 
-<script src="config.js"></script>
+<script>
+window.APP_CONFIG = {
+  SUPABASE_URL: "https://gfrshnnfvdlwdkoeeear.supabase.co",
+  SUPABASE_ANON_KEY: "sb_publishable_N6ojL3NC-ND96b1c61irbw_lsQpIa-s"
+};
+</script>
 <script>
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const pad=n=>String(n).padStart(2,'0');
