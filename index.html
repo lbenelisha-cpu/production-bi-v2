@@ -1478,16 +1478,40 @@ function render(){
  });
  drawChart(cd); updateLocations()
 }
-$$('#periods button').forEach(b=>b.onclick=()=>{locateCriteria=null;$('#locateBtn')?.classList.remove('active');$$('#periods button').forEach(x=>x.classList.remove('active'));b.classList.add('active');period=b.dataset.period;$('#datebox').style.display=period==='custom'?'none':'flex';$('#customRange').style.display=period==='custom'?'flex':'none';render()});
+$$('#periods button').forEach(b=>b.onclick=()=>{locateCriteria=null;$('#locateBtn')?.classList.remove('active'); if($('#locateBtn')) $('#locateBtn').textContent='⌖ איתור';$$('#periods button').forEach(x=>x.classList.remove('active'));b.classList.add('active');period=b.dataset.period;$('#datebox').style.display=period==='custom'?'none':'flex';$('#customRange').style.display=period==='custom'?'flex':'none';render()});
 $('#anchorDate').onchange=e=>{anchor=new Date(e.target.value+'T12:00:00');render()};
 function shift(delta){let d=new Date(anchor);if(period==='daily')d.setDate(d.getDate()+delta);else if(period==='weekly')d.setDate(d.getDate()+7*delta);else if(period==='monthly')d.setMonth(d.getMonth()+delta);else if(period==='yearly')d.setFullYear(d.getFullYear()+delta);anchor=d;$('#anchorDate').value=dateOnly(d);render()}
-$('#prevDate').onclick=()=>{locateCriteria=null;$('#locateBtn')?.classList.remove('active');shift(-1)};
-$('#nextDate').onclick=()=>{locateCriteria=null;$('#locateBtn')?.classList.remove('active');shift(1)};
-$('#startDate').onchange=()=>{locateCriteria=null;$('#locateBtn')?.classList.remove('active');render()};
-$('#endDate').onchange=()=>{locateCriteria=null;$('#locateBtn')?.classList.remove('active');render()};
-$('#search').oninput=e=>{locateCriteria=null;$('#locateBtn')?.classList.remove('active');search=e.target.value;render()};
+$('#prevDate').onclick=()=>{locateCriteria=null;$('#locateBtn')?.classList.remove('active'); if($('#locateBtn')) $('#locateBtn').textContent='⌖ איתור';shift(-1)};
+$('#nextDate').onclick=()=>{locateCriteria=null;$('#locateBtn')?.classList.remove('active'); if($('#locateBtn')) $('#locateBtn').textContent='⌖ איתור';shift(1)};
+$('#startDate').onchange=()=>{locateCriteria=null;$('#locateBtn')?.classList.remove('active'); if($('#locateBtn')) $('#locateBtn').textContent='⌖ איתור';render()};
+$('#endDate').onchange=()=>{locateCriteria=null;$('#locateBtn')?.classList.remove('active'); if($('#locateBtn')) $('#locateBtn').textContent='⌖ איתור';render()};
+$('#search').oninput=e=>{locateCriteria=null;$('#locateBtn')?.classList.remove('active'); if($('#locateBtn')) $('#locateBtn').textContent='⌖ איתור';search=e.target.value;render()};
 
 $('#locateBtn').onclick=()=>{
+  const btn=$('#locateBtn');
+
+  if(locateCriteria){
+    locateCriteria=null;
+    search='';
+    $('#search').value='';
+    $('#qContainerNo').value='';
+    $('#qAgent').value='';
+    $('#qCurrentLocation').value='';
+    $('#qTargetLocation').value='';
+    btn.classList.remove('active');
+    btn.textContent='⌖ איתור';
+
+    period='daily';
+    anchor=new Date();
+    $$('#periods button').forEach(x=>x.classList.toggle('active',x.dataset.period==='daily'));
+    setDateInputs();
+    render();
+
+    const top=document.querySelector('.filters') || document.querySelector('main');
+    if(top) top.scrollIntoView({behavior:'smooth',block:'start'});
+    return;
+  }
+
   const c=$('#qContainerNo').value.trim().toLowerCase();
   const a=$('#qAgent').value.trim().toLowerCase();
   const cl=$('#qCurrentLocation').value.trim().toLowerCase();
@@ -1506,7 +1530,8 @@ $('#locateBtn').onclick=()=>{
   };
   search='';
   $('#search').value='';
-  $('#locateBtn').classList.add('active');
+  btn.classList.add('active');
+  btn.textContent='✕ נקה איתור';
   render();
 
   const tableCard=document.querySelector('.table-card-visual') || document.querySelector('.tablewrap');
@@ -1529,7 +1554,7 @@ $('#moveForm').onsubmit=async e=>{
     rows.unshift(saved || {id:crypto.randomUUID(),...payload});
     saveLocal();
     locateCriteria=null;
-    $('#locateBtn')?.classList.remove('active');
+    $('#locateBtn')?.classList.remove('active'); if($('#locateBtn')) $('#locateBtn').textContent='⌖ איתור';
     e.target.reset();
     $('#containerType').value='20';
     $('#modalbg').classList.remove('show');
