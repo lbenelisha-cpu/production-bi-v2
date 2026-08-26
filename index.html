@@ -1004,6 +1004,110 @@ td,
   }
 }
 
+
+/* ===== v1.5 READABILITY + DELETED ARCHIVE ===== */
+/* Slightly less transparent than v1.4 for stronger readability. */
+.glass,
+.filters,
+.entry-card,
+.card,
+.kpi{
+  background:
+    linear-gradient(135deg,rgba(7,31,62,.27),rgba(3,23,49,.20))!important;
+  backdrop-filter:blur(6px) saturate(120%)!important;
+  -webkit-backdrop-filter:blur(6px) saturate(120%)!important;
+}
+header.glass{
+  background:
+    linear-gradient(180deg,rgba(4,27,56,.26),rgba(4,27,56,.16))!important;
+}
+.entry-grid input,
+.entry-grid select,
+.search,
+.formgrid input,
+.formgrid select{
+  background:rgba(5,31,65,.31)!important;
+}
+table{background:rgba(3,25,52,.16)!important}
+th{background:rgba(3,27,57,.31)!important}
+td{background:rgba(4,25,53,.13)!important}
+
+/* Delete/archive dialogs */
+.delete-modal,
+.deleted-modal{
+  width:min(980px,95vw)!important;
+}
+.delete-confirm-grid{
+  display:grid;
+  grid-template-columns:1fr;
+  gap:10px;
+  margin:16px 0;
+}
+.delete-confirm-grid label{
+  display:grid;
+  gap:7px;
+  font-size:13px;
+  font-weight:700;
+  color:#eef7ff;
+}
+.delete-confirm-grid input{
+  width:100%;
+  border:1px solid rgba(208,233,255,.25);
+  background:rgba(5,31,65,.34);
+  color:#fff;
+  border-radius:12px;
+  padding:12px;
+  outline:none;
+}
+.delete-summary{
+  border:1px solid rgba(208,233,255,.17);
+  background:rgba(3,25,52,.16);
+  border-radius:14px;
+  padding:12px;
+  line-height:1.7;
+  color:rgba(240,247,255,.86);
+}
+.delete-actions{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:8px;
+}
+.btn-danger{
+  background:linear-gradient(135deg,#d73255,#ef496a)!important;
+  color:#fff!important;
+  border:1px solid rgba(255,160,177,.30)!important;
+}
+.deleted-table-wrap{
+  max-height:62vh;
+  overflow:auto;
+  border-radius:14px;
+}
+.deleted-table{
+  min-width:1000px;
+}
+.deleted-table td,
+.deleted-table th{
+  font-size:12px;
+}
+.deleted-by{
+  color:#ffd27a;
+  font-weight:800;
+}
+.deleted-date{
+  color:#ff9db1;
+}
+@media(max-width:900px){
+  .glass,.filters,.entry-card,.card,.kpi{
+    background:
+      linear-gradient(135deg,rgba(7,31,62,.31),rgba(3,23,49,.23))!important;
+  }
+  .entry-grid input,.entry-grid select,.search,.formgrid input,.formgrid select{
+    background:rgba(5,31,65,.35)!important;
+  }
+  .delete-actions{grid-template-columns:1fr!important}
+  .deleted-table-wrap{max-height:66vh}
+}
+
 </style>
 </head>
 <body>
@@ -1127,7 +1231,7 @@ td,
 <section class="bottom-actions">
   <button id="exportBottom">▣ יצוא לאקסל</button>
   <button type="button">🚚 משאיות ממתינות</button>
-  <button type="button">▥ מכולות ללא תנועה</button>
+  <button type="button" id="deletedContainersBtn">🗑 מכולות מחוקות</button>
   <button type="button" id="refreshBottom">⟳ רענון נתונים</button>
 </section>
 
@@ -1155,6 +1259,58 @@ window.APP_CONFIG = {
   SUPABASE_ANON_KEY: "sb_publishable_N6ojL3NC-ND96b1c61irbw_lsQpIa-s"
 };
 </script>
+
+<div class="modalbg" id="deleteModalBg">
+  <div class="modal glass delete-modal">
+    <div class="modaltitle">
+      <div>
+        <h2>מחיקת תנועה</h2>
+        <div class="sub">הרשומה תועבר לארכיון מכולות מחוקות ולא תיעלם מהמערכת</div>
+      </div>
+      <button type="button" class="close" id="closeDeleteModal">✕</button>
+    </div>
+    <div class="delete-summary" id="deleteSummary"></div>
+    <div class="delete-confirm-grid">
+      <label>שם המוחק
+        <input id="deletedByInput" autocomplete="name" placeholder="הזן שם מלא" />
+      </label>
+    </div>
+    <div class="delete-actions">
+      <button type="button" class="btn secondary" id="cancelDeleteBtn">ביטול</button>
+      <button type="button" class="btn btn-danger" id="confirmArchiveDeleteBtn">אישור מחיקה והעברה לארכיון</button>
+    </div>
+  </div>
+</div>
+
+<div class="modalbg" id="deletedModalBg">
+  <div class="modal glass deleted-modal">
+    <div class="modaltitle">
+      <div>
+        <h2>מכולות מחוקות</h2>
+        <div class="sub">כל התנועות שנמחקו, כולל שם המוחק ותאריך המחיקה</div>
+      </div>
+      <button type="button" class="close" id="closeDeletedModal">✕</button>
+    </div>
+    <div class="deleted-table-wrap">
+      <table class="deleted-table">
+        <thead>
+          <tr>
+            <th>תאריך מחיקה</th>
+            <th>שם המוחק</th>
+            <th>תאריך ושעת תנועה</th>
+            <th>מספר מכולה</th>
+            <th>סוכן</th>
+            <th>סוג</th>
+            <th>איתור נוכחי</th>
+            <th>איתור יעד</th>
+          </tr>
+        </thead>
+        <tbody id="deletedTbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
 <script>
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const pad=n=>String(n).padStart(2,'0');
@@ -1204,6 +1360,41 @@ async function cloudDeleteMovement(id){
   });
   if(!res.ok) throw new Error(await res.text());
 }
+async function cloudArchiveMovement(row, deletedBy){
+  const payload={
+    original_id:row.id,
+    container_no:row.container_no,
+    agent:row.agent,
+    container_type:Number(row.container_type),
+    current_location:row.current_location,
+    target_location:row.target_location,
+    movement_at:row.movement_at,
+    deleted_by:deletedBy,
+    deleted_at:new Date().toISOString()
+  };
+  if(!cloudEnabled){
+    const local=JSON.parse(localStorage.getItem('deleted_container_movements')||'[]');
+    local.unshift({...payload,id:crypto.randomUUID()});
+    localStorage.setItem('deleted_container_movements',JSON.stringify(local));
+    return;
+  }
+  const res=await fetch(`${CLOUD.url}/rest/v1/deleted_container_movements`,{
+    method:'POST',
+    headers:cloudHeaders({'Prefer':'return=minimal'}),
+    body:JSON.stringify(payload)
+  });
+  if(!res.ok) throw new Error(await res.text());
+}
+async function cloudLoadDeletedMovements(){
+  if(!cloudEnabled){
+    return JSON.parse(localStorage.getItem('deleted_container_movements')||'[]');
+  }
+  const res=await fetch(`${CLOUD.url}/rest/v1/deleted_container_movements?select=*&order=deleted_at.desc`,{
+    headers:cloudHeaders()
+  });
+  if(!res.ok) throw new Error(await res.text());
+  return await res.json();
+}
 function setCloudStatus(ok, text){
   const el=$('#cloudStatus');
   if(!el) return;
@@ -1221,6 +1412,7 @@ function seed(){
  return [0,1,2,4,6,8,9].map((h,i)=>({id:crypto.randomUUID(),container_no:names[i],agent:agents[i],container_type:i%2?40:20,current_location:locs[i%locs.length],target_location:locs[(i+1)%locs.length],movement_at:new Date(Date.now()-h*3600000).toISOString()}));
 }
 let rows=JSON.parse(localStorage.getItem('container_movements_static')||'null') || (cloudEnabled ? [] : seed());
+let pendingDeleteRow=null;
 function saveLocal(){localStorage.setItem('container_movements_static',JSON.stringify(rows))}
 function getRange(){
  const d=new Date(anchor), s=new Date(d), e=new Date(d);
@@ -1272,7 +1464,18 @@ function render(){
  const fr=filtered(), c=new Set(fr.map(r=>r.container_no)).size, l=new Set(fr.flatMap(r=>[r.current_location,r.target_location])).size, cd=chartData(fr);
  $('#kpiMoves').textContent=fr.length;$('#kpiContainers').textContent=c;$('#kpiLocations').textContent=l;$('#kpiAverage').textContent=cd.length?Math.round(fr.length/cd.length):0;$('#rowsLabel').textContent=`${fr.length} רשומות מוצגות`;
  $('#tbody').innerHTML=fr.length?fr.map(r=>`<tr><td>${fmt(new Date(r.movement_at))}</td><td class="mono">${escapeHtml(r.container_no)}</td><td>${escapeHtml(r.agent)}</td><td><span class="pill">${r.container_type} פיט</span></td><td>⌖ ${escapeHtml(r.current_location)}</td><td>⌖ ${escapeHtml(r.target_location)}</td><td><button class="delete" data-id="${r.id}">🗑</button></td></tr>`).join(''):`<tr><td class="empty" colspan="7">אין תנועות בטווח שנבחר</td></tr>`;
- $$('.delete').forEach(b=>b.onclick=async()=>{if(!confirm('למחוק את התנועה הזאת?'))return; try{await cloudDeleteMovement(b.dataset.id);rows=rows.filter(r=>r.id!==b.dataset.id);saveLocal();render()}catch(err){alert('המחיקה נכשלה בענן: '+err.message)}});
+ $$('.delete').forEach(b=>b.onclick=()=>{
+   pendingDeleteRow=rows.find(r=>String(r.id)===String(b.dataset.id))||null;
+   if(!pendingDeleteRow)return;
+   $('#deleteSummary').innerHTML=
+     `<strong>מספר מכולה:</strong> ${escapeHtml(pendingDeleteRow.container_no)}<br>`+
+     `<strong>סוכן:</strong> ${escapeHtml(pendingDeleteRow.agent)}<br>`+
+     `<strong>מסלול:</strong> ${escapeHtml(pendingDeleteRow.current_location)} ← ${escapeHtml(pendingDeleteRow.target_location)}<br>`+
+     `<strong>תאריך תנועה:</strong> ${escapeHtml(fmt(new Date(pendingDeleteRow.movement_at)))}`;
+   $('#deletedByInput').value='';
+   $('#deleteModalBg').classList.add('show');
+   setTimeout(()=>$('#deletedByInput').focus(),50);
+ });
  drawChart(cd); updateLocations()
 }
 $$('#periods button').forEach(b=>b.onclick=()=>{locateCriteria=null;$('#locateBtn')?.classList.remove('active');$$('#periods button').forEach(x=>x.classList.remove('active'));b.classList.add('active');period=b.dataset.period;$('#datebox').style.display=period==='custom'?'none':'flex';$('#customRange').style.display=period==='custom'?'flex':'none';render()});
@@ -1372,6 +1575,67 @@ $('#quickEntryForm').onsubmit=async e=>{
 
 $('#exportBtn').onclick=exportExcel;
 
+
+
+function closeDeleteDialog(){
+  $('#deleteModalBg').classList.remove('show');
+  pendingDeleteRow=null;
+}
+$('#closeDeleteModal').onclick=closeDeleteDialog;
+$('#cancelDeleteBtn').onclick=closeDeleteDialog;
+$('#deleteModalBg').onclick=e=>{if(e.target===$('#deleteModalBg'))closeDeleteDialog()};
+
+$('#confirmArchiveDeleteBtn').onclick=async()=>{
+  if(!pendingDeleteRow)return;
+  const deletedBy=$('#deletedByInput').value.trim();
+  if(!deletedBy){
+    alert('יש להזין את שם המוחק.');
+    $('#deletedByInput').focus();
+    return;
+  }
+  const btn=$('#confirmArchiveDeleteBtn');
+  const originalText=btn.textContent;
+  btn.disabled=true;
+  btn.textContent='מעביר לארכיון...';
+  try{
+    await cloudArchiveMovement(pendingDeleteRow,deletedBy);
+    await cloudDeleteMovement(pendingDeleteRow.id);
+    rows=rows.filter(r=>String(r.id)!==String(pendingDeleteRow.id));
+    saveLocal();
+    closeDeleteDialog();
+    render();
+  }catch(err){
+    alert('המחיקה/העברה לארכיון נכשלה: '+err.message);
+  }finally{
+    btn.disabled=false;
+    btn.textContent=originalText;
+  }
+};
+
+async function openDeletedArchive(){
+  $('#deletedModalBg').classList.add('show');
+  $('#deletedTbody').innerHTML='<tr><td colspan="8" class="empty">טוען רשומות מחוקות...</td></tr>';
+  try{
+    const deleted=await cloudLoadDeletedMovements();
+    $('#deletedTbody').innerHTML=deleted.length ? deleted.map(r=>`
+      <tr>
+        <td class="deleted-date">${escapeHtml(fmt(new Date(r.deleted_at)))}</td>
+        <td class="deleted-by">${escapeHtml(r.deleted_by||'')}</td>
+        <td>${escapeHtml(fmt(new Date(r.movement_at)))}</td>
+        <td class="mono">${escapeHtml(r.container_no||'')}</td>
+        <td>${escapeHtml(r.agent||'')}</td>
+        <td>${escapeHtml(r.container_type)} פיט</td>
+        <td>${escapeHtml(r.current_location||'')}</td>
+        <td>${escapeHtml(r.target_location||'')}</td>
+      </tr>`).join('') :
+      '<tr><td colspan="8" class="empty">אין מכולות מחוקות</td></tr>';
+  }catch(err){
+    $('#deletedTbody').innerHTML=`<tr><td colspan="8" class="empty">שגיאה בטעינת ארכיון: ${escapeHtml(err.message)}</td></tr>`;
+  }
+}
+$('#deletedContainersBtn').onclick=openDeletedArchive;
+$('#closeDeletedModal').onclick=()=>$('#deletedModalBg').classList.remove('show');
+$('#deletedModalBg').onclick=e=>{if(e.target===$('#deletedModalBg'))$('#deletedModalBg').classList.remove('show')};
 
 function updateHeaderClock(){
   const now=new Date();
