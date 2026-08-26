@@ -1108,6 +1108,106 @@ td{background:rgba(4,25,53,.13)!important}
   .deleted-table-wrap{max-height:66vh}
 }
 
+
+/* ===== v1.7 FILTER / SORT / STICKY TABLE ===== */
+.table-tools{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(130px,1fr)) minmax(170px,1.15fr) auto auto;
+  gap:8px;
+  margin:10px 0 12px;
+}
+.table-tools select,
+.sort-dir-btn,
+.clear-filters-btn{
+  min-height:40px;
+  border-radius:11px;
+  border:1px solid rgba(208,233,255,.23);
+  background:rgba(5,31,65,.28);
+  color:#fff;
+  padding:8px 10px;
+  outline:none;
+}
+.table-tools select option{
+  color:#16283d;
+  background:#fff;
+}
+.sort-dir-btn,
+.clear-filters-btn{
+  cursor:pointer;
+  font-weight:700;
+  white-space:nowrap;
+}
+.sort-dir-btn{
+  background:rgba(4,104,211,.22);
+  min-width:82px;
+}
+.clear-filters-btn{
+  background:rgba(102,55,168,.18);
+  min-width:96px;
+}
+
+/* Header stays visible while the rows scroll */
+.tablewrap{
+  max-height:760px;
+  overflow-y:auto!important;
+  overflow-x:auto!important;
+  position:relative;
+  scrollbar-width:thin;
+}
+.tablewrap thead th{
+  position:sticky!important;
+  top:0!important;
+  z-index:8!important;
+  background:rgba(5,28,58,.92)!important;
+  backdrop-filter:blur(10px)!important;
+  -webkit-backdrop-filter:blur(10px)!important;
+  box-shadow:0 1px 0 rgba(220,238,255,.18);
+}
+
+/* Approx. 20 desktop data rows before vertical scrolling begins */
+.tablewrap tbody tr{
+  height:36px;
+}
+.tablewrap tbody td{
+  padding-top:8px!important;
+  padding-bottom:8px!important;
+}
+
+@media(max-width:1200px){
+  .table-tools{
+    grid-template-columns:repeat(3,minmax(130px,1fr)) auto auto;
+  }
+}
+@media(max-width:900px){
+  .table-tools{
+    grid-template-columns:1fr 1fr!important;
+    gap:7px!important;
+  }
+  .table-tools select,
+  .sort-dir-btn,
+  .clear-filters-btn{
+    width:100%!important;
+    min-width:0!important;
+    font-size:11px!important;
+  }
+
+  /* On mobile keep card list scrollable after about 20 records */
+  .tablewrap{
+    max-height:72vh!important;
+    overflow-y:auto!important;
+    overflow-x:hidden!important;
+    padding-left:2px;
+  }
+  .tablewrap thead{
+    display:none!important;
+  }
+}
+@media(max-width:480px){
+  .table-tools{
+    grid-template-columns:1fr!important;
+  }
+}
+
 </style>
 </head>
 <body>
@@ -1215,6 +1315,32 @@ td{background:rgba(4,25,53,.13)!important}
     <div><h2>רשימת תנועות</h2><p id="rowsLabel">0 רשומות מוצגות</p></div>
     <div class="search">⌕ <input id="search" placeholder="חיפוש מכולה, סוכן או איתור..."></div>
   </div>
+  <div class="table-tools">
+    <select id="filterAgent" aria-label="סינון לפי סוכן">
+      <option value="">כל הסוכנים</option>
+    </select>
+    <select id="filterType" aria-label="סינון לפי סוג מכולה">
+      <option value="">כל הסוגים</option>
+      <option value="20">20 פיט</option>
+      <option value="40">40 פיט</option>
+    </select>
+    <select id="filterCurrent" aria-label="סינון לפי איתור נוכחי">
+      <option value="">כל האיתורים הנוכחיים</option>
+    </select>
+    <select id="filterTarget" aria-label="סינון לפי איתור יעד">
+      <option value="">כל איתורי היעד</option>
+    </select>
+    <select id="sortField" aria-label="מיון לפי">
+      <option value="movement_at">מיון: תאריך ושעה</option>
+      <option value="container_no">מיון: מספר מכולה</option>
+      <option value="agent">מיון: סוכן</option>
+      <option value="container_type">מיון: סוג</option>
+      <option value="current_location">מיון: איתור נוכחי</option>
+      <option value="target_location">מיון: איתור יעד</option>
+    </select>
+    <button type="button" class="sort-dir-btn" id="sortDirBtn" data-dir="desc" title="שינוי כיוון מיון">↓ יורד</button>
+    <button type="button" class="clear-filters-btn" id="clearTableFilters">נקה סינון</button>
+  </div>
   <div class="tablewrap">
   <table>
     <thead><tr><th>תאריך ושעה</th><th>מספר מכולה</th><th>סוכן</th><th>סוג</th><th>איתור נוכחי</th><th>איתור יעד</th><th></th></tr></thead>
@@ -1318,6 +1444,8 @@ const dateOnly=d=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}
 const fmt=d=>new Intl.DateTimeFormat('he-IL',{dateStyle:'short',timeStyle:'short'}).format(d);
 
 let period='daily', anchor=new Date(), search='', locateCriteria=null;
+let tableFilters={agent:'',type:'',current:'',target:''};
+let sortField='movement_at', sortDir='desc';
 const CLOUD = {
   url: (window.APP_CONFIG?.SUPABASE_URL || '').replace(/\/$/,''),
   key: window.APP_CONFIG?.SUPABASE_ANON_KEY || '',
@@ -1425,20 +1553,51 @@ function getRange(){
 }
 function filtered(){
  const [s,e]=getRange(), q=search.trim().toLowerCase();
- return rows.filter(r=>{
+ let result=rows.filter(r=>{
    const d=new Date(r.movement_at);
+
    if(locateCriteria){
      const checks=[];
      if(locateCriteria.container_no) checks.push(String(r.container_no||'').toLowerCase().includes(locateCriteria.container_no));
      if(locateCriteria.agent) checks.push(String(r.agent||'').toLowerCase().includes(locateCriteria.agent));
      if(locateCriteria.current_location) checks.push(String(r.current_location||'').toLowerCase().includes(locateCriteria.current_location));
      if(locateCriteria.target_location) checks.push(String(r.target_location||'').toLowerCase().includes(locateCriteria.target_location));
-     return checks.length ? checks.every(Boolean) : true;
+     if(checks.length && !checks.every(Boolean)) return false;
+   } else {
+     if(d<s||d>e)return false;
+     if(q && ![r.container_no,r.agent,r.current_location,r.target_location,String(r.container_type)]
+       .some(v=>String(v||'').toLowerCase().includes(q))) return false;
    }
-   if(d<s||d>e)return false;
-   if(!q)return true;
-   return [r.container_no,r.agent,r.current_location,r.target_location,String(r.container_type)].some(v=>String(v||'').toLowerCase().includes(q))
- })
+
+   if(tableFilters.agent && String(r.agent||'')!==tableFilters.agent) return false;
+   if(tableFilters.type && String(r.container_type)!==tableFilters.type) return false;
+   if(tableFilters.current && String(r.current_location||'')!==tableFilters.current) return false;
+   if(tableFilters.target && String(r.target_location||'')!==tableFilters.target) return false;
+
+   return true;
+ });
+
+ result.sort((a,b)=>{
+   let av=a?.[sortField], bv=b?.[sortField];
+
+   if(sortField==='movement_at'){
+     av=new Date(av).getTime()||0;
+     bv=new Date(bv).getTime()||0;
+   }else if(sortField==='container_type'){
+     av=Number(av)||0;
+     bv=Number(bv)||0;
+   }else{
+     av=String(av||'');
+     bv=String(bv||'');
+     const cmp=av.localeCompare(bv,'he',{numeric:true,sensitivity:'base'});
+     return sortDir==='asc' ? cmp : -cmp;
+   }
+
+   const cmp=av===bv ? 0 : (av>bv ? 1 : -1);
+   return sortDir==='asc' ? cmp : -cmp;
+ });
+
+ return result;
 }
 function bucketKey(d){if(period==='daily')return `${dateOnly(d)}-${pad(d.getHours())}`;if(period==='yearly')return `${d.getFullYear()}-${pad(d.getMonth()+1)}`;return dateOnly(d)}
 function bucketLabel(d){if(period==='daily')return `${pad(d.getHours())}:00`;if(period==='yearly')return `${pad(d.getMonth()+1)}/${String(d.getFullYear()).slice(-2)}`;return `${pad(d.getDate())}/${pad(d.getMonth()+1)}`}
@@ -1456,8 +1615,24 @@ function drawChart(data){
  svg.innerHTML=defs+grid+`<polygon class="area" points="${area}"/><polyline class="line" points="${line}"/>${labels}`
 }
 function updateLocations(){
- const s=new Set();rows.forEach(r=>{if(r.current_location)s.add(r.current_location);if(r.target_location)s.add(r.target_location)});
- $('#locationsList').innerHTML=[...s].sort((a,b)=>a.localeCompare(b,'he')).map(x=>`<option value="${escapeHtml(x)}"></option>`).join('')
+ const s=new Set(), agents=new Set(), currents=new Set(), targets=new Set();
+ rows.forEach(r=>{
+   if(r.current_location){s.add(r.current_location);currents.add(r.current_location)}
+   if(r.target_location){s.add(r.target_location);targets.add(r.target_location)}
+   if(r.agent)agents.add(r.agent)
+ });
+ $('#locationsList').innerHTML=[...s].sort((a,b)=>a.localeCompare(b,'he')).map(x=>`<option value="${escapeHtml(x)}"></option>`).join('');
+
+ const fillSelect=(selector, values, firstLabel, currentValue)=>{
+   const el=$(selector); if(!el)return;
+   el.innerHTML=`<option value="">${firstLabel}</option>`+
+     [...values].sort((a,b)=>String(a).localeCompare(String(b),'he',{numeric:true}))
+       .map(v=>`<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join('');
+   el.value=currentValue||'';
+ };
+ fillSelect('#filterAgent',agents,'כל הסוכנים',tableFilters.agent);
+ fillSelect('#filterCurrent',currents,'כל האיתורים הנוכחיים',tableFilters.current);
+ fillSelect('#filterTarget',targets,'כל איתורי היעד',tableFilters.target);
 }
 function escapeHtml(s){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
 function render(){
@@ -1661,6 +1836,44 @@ async function openDeletedArchive(){
 $('#deletedContainersBtn').onclick=openDeletedArchive;
 $('#closeDeletedModal').onclick=()=>$('#deletedModalBg').classList.remove('show');
 $('#deletedModalBg').onclick=e=>{if(e.target===$('#deletedModalBg'))$('#deletedModalBg').classList.remove('show')};
+
+
+function applyTableFiltersFromControls(){
+  tableFilters={
+    agent:$('#filterAgent')?.value||'',
+    type:$('#filterType')?.value||'',
+    current:$('#filterCurrent')?.value||'',
+    target:$('#filterTarget')?.value||''
+  };
+  sortField=$('#sortField')?.value||'movement_at';
+  render();
+}
+['#filterAgent','#filterType','#filterCurrent','#filterTarget','#sortField'].forEach(sel=>{
+  const el=$(sel);
+  if(el)el.onchange=applyTableFiltersFromControls;
+});
+$('#sortDirBtn').onclick=()=>{
+  sortDir=sortDir==='asc'?'desc':'asc';
+  const btn=$('#sortDirBtn');
+  btn.dataset.dir=sortDir;
+  btn.textContent=sortDir==='asc'?'↑ עולה':'↓ יורד';
+  render();
+};
+$('#clearTableFilters').onclick=()=>{
+  tableFilters={agent:'',type:'',current:'',target:''};
+  sortField='movement_at';
+  sortDir='desc';
+  if($('#filterAgent'))$('#filterAgent').value='';
+  if($('#filterType'))$('#filterType').value='';
+  if($('#filterCurrent'))$('#filterCurrent').value='';
+  if($('#filterTarget'))$('#filterTarget').value='';
+  if($('#sortField'))$('#sortField').value='movement_at';
+  if($('#sortDirBtn')){
+    $('#sortDirBtn').dataset.dir='desc';
+    $('#sortDirBtn').textContent='↓ יורד';
+  }
+  render();
+};
 
 function updateHeaderClock(){
   const now=new Date();
