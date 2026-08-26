@@ -1,28 +1,213 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="he" dir="rtl">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>IML Production Dashboard V5.0</title>
-<meta name="application-name" content="IML Production Dashboard V5.0">
-<meta name="apple-mobile-web-app-title" content="IML Production Dashboard V5.0">
-<meta name="theme-color" content="#030812">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<link rel="manifest" href="manifest.webmanifest?v=5.0.0">
-<link rel="icon" type="image/png" href="icons/iml-favicon-v4.png?v=5.0.0">
-<link rel="apple-touch-icon" href="icons/iml-apple-touch-icon-v4.png?v=5.0.0">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;700;800;900&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" onerror="window._xlsxLoadError=true"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" onerror="window._html2canvasLoadError=true"></script>
-<script src="assets/js/vendor-loader.js?v=5.0.0"></script>
-<link rel="stylesheet" href="assets/css/styles.css?v=5.0.0">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#eaf7ff">
+<title>מעקב מכולות</title>
+<style>
+:root{font-family:"Segoe UI",Arial,sans-serif;color:#10233f;background:#eaf7ff}
+*{box-sizing:border-box} body{margin:0;min-width:320px;min-height:100vh}
+button,input,select{font:inherit} button{cursor:pointer}
+body:before{content:"";position:fixed;inset:0;z-index:-2;background:
+radial-gradient(circle at 15% 15%,rgba(255,255,255,.98),transparent 26%),
+radial-gradient(circle at 86% 24%,rgba(83,179,255,.2),transparent 24%),
+linear-gradient(#f9fcff,#eaf7ff 55%,#d3f0ff)}
+body:after{content:"";position:fixed;left:0;right:0;bottom:0;height:38vh;z-index:-1;opacity:.55;
+background:radial-gradient(ellipse at 20% 80%,#fff 0 7%,transparent 8%),
+radial-gradient(ellipse at 50% 88%,#fff 0 8%,transparent 9%),
+radial-gradient(ellipse at 83% 72%,#fff 0 7%,transparent 8%);filter:blur(12px)}
+.glass{background:linear-gradient(135deg,rgba(255,255,255,.76),rgba(255,255,255,.48));
+border:1px solid rgba(255,255,255,.85);box-shadow:0 12px 36px rgba(42,93,141,.12);
+backdrop-filter:blur(22px) saturate(135%);-webkit-backdrop-filter:blur(22px) saturate(135%)}
+header{position:sticky;top:0;z-index:20;border-radius:0!important;border-inline:0!important;border-top:0!important;
+display:flex;align-items:center;justify-content:space-between;padding:15px clamp(15px,4vw,55px)}
+.brand{display:flex;align-items:center;gap:11px}.logo{width:46px;height:46px;border-radius:15px;display:grid;place-items:center;
+color:white;background:linear-gradient(135deg,#1477f2,#4eb6ff);font-size:23px;box-shadow:0 8px 20px rgba(20,119,242,.26)}
+h1{margin:0;font-size:25px}.sub{font-size:11px;color:#6f8198}.actions{display:flex;gap:9px}
+.btn{border:0;border-radius:13px;padding:10px 14px;font-weight:700;display:inline-flex;align-items:center;gap:7px}
+.primary{background:linear-gradient(135deg,#1477f2,#2e91ff);color:white;box-shadow:0 8px 20px rgba(20,119,242,.23)}
+.secondary{background:rgba(255,255,255,.7);color:#193858;border:1px solid rgba(175,204,230,.5)}
+main{width:min(1480px,94vw);margin:20px auto 50px;display:grid;gap:16px}
+.filters{border-radius:22px;padding:11px;display:flex;justify-content:space-between;align-items:center;gap:12px}
+.periods{display:flex;flex-wrap:wrap;gap:5px}.periods button{border:0;border-radius:13px;padding:10px 17px;background:rgba(245,250,255,.78);color:#526984;font-weight:700}
+.periods button.active{background:linear-gradient(135deg,#1477f2,#2e91ff);color:#fff}
+.datebox{display:flex;gap:7px;align-items:center}.datebox button{width:36px;height:36px;border:0;border-radius:11px;background:rgba(255,255,255,.68)}
+.datebox input,.range input{border:0;background:transparent;color:#17385c;font-weight:700}.range{display:flex;gap:8px;flex-wrap:wrap}
+.range label{background:rgba(255,255,255,.66);padding:9px 10px;border-radius:11px}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.kpi{border-radius:21px;padding:16px;display:flex;align-items:center;gap:12px}
+.kicon{width:47px;height:47px;border-radius:15px;display:grid;place-items:center;background:rgba(31,119,247,.1);font-size:21px}
+.kpi span{display:block;color:#657b94;font-size:12px}.kpi strong{font-size:27px}
+.card{border-radius:24px;padding:18px}.head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:10px}
+.head h2{margin:0 0 3px;font-size:19px}.head p{margin:0;color:#74879d;font-size:12px}
+#chart{width:100%;height:320px;display:block;overflow:visible}
+.gridline{stroke:rgba(100,130,160,.18);stroke-width:1}.axistext{font-size:11px;fill:#657b94}.line{fill:none;stroke:#2478ff;stroke-width:3}.area{fill:url(#grad)}
+.dot{fill:#2478ff;stroke:white;stroke-width:2}
+.search{display:flex;align-items:center;gap:7px;background:rgba(255,255,255,.68);padding:9px 11px;border-radius:12px;min-width:280px}
+.search input{border:0;background:transparent;outline:0;width:100%}.tablewrap{overflow:auto;border-radius:15px}
+table{width:100%;border-collapse:collapse;min-width:930px;background:rgba(255,255,255,.25)}
+th,td{padding:12px 13px;text-align:right;border-bottom:1px solid rgba(120,155,190,.14);white-space:nowrap}
+th{font-size:12px;color:#627891;background:rgba(255,255,255,.4)}td{font-size:13px}
+.mono{font-family:Consolas,monospace;font-weight:700}.pill{padding:4px 8px;border-radius:999px;background:rgba(31,119,247,.1);color:#1b6dcb}
+.delete{border:0;border-radius:10px;background:#fff0f3;color:#e83e68;width:34px;height:34px}.empty{text-align:center;padding:30px;color:#7f90a4}
+.modalbg{position:fixed;inset:0;z-index:50;background:rgba(9,29,53,.3);backdrop-filter:blur(8px);display:none;place-items:center;padding:18px}
+.modalbg.show{display:grid}.modal{width:min(760px,96vw);border-radius:26px;padding:20px}.modaltitle{display:flex;justify-content:space-between;align-items:flex-start}
+.modaltitle h2{margin:0 0 3px}.close{border:0;border-radius:10px;width:36px;height:36px;background:rgba(255,255,255,.65)}
+.formgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:13px;margin:18px 0}
+.formgrid label{display:grid;gap:6px;color:#5b7188;font-size:12px;font-weight:700}
+.formgrid input,.formgrid select{width:100%;border:1px solid rgba(174,201,225,.55);border-radius:12px;padding:11px;background:rgba(255,255,255,.72);outline:0}
+.formgrid input:focus,.formgrid select:focus{border-color:#65a9f3;box-shadow:0 0 0 3px rgba(40,130,245,.1)}
+.wide{width:100%;justify-content:center;padding:12px}.notice{font-size:11px;padding:5px 8px;background:#fff4cc;color:#735900;border-radius:999px}
+@media(max-width:900px){
+header{padding:12px 14px}.brand .sub{display:none}h1{font-size:20px}.logo{width:40px;height:40px}.actions .btn{width:42px;height:42px;padding:0;justify-content:center;font-size:0}
+main{width:94vw;margin-top:13px;gap:11px}.filters{display:grid}.periods{display:grid;grid-template-columns:repeat(5,1fr)}.periods button{padding:8px 4px;font-size:10px}
+.datebox{justify-content:center}.range{justify-content:center}.kpis{grid-template-columns:repeat(2,1fr);gap:9px}.kpi{padding:12px}.kpi strong{font-size:22px}
+.card{padding:13px;border-radius:20px}#chart{height:240px}.head{align-items:stretch;flex-direction:column}.search{min-width:0;width:100%}.formgrid{grid-template-columns:1fr}
+}
+</style>
 </head>
 <body>
-<div id="prod-dash-root" dir="rtl" lang="he"></div>
-<input type="file" id="qualityFileInput" accept=".xlsx,.xls,.csv" multiple style="position:fixed;top:-100px;left:-100px;width:1px;height:1px;opacity:0;">
-<script src="assets/js/app.js?v=5.0.0"></script>
-<script src="assets/js/bootstrap.js?v=5.0.0"></script>
+<header class="glass">
+  <div class="brand"><div class="logo">▣</div><div><h1>מעקב מכולות</h1><div class="sub">Container Movement Control</div></div></div>
+  <div class="actions">
+    <span class="notice">גרסת בדיקה מקומית</span>
+    <button class="btn secondary" id="exportBtn">⬇ יצוא לאקסל</button>
+    <button class="btn primary" id="newBtn">＋ תנועה חדשה</button>
+  </div>
+</header>
+
+<main>
+<section class="filters glass">
+  <div class="periods" id="periods">
+    <button class="active" data-period="daily">יומי</button>
+    <button data-period="weekly">שבועי</button>
+    <button data-period="monthly">חודשי</button>
+    <button data-period="yearly">שנתי</button>
+    <button data-period="custom">טווח תאריכים</button>
+  </div>
+  <div class="datebox" id="datebox">
+    <button id="nextDate">‹</button><input id="anchorDate" type="date"><button id="prevDate">›</button>
+  </div>
+  <div class="range" id="customRange" style="display:none">
+    <label>מתאריך <input id="startDate" type="date"></label>
+    <label>עד <input id="endDate" type="date"></label>
+  </div>
+</section>
+
+<section class="kpis">
+  <div class="kpi glass"><div class="kicon">↔</div><div><span>סה״כ תנועות</span><strong id="kpiMoves">0</strong></div></div>
+  <div class="kpi glass"><div class="kicon">▣</div><div><span>מכולות שונות</span><strong id="kpiContainers">0</strong></div></div>
+  <div class="kpi glass"><div class="kicon">⌖</div><div><span>איתורים שונים</span><strong id="kpiLocations">0</strong></div></div>
+  <div class="kpi glass"><div class="kicon">◴</div><div><span>ממוצע תנועות</span><strong id="kpiAverage">0</strong></div></div>
+</section>
+
+<section class="card glass">
+  <div class="head"><div><h2>מספר תנועות מכולות</h2><p>ציר Y — מספר מכולות · ציר X — תאריך / שעה</p></div></div>
+  <svg id="chart" viewBox="0 0 1000 320" preserveAspectRatio="none"></svg>
+</section>
+
+<section class="card glass">
+  <div class="head">
+    <div><h2>רשימת תנועות</h2><p id="rowsLabel">0 רשומות מוצגות</p></div>
+    <div class="search">⌕ <input id="search" placeholder="חיפוש מכולה, סוכן או איתור..."></div>
+  </div>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>תאריך ושעה</th><th>מספר מכולה</th><th>סוכן</th><th>סוג</th><th>איתור נוכחי</th><th>איתור יעד</th><th></th></tr></thead>
+    <tbody id="tbody"></tbody>
+  </table>
+  </div>
+</section>
+</main>
+
+<div class="modalbg" id="modalbg">
+<form class="modal glass" id="moveForm">
+  <div class="modaltitle"><div><h2>הוספת תנועה חדשה</h2><div class="sub">התאריך והשעה נלקחים אוטומטית מהמחשב</div></div><button type="button" class="close" id="closeModal">✕</button></div>
+  <div class="formgrid">
+    <label>מספר מכולה<input id="containerNo" required placeholder="לדוגמה MSCU1234567"></label>
+    <label>סוכן<input id="agent" required placeholder="שם הסוכן"></label>
+    <label>סוג מכולה<select id="containerType"><option value="20">20 פיט</option><option value="40">40 פיט</option></select></label>
+    <label>איתור נוכחי<input id="currentLocation" list="locationsList" required placeholder="הקלד או בחר איתור"></label>
+    <label>איתור יעד<input id="targetLocation" list="locationsList" required placeholder="הקלד או בחר איתור"></label>
+    <label>תאריך ושעה<input id="nowDisplay" disabled></label>
+  </div>
+  <datalist id="locationsList"></datalist>
+  <button class="btn primary wide" type="submit">שמור תנועה</button>
+</form>
+</div>
+
+<script>
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const pad=n=>String(n).padStart(2,'0');
+const dateOnly=d=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const fmt=d=>new Intl.DateTimeFormat('he-IL',{dateStyle:'short',timeStyle:'short'}).format(d);
+let period='daily', anchor=new Date(), search='';
+$('#anchorDate').value=dateOnly(anchor); $('#startDate').value=dateOnly(anchor); $('#endDate').value=dateOnly(anchor);
+
+function seed(){
+ const names=['MSCU1234567','TCLU7654321','CMAU9876543','GESU1122334','TRHU3344556','OOLU7733551','MSDU9988776'];
+ const agents=['צים','MSC','CMA CGM','Hapag-Lloyd','Maersk','ONE','Evergreen'];
+ const locs=['מחסן מרכזי','נמל אשדוד','רחבה צפונית','מסוף מכולות','שער דרומי'];
+ return [0,1,2,4,6,8,9].map((h,i)=>({id:crypto.randomUUID(),container_no:names[i],agent:agents[i],container_type:i%2?40:20,current_location:locs[i%locs.length],target_location:locs[(i+1)%locs.length],movement_at:new Date(Date.now()-h*3600000).toISOString()}));
+}
+let rows=JSON.parse(localStorage.getItem('container_movements_static')||'null')||seed();
+function saveLocal(){localStorage.setItem('container_movements_static',JSON.stringify(rows))}
+function getRange(){
+ const d=new Date(anchor), s=new Date(d), e=new Date(d);
+ if(period==='daily'){s.setHours(0,0,0,0);e.setHours(23,59,59,999)}
+ else if(period==='weekly'){s.setDate(s.getDate()-6);s.setHours(0,0,0,0);e.setHours(23,59,59,999)}
+ else if(period==='monthly'){s.setDate(1);s.setHours(0,0,0,0);e.setMonth(e.getMonth()+1,0);e.setHours(23,59,59,999)}
+ else if(period==='yearly'){s.setMonth(0,1);s.setHours(0,0,0,0);e.setMonth(11,31);e.setHours(23,59,59,999)}
+ else {return [new Date($('#startDate').value+'T00:00:00'),new Date($('#endDate').value+'T23:59:59')]}
+ return [s,e]
+}
+function filtered(){
+ const [s,e]=getRange(), q=search.trim().toLowerCase();
+ return rows.filter(r=>{const d=new Date(r.movement_at); if(d<s||d>e)return false; if(!q)return true;
+ return [r.container_no,r.agent,r.current_location,r.target_location,String(r.container_type)].some(v=>String(v).toLowerCase().includes(q))})
+}
+function bucketKey(d){if(period==='daily')return `${dateOnly(d)}-${pad(d.getHours())}`;if(period==='yearly')return `${d.getFullYear()}-${pad(d.getMonth()+1)}`;return dateOnly(d)}
+function bucketLabel(d){if(period==='daily')return `${pad(d.getHours())}:00`;if(period==='yearly')return `${pad(d.getMonth()+1)}/${String(d.getFullYear()).slice(-2)}`;return `${pad(d.getDate())}/${pad(d.getMonth()+1)}`}
+function chartData(fr){
+ const m=new Map();fr.forEach(r=>{const d=new Date(r.movement_at),k=bucketKey(d);if(!m.has(k))m.set(k,{label:bucketLabel(d),count:0,ts:d.getTime()});m.get(k).count++});return [...m.values()].sort((a,b)=>a.ts-b.ts)
+}
+function drawChart(data){
+ const svg=$('#chart'), W=1000,H=320,L=55,R=22,T=20,B=45, iw=W-L-R, ih=H-T-B, max=Math.max(1,...data.map(x=>x.count));
+ let defs=`<defs><linearGradient id="grad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#2478ff" stop-opacity=".38"/><stop offset="100%" stop-color="#2478ff" stop-opacity=".03"/></linearGradient></defs>`;
+ let grid='';for(let i=0;i<=5;i++){let y=T+ih*i/5, val=Math.round(max*(5-i)/5);grid+=`<line class="gridline" x1="${L}" y1="${y}" x2="${W-R}" y2="${y}"/><text class="axistext" x="${L-10}" y="${y+4}" text-anchor="end">${val}</text>`}
+ if(!data.length){svg.innerHTML=defs+grid+`<text x="500" y="165" text-anchor="middle" class="axistext">אין נתונים בטווח שנבחר</text>`;return}
+ const pts=data.map((d,i)=>{const x=L+(data.length===1?iw/2:iw*i/(data.length-1)),y=T+ih-(d.count/max)*ih;return {x,y,...d}})
+ const line=pts.map(p=>`${p.x},${p.y}`).join(' '), area=`${L},${T+ih} ${line} ${pts[pts.length-1].x},${T+ih}`;
+ let labels=pts.map((p,i)=>`<circle class="dot" cx="${p.x}" cy="${p.y}" r="5"/><text class="axistext" x="${p.x}" y="${H-17}" text-anchor="middle">${p.label}</text><text class="axistext" x="${p.x}" y="${p.y-10}" text-anchor="middle">${p.count}</text>`).join('');
+ svg.innerHTML=defs+grid+`<polygon class="area" points="${area}"/><polyline class="line" points="${line}"/>${labels}`
+}
+function updateLocations(){
+ const s=new Set();rows.forEach(r=>{if(r.current_location)s.add(r.current_location);if(r.target_location)s.add(r.target_location)});
+ $('#locationsList').innerHTML=[...s].sort((a,b)=>a.localeCompare(b,'he')).map(x=>`<option value="${escapeHtml(x)}"></option>`).join('')
+}
+function escapeHtml(s){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
+function render(){
+ const fr=filtered(), c=new Set(fr.map(r=>r.container_no)).size, l=new Set(fr.flatMap(r=>[r.current_location,r.target_location])).size, cd=chartData(fr);
+ $('#kpiMoves').textContent=fr.length;$('#kpiContainers').textContent=c;$('#kpiLocations').textContent=l;$('#kpiAverage').textContent=cd.length?Math.round(fr.length/cd.length):0;$('#rowsLabel').textContent=`${fr.length} רשומות מוצגות`;
+ $('#tbody').innerHTML=fr.length?fr.map(r=>`<tr><td>${fmt(new Date(r.movement_at))}</td><td class="mono">${escapeHtml(r.container_no)}</td><td>${escapeHtml(r.agent)}</td><td><span class="pill">${r.container_type} פיט</span></td><td>⌖ ${escapeHtml(r.current_location)}</td><td>⌖ ${escapeHtml(r.target_location)}</td><td><button class="delete" data-id="${r.id}">🗑</button></td></tr>`).join(''):`<tr><td class="empty" colspan="7">אין תנועות בטווח שנבחר</td></tr>`;
+ $$('.delete').forEach(b=>b.onclick=()=>{if(confirm('למחוק את התנועה הזאת?')){rows=rows.filter(r=>r.id!==b.dataset.id);saveLocal();render()}});
+ drawChart(cd); updateLocations()
+}
+$$('#periods button').forEach(b=>b.onclick=()=>{$$('#periods button').forEach(x=>x.classList.remove('active'));b.classList.add('active');period=b.dataset.period;$('#datebox').style.display=period==='custom'?'none':'flex';$('#customRange').style.display=period==='custom'?'flex':'none';render()});
+$('#anchorDate').onchange=e=>{anchor=new Date(e.target.value+'T12:00:00');render()};
+function shift(delta){let d=new Date(anchor);if(period==='daily')d.setDate(d.getDate()+delta);else if(period==='weekly')d.setDate(d.getDate()+7*delta);else if(period==='monthly')d.setMonth(d.getMonth()+delta);else if(period==='yearly')d.setFullYear(d.getFullYear()+delta);anchor=d;$('#anchorDate').value=dateOnly(d);render()}
+$('#prevDate').onclick=()=>shift(-1);$('#nextDate').onclick=()=>shift(1);$('#startDate').onchange=render;$('#endDate').onchange=render;$('#search').oninput=e=>{search=e.target.value;render()};
+$('#newBtn').onclick=()=>{$('#nowDisplay').value=fmt(new Date());$('#modalbg').classList.add('show');$('#containerNo').focus()};
+$('#closeModal').onclick=()=>$('#modalbg').classList.remove('show');$('#modalbg').onclick=e=>{if(e.target===$('#modalbg'))$('#modalbg').classList.remove('show')};
+$('#moveForm').onsubmit=e=>{e.preventDefault();rows.unshift({id:crypto.randomUUID(),container_no:$('#containerNo').value.trim().toUpperCase(),agent:$('#agent').value.trim(),container_type:Number($('#containerType').value),current_location:$('#currentLocation').value.trim(),target_location:$('#targetLocation').value.trim(),movement_at:new Date().toISOString()});saveLocal();e.target.reset();$('#containerType').value='20';$('#modalbg').classList.remove('show');render()};
+function exportExcel(){
+ const fr=filtered(), [s,e]=getRange();
+ const esc=s=>String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+ const trs=fr.map(r=>`<tr><td>${esc(fmt(new Date(r.movement_at)))}</td><td>${esc(r.container_no)}</td><td>${esc(r.agent)}</td><td>${r.container_type}</td><td>${esc(r.current_location)}</td><td>${esc(r.target_location)}</td></tr>`).join('');
+ const html=`<html dir="rtl"><head><meta charset="utf-8"></head><body><h2>מעקב מכולות</h2><p>מתאריך: ${esc(fmt(s))} | עד: ${esc(fmt(e))}</p><p>סה"כ תנועות: ${fr.length}</p><table border="1"><tr><th>תאריך ושעה</th><th>מספר מכולה</th><th>סוכן</th><th>סוג מכולה (פיט)</th><th>איתור נוכחי</th><th>איתור יעד</th></tr>${trs}</table></body></html>`;
+ const blob=new Blob(['\ufeff',html],{type:'application/vnd.ms-excel'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`מעקב_מכולות_${dateOnly(s)}_${dateOnly(e)}.xls`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)
+}
+$('#exportBtn').onclick=exportExcel;render();
+</script>
 </body>
 </html>
