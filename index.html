@@ -1804,6 +1804,57 @@ body{--movement-scale:1.125}
   }
 }
 </style>
+
+<style id="movement-note-trash-v11">
+/* Explicit note column scaling: always follows ▲ / ▼ display size */
+.table-card-visual .tablewrap tbody td.movement-note{
+  font-size:calc(16px * var(--movement-scale))!important;
+  font-weight:800!important;
+  line-height:1.45!important;
+  color:#ffffff!important;
+  text-shadow:0 1px 2px rgba(0,0,0,.95),0 0 7px rgba(255,255,255,.14)!important;
+  white-space:normal!important;
+  overflow-wrap:anywhere!important;
+}
+
+/* iOS-style destructive red */
+.table-card-visual .ios-trash{
+  display:inline-flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  width:40px!important;
+  min-width:40px!important;
+  height:40px!important;
+  min-height:40px!important;
+  padding:0!important;
+  border-radius:12px!important;
+  border:1px solid rgba(255,69,58,.52)!important;
+  background:rgba(255,69,58,.18)!important;
+  color:#ff453a!important;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.03)!important;
+}
+.table-card-visual .ios-trash:hover{
+  background:rgba(255,69,58,.30)!important;
+  color:#ff6961!important;
+}
+.table-card-visual .ios-trash:active{
+  background:rgba(255,69,58,.38)!important;
+  transform:scale(.96)!important;
+}
+.table-card-visual .ios-trash svg{
+  width:21px!important;
+  height:21px!important;
+  stroke:currentColor!important;
+  stroke-width:2!important;
+}
+
+@media(max-width:900px){
+  .table-card-visual .tablewrap tbody td.movement-note{
+    font-size:calc(14px * var(--movement-scale))!important;
+    line-height:1.5!important;
+  }
+}
+</style>
 </head>
 <body>
 
@@ -2279,7 +2330,7 @@ function escapeHtml(s){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':
 function render(){
  const fr=filtered(), c=new Set(fr.map(r=>r.container_no)).size, l=new Set(fr.flatMap(r=>[r.current_location,r.target_location])).size, cd=chartData(fr);
  $('#kpiMoves').textContent=fr.length;$('#kpiContainers').textContent=c;$('#kpiLocations').textContent=l;$('#kpiAverage').textContent=cd.length?Math.round(fr.length/cd.length):0;$('#rowsLabel').textContent=`${fr.length} רשומות מוצגות`;
- $('#tbody').innerHTML=fr.length?fr.map(r=>{const miss=!r.agent||!r.current_location||!r.target_location;return `<tr><td>${fmt(new Date(r.movement_at))}</td><td class="mono">${r.container_no?escapeHtml(r.container_no):''} ${!r.container_no&&r.photo_url?'<span class="unrecognized">📷 צילום בלבד — דורש עריכה</span>':''} ${miss?'<span class="missing">⚠ חסרים פרטים</span>':''} ${r.photo_url?`<a class="photo-link" href="${escapeHtml(r.photo_url)}" target="_blank" title="פתח צילום">📷</a>`:''}</td><td>${escapeHtml(r.agent||'—')}</td><td>${r.container_type?`<span class="pill">${r.container_type} פיט</span>`:'—'}</td><td>⌖ ${escapeHtml(r.current_location||'—')}</td><td>⌖ ${escapeHtml(r.target_location||'—')}</td><td>${escapeHtml(r.note||'')}</td><td class="row-actions"><button class="edit" data-id="${r.id}" title="עריכה">✏️</button><button class="delete ios-trash" data-id="${r.id}" title="מחיקה" aria-label="מחיקה"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 7V5.8C8 4.8 8.8 4 9.8 4h4.4c1 0 1.8.8 1.8 1.8V7M5 7h14M9 10v7M12 10v7M15 10v7M7 7l.7 12.1c.1.6.6.9 1.2.9h6.2c.6 0 1.1-.3 1.2-.9L17 7"/></svg></button></td></tr>`}).join(''):`<tr><td class="empty" colspan="8">אין תנועות בטווח שנבחר</td></tr>`;
+ $('#tbody').innerHTML=fr.length?fr.map(r=>{const miss=!r.agent||!r.current_location||!r.target_location;return `<tr><td>${fmt(new Date(r.movement_at))}</td><td class="mono">${r.container_no?escapeHtml(r.container_no):''} ${!r.container_no&&r.photo_url?'<span class="unrecognized">📷 צילום בלבד — דורש עריכה</span>':''} ${miss?'<span class="missing">⚠ חסרים פרטים</span>':''} ${r.photo_url?`<a class="photo-link" href="${escapeHtml(r.photo_url)}" target="_blank" title="פתח צילום">📷</a>`:''}</td><td>${escapeHtml(r.agent||'—')}</td><td>${r.container_type?`<span class="pill">${r.container_type} פיט</span>`:'—'}</td><td>⌖ ${escapeHtml(r.current_location||'—')}</td><td>⌖ ${escapeHtml(r.target_location||'—')}</td><td class="movement-note">${escapeHtml(r.note||'')}</td><td class="row-actions"><button class="edit" data-id="${r.id}" title="עריכה">✏️</button><button class="delete ios-trash" data-id="${r.id}" title="מחיקה" aria-label="מחיקה"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 7V5.8C8 4.8 8.8 4 9.8 4h4.4c1 0 1.8.8 1.8 1.8V7M5 7h14M9 10v7M12 10v7M15 10v7M7 7l.7 12.1c.1.6.6.9 1.2.9h6.2c.6 0 1.1-.3 1.2-.9L17 7"/></svg></button></td></tr>`}).join(''):`<tr><td class="empty" colspan="8">אין תנועות בטווח שנבחר</td></tr>`;
  $$('.edit').forEach(b=>b.onclick=()=>{
    const r=rows.find(x=>String(x.id)===String(b.dataset.id)); if(!r)return;
    editingId=r.id; $('#qContainerNo').value=r.container_no||''; $('#qAgent').value=r.agent||''; $('#qContainerType').value=r.container_type?String(r.container_type):''; $('#qCurrentLocation').value=r.current_location||''; $('#qTargetLocation').value=r.target_location||''; $('#qNote').value=r.note||'';
