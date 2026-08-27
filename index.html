@@ -1049,7 +1049,8 @@ td{background:rgba(4,25,53,.13)!important}
   font-weight:700;
   color:#eef7ff;
 }
-.delete-confirm-grid input{
+.delete-confirm-grid input,
+.delete-confirm-grid textarea{
   width:100%;
   border:1px solid rgba(208,233,255,.25);
   background:rgba(5,31,65,.34);
@@ -1057,6 +1058,22 @@ td{background:rgba(4,25,53,.13)!important}
   border-radius:12px;
   padding:12px;
   outline:none;
+  font:inherit;
+}
+.delete-confirm-grid textarea{
+  resize:vertical;
+  min-height:82px;
+  line-height:1.55;
+}
+.delete-confirm-grid input:focus,
+.delete-confirm-grid textarea:focus{
+  border-color:#8cc6ff;
+  box-shadow:0 0 0 3px rgba(93,166,255,.14);
+}
+.optional-label{
+  font-size:11px;
+  font-weight:600;
+  color:rgba(235,246,255,.68);
 }
 .delete-summary{
   border:1px solid rgba(208,233,255,.17);
@@ -1107,6 +1124,9 @@ td{background:rgba(4,25,53,.13)!important}
   .deleted-table-wrap{max-height:66vh}
 }
 
+
+/* ===== v1.8 OPTIONAL DELETE REASON ===== */
+/* Delete reason is optional and stored in deleted-container archive. */
 
 /* ===== v1.7 FILTER / SORT / STICKY TABLE ===== */
 .table-tools{
@@ -1923,6 +1943,9 @@ window.APP_CONFIG = {
       <label>שם המוחק
         <input id="deletedByInput" autocomplete="name" placeholder="הזן שם מלא" />
       </label>
+      <label>סיבת מחיקה <span class="optional-label">(אופציונלי)</span>
+        <textarea id="deleteReasonInput" rows="3" placeholder="אפשר לציין סיבה למחיקה — לא חובה"></textarea>
+      </label>
     </div>
     <div class="delete-actions">
       <button type="button" class="btn secondary" id="cancelDeleteBtn">ביטול</button>
@@ -1936,7 +1959,7 @@ window.APP_CONFIG = {
     <div class="modaltitle">
       <div>
         <h2>מכולות מחוקות</h2>
-        <div class="sub">כל התנועות שנמחקו, כולל שם המוחק ותאריך המחיקה</div>
+        <div class="sub">כל התנועות שנמחקו, כולל שם המוחק, סיבת המחיקה ותאריך המחיקה</div>
       </div>
       <button type="button" class="close" id="closeDeletedModal">✕</button>
     </div>
@@ -1946,6 +1969,7 @@ window.APP_CONFIG = {
           <tr>
             <th>תאריך מחיקה</th>
             <th>שם המוחק</th>
+            <th>סיבת מחיקה</th>
             <th>תאריך ושעת תנועה</th>
             <th>מספר מכולה</th>
             <th>סוכן</th>
@@ -2026,7 +2050,7 @@ async function cloudDeleteMovement(id){
   });
   if(!res.ok) throw new Error(await res.text());
 }
-async function cloudArchiveMovement(row, deletedBy){
+async function cloudArchiveMovement(row, deletedBy, deletionReason){
   const payload={
     original_id:row.id,
     container_no:row.container_no,
@@ -2036,6 +2060,7 @@ async function cloudArchiveMovement(row, deletedBy){
     target_location:row.target_location,
     movement_at:row.movement_at,
     deleted_by:deletedBy,
+    deletion_reason:(deletionReason||'').trim() || null,
     deleted_at:new Date().toISOString()
   };
   if(!cloudEnabled){
@@ -2194,6 +2219,7 @@ function render(){
      `<strong>מסלול:</strong> ${escapeHtml(pendingDeleteRow.current_location)} ← ${escapeHtml(pendingDeleteRow.target_location)}<br>`+
      `<strong>תאריך תנועה:</strong> ${escapeHtml(fmt(new Date(pendingDeleteRow.movement_at)))}`;
    $('#deletedByInput').value='';
+   $('#deleteReasonInput').value='';
    $('#deleteModalBg').classList.add('show');
    setTimeout(()=>$('#deletedByInput').focus(),50);
  });
@@ -2766,6 +2792,7 @@ $('#deleteModalBg').onclick=e=>{if(e.target===$('#deleteModalBg'))closeDeleteDia
 $('#confirmArchiveDeleteBtn').onclick=async()=>{
   if(!pendingDeleteRow)return;
   const deletedBy=$('#deletedByInput').value.trim();
+  const deletionReason=$('#deleteReasonInput').value.trim();
   if(!deletedBy){
     alert('יש להזין את שם המוחק.');
     $('#deletedByInput').focus();
@@ -2776,7 +2803,7 @@ $('#confirmArchiveDeleteBtn').onclick=async()=>{
   btn.disabled=true;
   btn.textContent='מעביר לארכיון...';
   try{
-    await cloudArchiveMovement(pendingDeleteRow,deletedBy);
+    await cloudArchiveMovement(pendingDeleteRow,deletedBy,deletionReason);
     await cloudDeleteMovement(pendingDeleteRow.id);
     rows=rows.filter(r=>String(r.id)!==String(pendingDeleteRow.id));
     saveLocal();
@@ -2792,13 +2819,14 @@ $('#confirmArchiveDeleteBtn').onclick=async()=>{
 
 async function openDeletedArchive(){
   $('#deletedModalBg').classList.add('show');
-  $('#deletedTbody').innerHTML='<tr><td colspan="8" class="empty">טוען רשומות מחוקות...</td></tr>';
+  $('#deletedTbody').innerHTML='<tr><td colspan="9" class="empty">טוען רשומות מחוקות...</td></tr>';
   try{
     const deleted=await cloudLoadDeletedMovements();
     $('#deletedTbody').innerHTML=deleted.length ? deleted.map(r=>`
       <tr>
         <td class="deleted-date">${escapeHtml(fmt(new Date(r.deleted_at)))}</td>
         <td class="deleted-by">${escapeHtml(r.deleted_by||'')}</td>
+        <td>${escapeHtml(r.deletion_reason||'—')}</td>
         <td>${escapeHtml(fmt(new Date(r.movement_at)))}</td>
         <td class="mono">${escapeHtml(r.container_no||'')}</td>
         <td>${escapeHtml(r.agent||'')}</td>
@@ -2806,9 +2834,9 @@ async function openDeletedArchive(){
         <td>${escapeHtml(r.current_location||'')}</td>
         <td>${escapeHtml(r.target_location||'')}</td>
       </tr>`).join('') :
-      '<tr><td colspan="8" class="empty">אין מכולות מחוקות</td></tr>';
+      '<tr><td colspan="9" class="empty">אין מכולות מחוקות</td></tr>';
   }catch(err){
-    $('#deletedTbody').innerHTML=`<tr><td colspan="8" class="empty">שגיאה בטעינת ארכיון: ${escapeHtml(err.message)}</td></tr>`;
+    $('#deletedTbody').innerHTML=`<tr><td colspan="9" class="empty">שגיאה בטעינת ארכיון: ${escapeHtml(err.message)}</td></tr>`;
   }
 }
 $('#deletedContainersBtn').onclick=openDeletedArchive;
