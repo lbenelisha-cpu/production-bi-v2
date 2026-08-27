@@ -1258,6 +1258,7 @@ td{background:rgba(4,25,53,.13)!important}
 
 /* ===== v2.0 CAMERA / OCR / INLINE EDIT ===== */
 .camera-actions{grid-template-columns:1fr 1fr 1.35fr!important}.camera-btn{height:43px;color:#fff!important;background:rgba(0,145,190,.25)!important;border:1px solid rgba(102,224,255,.35)!important}.camera-preview{grid-column:1/-1;display:grid;grid-template-columns:110px 1fr auto;gap:12px;align-items:center;padding:10px;border-radius:15px;background:rgba(4,28,58,.24);border:1px solid rgba(200,232,255,.18)}.camera-preview[hidden]{display:none!important}.camera-preview img{width:110px;height:75px;object-fit:cover;border-radius:10px}.camera-preview small{display:block;margin-top:4px;color:rgba(235,245,255,.68)}.edit{border:0;border-radius:10px;background:rgba(35,135,255,.15);color:#8bc4ff;width:34px;height:34px;margin-inline-end:5px}.row-actions{white-space:nowrap}.missing{display:inline-block;margin-inline-start:5px;font-size:10px;padding:3px 6px;border-radius:8px;background:rgba(255,174,0,.16);color:#ffd27a}.photo-link{font-size:16px;text-decoration:none}.editing-banner{grid-column:1/-1;padding:8px 11px;border-radius:11px;background:rgba(37,135,255,.18);color:#dff1ff;font-weight:700}.cancel-edit{margin-inline-start:8px}
+.scan-guide{grid-column:1/-1;padding:9px 12px;border-radius:12px;background:rgba(0,154,214,.12);border:1px dashed rgba(126,224,255,.38);color:#e8f8ff;font-size:12px}.scan-result{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}.scan-chip{padding:4px 8px;border-radius:9px;background:rgba(20,115,210,.18);border:1px solid rgba(155,218,255,.22)}
 @media(max-width:900px){.camera-actions{grid-template-columns:1fr!important}.camera-preview{grid-template-columns:78px 1fr!important}.camera-preview img{width:78px;height:62px}.camera-preview button{grid-column:1/-1}.row-actions{display:flex!important;gap:5px;justify-content:flex-end!important}}
 
 </style>
@@ -1358,6 +1359,7 @@ td{background:rgba(4,25,53,.13)!important}
     <label>איתור יעד
       <input id="qTargetLocation" list="locationsList" placeholder="הקלד או בחר איתור (אופציונלי)">
     </label>
+    <div class="scan-guide">📷 לצילום מדויק: מקם במרכז התמונה את העמודה עם <b>4 אותיות + 7 ספרות</b> ואת קוד הסוג <b>22G1 / 45G1</b>. המערכת תזהה ותמלא אוטומטית.</div>
     <div class="entry-actions camera-actions">
       <button class="btn camera-btn" type="button" id="cameraBtn">📷 הוספה מצילום</button>
       <button class="btn locate-btn" type="button" id="locateBtn">⌖ איתור</button>
@@ -1366,7 +1368,7 @@ td{background:rgba(4,25,53,.13)!important}
     </div>
     <div class="camera-preview" id="cameraPreview" hidden>
       <img id="cameraPreviewImg" alt="צילום מכולה">
-      <div><strong id="ocrStatus">מוכן לזיהוי</strong><small>הצילום יישמר יחד עם הרשומה. ניתן לתקן את המספר לפני השמירה.</small></div>
+      <div><strong id="ocrStatus">מוכן לזיהוי חכם</strong><small>ל-OCR נעשה שימוש בצילום המלא; לענן נשמר עותק JPEG מוקטן ודחוס בלבד.</small><div class="scan-result" id="scanResult"></div></div>
       <button type="button" class="btn secondary" id="clearPhotoBtn">הסר צילום</button>
     </div>
   </form>
@@ -1515,7 +1517,7 @@ const fmt=d=>new Intl.DateTimeFormat('he-IL',{dateStyle:'short',timeStyle:'short
 let period='daily', anchor=new Date(), search='', locateCriteria=null;
 let tableFilters={agent:'',type:'',current:'',target:''};
 let sortField='movement_at', sortDir='desc';
-let editingId=null, pendingPhotoFile=null, pendingPhotoPreview='';
+let editingId=null, pendingPhotoFile=null, pendingPhotoPreview='', pendingPhotoOriginal=null;
 const CLOUD = {
   url: (window.APP_CONFIG?.SUPABASE_URL || '').replace(/\/$/,''),
   key: window.APP_CONFIG?.SUPABASE_ANON_KEY || '',
@@ -1558,12 +1560,12 @@ async function cloudUpdateMovement(id,payload){
 async function cloudUploadPhoto(file){
   if(!file) return null;
   if(!cloudEnabled) return pendingPhotoPreview||null;
-  const ext=(file.name?.split('.').pop()||'jpg').replace(/[^a-z0-9]/gi,'').toLowerCase()||'jpg';
-  const name=`${Date.now()}_${crypto.randomUUID()}.${ext}`;
-  const res=await fetch(`${CLOUD.url}/storage/v1/object/container-photos/${name}`,{method:'POST',headers:{apikey:CLOUD.key,Authorization:`Bearer ${CLOUD.key}`,'Content-Type':file.type||'image/jpeg','x-upsert':'false'},body:file});
+  const name=`${Date.now()}_${crypto.randomUUID()}.jpg`;
+  const res=await fetch(`${CLOUD.url}/storage/v1/object/container-photos/${name}`,{method:'POST',headers:{apikey:CLOUD.key,Authorization:`Bearer ${CLOUD.key}`,'Content-Type':'image/jpeg','x-upsert':'false'},body:file});
   if(!res.ok) throw new Error(await res.text());
   return `${CLOUD.url}/storage/v1/object/public/container-photos/${name}`;
 }
+
 async function cloudDeleteMovement(id){
   if(!cloudEnabled) return;
   const res = await fetch(`${CLOUD.url}/rest/v1/container_movements?id=eq.${encodeURIComponent(id)}`, {
@@ -1838,20 +1840,50 @@ function exportExcel(){
  const blob=new Blob(['\ufeff',html],{type:'application/vnd.ms-excel'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`מעקב_מכולות_${dateOnly(s)}_${dateOnly(e)}.xls`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)
 }
 
-function cancelEdit(){editingId=null;pendingPhotoFile=null;pendingPhotoPreview='';$('#quickEntryForm').reset();$('#qContainerType').value='20';$('#quickSaveBtn').textContent='שמור תנועה';$('#editBanner')?.remove();updatePhotoPreview();}
+function cancelEdit(){editingId=null;pendingPhotoFile=null;pendingPhotoOriginal=null;pendingPhotoPreview='';$('#quickEntryForm').reset();$('#qContainerType').value='20';$('#quickSaveBtn').textContent='שמור תנועה';$('#editBanner')?.remove();if($('#scanResult'))$('#scanResult').innerHTML='';updatePhotoPreview();}
 function updatePhotoPreview(){const box=$('#cameraPreview'),img=$('#cameraPreviewImg');if(pendingPhotoPreview){img.src=pendingPhotoPreview;box.hidden=false}else{img.removeAttribute('src');box.hidden=true}}
-function normalizeContainerCandidate(text){
-  const cleaned=String(text||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
-  const matches=cleaned.match(/[A-Z]{4}[0-9]{7}/g); if(matches?.length)return matches[0];
-  const loose=cleaned.match(/[A-Z]{3,4}[0-9]{6,8}/g); return loose?.[0]||'';
+function cleanOcrText(text){return String(text||'').toUpperCase().replace(/[|]/g,'I').replace(/\s+/g,' ')}
+function findContainer(text){
+ const raw=cleanOcrText(text), compact=raw.replace(/[^A-Z0-9]/g,'');
+ let m=compact.match(/[A-Z]{4}[0-9]{7}/); if(m)return m[0];
+ // common OCR confusion correction only inside expected letter/digit positions
+ const chunks=compact.match(/[A-Z0-9]{10,13}/g)||[];
+ for(const x of chunks){for(let i=0;i<=x.length-11;i++){let c=x.slice(i,i+11);let a=c.slice(0,4).replace(/0/g,'O').replace(/1/g,'I').replace(/5/g,'S').replace(/8/g,'B');let d=c.slice(4).replace(/O/g,'0').replace(/[IL]/g,'1').replace(/S/g,'5').replace(/B/g,'8').replace(/G/g,'6');if(/^[A-Z]{4}$/.test(a)&&/^\d{7}$/.test(d))return a+d}}
+ return '';
+}
+function findIsoType(text){
+ const compact=cleanOcrText(text).replace(/[^A-Z0-9]/g,'');
+ if(compact.includes('45G1'))return {code:'45G1',feet:40};
+ if(compact.includes('22G1'))return {code:'22G1',feet:20};
+ return null;
+}
+async function compressForStorage(file){
+ const bmp=await createImageBitmap(file), max=1400, scale=Math.min(1,max/Math.max(bmp.width,bmp.height));
+ const c=document.createElement('canvas');c.width=Math.max(1,Math.round(bmp.width*scale));c.height=Math.max(1,Math.round(bmp.height*scale));
+ c.getContext('2d').drawImage(bmp,0,0,c.width,c.height); if(bmp.close)bmp.close();
+ const blob=await new Promise(r=>c.toBlob(r,'image/jpeg',.60));
+ return new File([blob],`container_${Date.now()}.jpg`,{type:'image/jpeg'});
+}
+async function ocrVariant(file, rotate=0){
+ let source=file;
+ if(rotate){const b=await createImageBitmap(file),c=document.createElement('canvas');c.width=b.height;c.height=b.width;const x=c.getContext('2d');x.translate(c.width/2,c.height/2);x.rotate(rotate*Math.PI/180);x.drawImage(b,-b.width/2,-b.height/2);if(b.close)b.close();source=c}
+ const {data}=await Tesseract.recognize(source,'eng',{logger:m=>{if(m.status==='recognizing text')$('#ocrStatus').textContent=`מזהה... ${Math.round((m.progress||0)*100)}%`;}});return data.text||'';
 }
 async function runOcr(file){
-  const st=$('#ocrStatus'); st.textContent='מזהה מספר מכולה...';
-  try{if(!window.Tesseract)throw new Error('מנוע OCR לא נטען'); const {data}=await Tesseract.recognize(file,'eng',{logger:m=>{if(m.status==='recognizing text')st.textContent=`מזהה... ${Math.round((m.progress||0)*100)}%`;}}); const candidate=normalizeContainerCandidate(data.text); if(candidate){$('#qContainerNo').value=candidate;st.textContent=`זוהה: ${candidate} — נא לבדוק לפני שמירה`;}else st.textContent='לא זוהה מספר בוודאות — ניתן להקליד/לתקן ידנית';}catch(err){st.textContent='הזיהוי האוטומטי לא הצליח — ניתן להקליד ידנית';}
+ const st=$('#ocrStatus');st.textContent='מזהה מספר וקוד סוג...';
+ try{
+  if(!window.Tesseract)throw new Error('OCR unavailable');
+  let texts=[]; for(const rot of [0,90,-90]){const t=await ocrVariant(file,rot);texts.push(t);if(findContainer(t)&&findIsoType(t))break}
+  const all=texts.join(' '), num=findContainer(all), typ=findIsoType(all);
+  if(num)$('#qContainerNo').value=num;
+  if(typ)$('#qContainerType').value=String(typ.feet);
+  const chips=[];if(num)chips.push(`<span class="scan-chip">מכולה: <b>${num}</b></span>`);if(typ)chips.push(`<span class="scan-chip">${typ.code} → <b>${typ.feet} פיט</b></span>`);$('#scanResult').innerHTML=chips.join('');
+  st.textContent=num?`✓ זוהה ${num}${typ?' + '+typ.code:''} — נא לאמת לפני שמירה`:'לא זוהה מספר בוודאות — אפשר לתקן ידנית';
+ }catch(err){st.textContent='הזיהוי האוטומטי לא הצליח — ניתן להקליד ידנית';}
 }
 $('#cameraBtn').onclick=()=>$('#cameraInput').click();
-$('#cameraInput').onchange=async e=>{const f=e.target.files?.[0];if(!f)return;pendingPhotoFile=f;if(pendingPhotoPreview?.startsWith('blob:'))URL.revokeObjectURL(pendingPhotoPreview);pendingPhotoPreview=URL.createObjectURL(f);updatePhotoPreview();await runOcr(f)};
-$('#clearPhotoBtn').onclick=()=>{pendingPhotoFile=null;if(pendingPhotoPreview?.startsWith('blob:'))URL.revokeObjectURL(pendingPhotoPreview);pendingPhotoPreview='';$('#cameraInput').value='';updatePhotoPreview()};
+$('#cameraInput').onchange=async e=>{const f=e.target.files?.[0];if(!f)return;pendingPhotoOriginal=f;if(pendingPhotoPreview?.startsWith('blob:'))URL.revokeObjectURL(pendingPhotoPreview);pendingPhotoPreview=URL.createObjectURL(f);updatePhotoPreview();$('#ocrStatus').textContent='מכין צילום...';try{pendingPhotoFile=await compressForStorage(f)}catch{pendingPhotoFile=f}await runOcr(f)};
+$('#clearPhotoBtn').onclick=()=>{pendingPhotoFile=null;pendingPhotoOriginal=null;if(pendingPhotoPreview?.startsWith('blob:'))URL.revokeObjectURL(pendingPhotoPreview);pendingPhotoPreview='';$('#cameraInput').value='';$('#scanResult').innerHTML='';updatePhotoPreview()};
 
 $('#quickEntryForm').onsubmit=async e=>{
   e.preventDefault(); const c=$('#qContainerNo').value.trim().toUpperCase(); if(!c){alert('מספר מכולה הוא השדה היחיד שחובה למלא');return}
