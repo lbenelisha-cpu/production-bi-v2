@@ -2406,8 +2406,21 @@ async function runOcr(file){
   let recognition=null, listening=false;
 
   const digitWords={
-    ZERO:'0',OH:'0',O:'0',ONE:'1',WON:'1',TWO:'2',TO:'2',TOO:'2',THREE:'3',FOUR:'4',FOR:'4',FIVE:'5',SIX:'6',SEVEN:'7',EIGHT:'8',ATE:'8',NINE:'9',
-    'אפס':'0','אֶפֶס':'0','אחד':'1','אחת':'1','ראשון':'1','וואן':'1',
+    // English digit words / common speech-recognition variants
+    ZERO:'0',OH:'0',O:'0',ZEROH:'0',
+    ONE:'1',WON:'1',
+    TWO:'2',TO:'2',TOO:'2',
+    THREE:'3',TREE:'3',
+    FOUR:'4',FOR:'4',
+    FIVE:'5',
+    SIX:'6',
+    SEVEN:'7',
+    EIGHT:'8',ATE:'8',
+    NINE:'9',
+
+    // Hebrew digit words
+    'אפס':'0','אֶפֶס':'0',
+    'אחד':'1','אחת':'1','ראשון':'1','וואן':'1',
     'שתיים':'2','שניים':'2','שתים':'2','שנים':'2','טו':'2',
     'שלוש':'3','שלושה':'3','טרי':'3',
     'ארבע':'4','ארבעה':'4','פור':'4',
@@ -2415,7 +2428,21 @@ async function runOcr(file){
     'שש':'6','שישה':'6','סיקס':'6',
     'שבע':'7','שבעה':'7','סבן':'7',
     'שמונה':'8','אייט':'8',
-    'תשע':'9','תשעה':'9','ניין':'9'
+    'תשע':'9','תשעה':'9','ניין':'9',
+
+    // Common Latin transliterations returned when recognition runs in English.
+    // This prevents Hebrew number words such as "אחד" becoming container letters (e.g. AHCHAD).
+    EFES:'0',EFESS:'0',EFS:'0',
+    AHCHAD:'1',ACHAD:'1',AHAD:'1',ECHAD:'1',EHAD:'1',EHCHAD:'1',AKHAD:'1',
+    ACHAT:'1',AHAT:'1',ECHAT:'1',
+    SHTAYIM:'2',SHTAIM:'2',SHTEIM:'2',SHTEYM:'2',SHNAYIM:'2',SHNAIM:'2',SHNEIM:'2',SHNEYIM:'2',
+    SHALOSH:'3',SHLOSH:'3',SHALOS:'3',SHLOSH:'3',
+    ARBA:'4',ARBAA:'4',ARBAH:'4',
+    CHAMESH:'5',HAMESH:'5',KHAMESH:'5',CHAMISH:'5',HAMISH:'5',
+    SHESH:'6',SHES:'6',
+    SHEVA:'7',SHEVAA:'7',SHEVAH:'7',SHIVA:'7',
+    SHMONE:'8',SHMONEH:'8',SHEMONE:'8',SHMONA:'8',
+    TESHA:'9',TESHAA:'9',TISHA:'9',TISHAH:'9'
   };
   function voiceToContainer(transcript){
     let text=String(transcript||'')
@@ -2428,8 +2455,22 @@ async function runOcr(file){
     const words=text.split(/\s+/).filter(Boolean);
     const expanded=words.map(raw=>{
       const clean=raw.replace(/["'׳״]/g,'');
-      const upper=clean.toUpperCase();
-      return digitWords[upper] ?? digitWords[clean] ?? clean;
+      const upper=clean.toUpperCase().replace(/[^A-Z0-9]/g,'');
+      // Check known number words BEFORE treating Latin text as container letters.
+      if(digitWords[clean] != null) return digitWords[clean];
+      if(digitWords[upper] != null) return digitWords[upper];
+      // Some engines attach punctuation or slightly vary "AHCHAD"; normalize a few phonetic families.
+      if(/^(?:A|E)H?C?H?AD$/.test(upper) || /^(?:A|E)K?HAD$/.test(upper)) return '1';
+      if(/^SHT(?:AY|AI|EI|EY)M$/.test(upper) || /^SHN(?:AY|AI|EI|EY)M$/.test(upper)) return '2';
+      if(/^SH(?:A)?LOSH$/.test(upper)) return '3';
+      if(/^ARBAH?$/.test(upper) || /^ARBAA$/.test(upper)) return '4';
+      if(/^(?:C|K)?HAMESH$/.test(upper) || /^HAM(?:E|I)SH$/.test(upper)) return '5';
+      if(/^SHESH$/.test(upper)) return '6';
+      if(/^SHEVAA?H?$/.test(upper)) return '7';
+      if(/^SH?E?MONEH?$/.test(upper) || /^SHMONA$/.test(upper)) return '8';
+      if(/^T(?:E|I)SHAA?H?$/.test(upper)) return '9';
+      if(/^EFES+$/.test(upper)) return '0';
+      return clean;
     }).join('');
     const compact=expanded.toUpperCase().replace(/[^A-Z0-9]/g,'');
     const exact=compact.match(/[A-Z]{4}[0-9]{7}/);
@@ -2455,7 +2496,7 @@ async function runOcr(file){
     recognition.interimResults=false;
     recognition.maxAlternatives=3;
     recognition.continuous=false;
-    recognition.onstart=()=>{ setListening(true); hint.className='voice-hint'; hint.textContent='מקשיב… 4 אותיות באנגלית ואז 7 ספרות בעברית או באנגלית'; };
+    recognition.onstart=()=>{ setListening(true); hint.className='voice-hint'; hint.textContent='מקשיב… אמור 4 אותיות באנגלית ואז 7 ספרות בעברית או באנגלית'; };
     recognition.onresult=e=>{
       let best='';
       for(let i=e.resultIndex;i<e.results.length;i++){
