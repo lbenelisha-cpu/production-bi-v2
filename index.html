@@ -1640,18 +1640,61 @@ td{background:rgba(4,25,53,.13)!important}
 }
 
 
-/* Voice entry for container number */
-.voice-input-wrap{position:relative;display:block;width:100%}
-.voice-input-wrap #qContainerNo{padding-inline-end:54px!important}
-.voice-mic-btn{position:absolute;inset-inline-end:5px;top:50%;transform:translateY(-50%);width:38px;height:38px;border-radius:50%;border:1px solid rgba(180,214,242,.42);background:rgba(255,255,255,.16);color:#dff3ff;display:grid;place-items:center;padding:0;transition:.18s ease;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
-.voice-mic-btn svg{width:21px;height:21px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
-.voice-mic-btn:hover{background:rgba(255,255,255,.24)}
-.voice-mic-btn:focus-visible{outline:3px solid rgba(79,168,255,.34);outline-offset:2px}
-.voice-mic-btn.listening{background:#1688ff;color:#fff;border-color:rgba(255,255,255,.55);box-shadow:0 0 0 5px rgba(22,136,255,.18);animation:voicePulse 1.2s ease-in-out infinite}
-.voice-mic-btn.unsupported{opacity:.6}
-.voice-hint{display:block!important;min-height:15px;margin-top:1px!important;color:rgba(229,243,255,.68)!important;font-size:10.5px!important;font-weight:500!important}
-.voice-hint.ok{color:#9ff0cf!important}.voice-hint.warn{color:#ffd487!important}
+/* Stronger entry text + voice entry for container number */
+.entry-card .entry-grid label{
+  color:#fff!important;
+  font-size:15px!important;
+  font-weight:900!important;
+  text-shadow:0 1px 2px rgba(0,0,0,.55)!important;
+}
+.entry-card .entry-grid input,
+.entry-card .entry-grid select{
+  color:#fff!important;
+  font-size:16px!important;
+  font-weight:800!important;
+  min-height:50px!important;
+  box-sizing:border-box!important;
+}
+.entry-card .entry-grid input::placeholder{
+  color:rgba(255,255,255,.78)!important;
+  opacity:1!important;
+  font-weight:700!important;
+}
+.entry-card .entry-grid select option{color:#102842;background:#fff}
+.entry-actions.camera-actions{align-items:stretch!important;overflow:visible!important}
+.entry-actions.camera-actions .btn{
+  min-width:0!important;
+  width:100%!important;
+  min-height:58px!important;
+  height:auto!important;
+  padding:10px 14px!important;
+  box-sizing:border-box!important;
+  white-space:normal!important;
+  overflow-wrap:anywhere!important;
+  line-height:1.15!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  text-align:center!important;
+  color:#fff!important;
+  font-size:18px!important;
+  font-weight:900!important;
+  text-shadow:0 1px 2px rgba(0,0,0,.6)!important;
+}
+.voice-input-wrap{position:relative;display:block;width:100%;min-width:0}
+.voice-input-wrap #qContainerNo{padding-inline-end:58px!important}
+.voice-mic-btn{position:absolute;inset-inline-end:6px;top:50%;transform:translateY(-50%);width:42px;height:42px;border-radius:50%;border:1px solid rgba(210,234,255,.72);background:rgba(255,255,255,.18);color:#fff;display:grid;place-items:center;padding:0;transition:.18s ease;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);z-index:2}
+.voice-mic-btn svg{width:23px;height:23px;fill:none;stroke:currentColor;stroke-width:2.1;stroke-linecap:round;stroke-linejoin:round}
+.voice-mic-btn:hover{background:rgba(255,255,255,.28)}
+.voice-mic-btn:focus-visible{outline:3px solid rgba(79,168,255,.42);outline-offset:2px}
+.voice-mic-btn.listening{background:#1688ff;color:#fff;border-color:#fff;box-shadow:0 0 0 5px rgba(22,136,255,.18);animation:voicePulse 1.2s ease-in-out infinite}
+.voice-mic-btn.unsupported{opacity:.72}
+.voice-hint{display:block!important;min-height:17px;margin-top:2px!important;color:rgba(255,255,255,.9)!important;font-size:12px!important;font-weight:750!important;text-shadow:0 1px 2px rgba(0,0,0,.45)!important}
+.voice-hint.ok{color:#b6ffe3!important}.voice-hint.warn{color:#ffe3a4!important}
 @keyframes voicePulse{0%,100%{box-shadow:0 0 0 4px rgba(22,136,255,.15)}50%{box-shadow:0 0 0 9px rgba(22,136,255,.07)}}
+@media(max-width:900px){
+  .entry-actions.camera-actions .btn{font-size:17px!important;min-height:54px!important}
+}
 @media(prefers-reduced-motion:reduce){.voice-mic-btn.listening{animation:none}}
 </style>
 <link rel="apple-touch-icon" sizes="180x180" href="./public/apple-touch-icon-v191.png?v=191">
@@ -1740,7 +1783,7 @@ td{background:rgba(4,25,53,.13)!important}
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15.25a3.55 3.55 0 0 0 3.55-3.55V6.05a3.55 3.55 0 1 0-7.1 0v5.65A3.55 3.55 0 0 0 12 15.25Z"/><path d="M5.95 10.95v.75a6.05 6.05 0 0 0 12.1 0v-.75M12 17.75v3.1M9.25 20.85h5.5"/></svg>
         </button>
       </span>
-      <small class="voice-hint" id="voiceHint">לחץ על המיקרופון ואמור את 4 האותיות ו־7 הספרות</small>
+      <small class="voice-hint" id="voiceHint">לחץ על המיקרופון: אמור 4 אותיות באנגלית ואז 7 ספרות בעברית או באנגלית</small>
     </label>
     <label>סוכן
       <input id="qAgent" placeholder="שם הסוכן (אופציונלי)">
@@ -2313,12 +2356,33 @@ async function runOcr(file){
   const SpeechRecognition=window.SpeechRecognition || window.webkitSpeechRecognition;
   let recognition=null, listening=false;
 
-  const digitWords={ZERO:'0',OH:'0',O:'0',ONE:'1',WON:'1',TWO:'2',TO:'2',TOO:'2',THREE:'3',FOUR:'4',FOR:'4',FIVE:'5',SIX:'6',SEVEN:'7',EIGHT:'8',ATE:'8',NINE:'9'};
+  const digitWords={
+    ZERO:'0',OH:'0',O:'0',ONE:'1',WON:'1',TWO:'2',TO:'2',TOO:'2',THREE:'3',FOUR:'4',FOR:'4',FIVE:'5',SIX:'6',SEVEN:'7',EIGHT:'8',ATE:'8',NINE:'9',
+    'אפס':'0','אֶפֶס':'0','אחד':'1','אחת':'1','ראשון':'1','וואן':'1',
+    'שתיים':'2','שניים':'2','שתים':'2','שנים':'2','טו':'2',
+    'שלוש':'3','שלושה':'3','טרי':'3',
+    'ארבע':'4','ארבעה':'4','פור':'4',
+    'חמש':'5','חמישה':'5','פייב':'5',
+    'שש':'6','שישה':'6','סיקס':'6',
+    'שבע':'7','שבעה':'7','סבן':'7',
+    'שמונה':'8','אייט':'8',
+    'תשע':'9','תשעה':'9','ניין':'9'
+  };
   function voiceToContainer(transcript){
-    const upper=String(transcript||'').toUpperCase().replace(/[.,;:_\-\/\\]/g,' ');
-    const words=upper.split(/\s+/).filter(Boolean);
-    const expanded=words.map(w=>digitWords[w]??w).join('');
-    const compact=expanded.replace(/[^A-Z0-9]/g,'');
+    let text=String(transcript||'')
+      .replace(/[.,;:_\-\/\\]/g,' ')
+      .replace(/[־–—]/g,' ')
+      .replace(/\s+/g,' ')
+      .trim();
+    // Speech engines on iPhone may return the letters in English but the digits as Hebrew words.
+    // Convert every recognised Hebrew/English digit word before stripping non-container characters.
+    const words=text.split(/\s+/).filter(Boolean);
+    const expanded=words.map(raw=>{
+      const clean=raw.replace(/["'׳״]/g,'');
+      const upper=clean.toUpperCase();
+      return digitWords[upper] ?? digitWords[clean] ?? clean;
+    }).join('');
+    const compact=expanded.toUpperCase().replace(/[^A-Z0-9]/g,'');
     const exact=compact.match(/[A-Z]{4}[0-9]{7}/);
     if(exact) return exact[0];
     return compact.slice(0,18);
@@ -2342,7 +2406,7 @@ async function runOcr(file){
     recognition.interimResults=false;
     recognition.maxAlternatives=3;
     recognition.continuous=false;
-    recognition.onstart=()=>{ setListening(true); hint.className='voice-hint'; hint.textContent='מקשיב… אמור 4 אותיות ואז 7 ספרות'; };
+    recognition.onstart=()=>{ setListening(true); hint.className='voice-hint'; hint.textContent='מקשיב… 4 אותיות באנגלית ואז 7 ספרות בעברית או באנגלית'; };
     recognition.onresult=e=>{
       let best='';
       for(let i=e.resultIndex;i<e.results.length;i++){
