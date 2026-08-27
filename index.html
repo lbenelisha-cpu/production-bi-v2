@@ -1587,7 +1587,7 @@ td{background:rgba(4,25,53,.13)!important}
     <label class="note-field">הערה
       <input id="qNote" placeholder="הערה חופשית — ניתן לשמור צילום + הערה ללא מספר מכולה">
     </label>
-    <div class="scan-guide">📷 לצילום מדויק: מקם במרכז התמונה את העמודה עם <b>4 אותיות + 7 ספרות</b> ואת קוד הסוג <b>22G1 / 45G1</b>. המערכת תזהה ותמלא אוטומטית.</div>
+    <div class="scan-guide">📷 הוספה מצילום: לאחר הצילום תישמר מיד שורה חדשה עם התמונה בלבד. את מספר המכולה ושאר הפרטים ניתן להשלים אחר כך באמצעות ✏️ עריכה.</div>
     <div class="entry-actions camera-actions">
       <button class="btn camera-btn" type="button" id="cameraBtn">📷 הוספה מצילום</button>
       <button class="btn locate-btn" type="button" id="locateBtn">⌖ איתור</button>
@@ -1596,7 +1596,7 @@ td{background:rgba(4,25,53,.13)!important}
     </div>
     <div class="camera-preview" id="cameraPreview" hidden>
       <img id="cameraPreviewImg" alt="צילום מכולה">
-      <div><strong id="ocrStatus">מוכן לזיהוי חכם</strong><small>ל-OCR נעשה שימוש בצילום המלא; לענן נשמר עותק JPEG מוקטן ודחוס בלבד.</small><div class="scan-result" id="scanResult"></div></div>
+      <div><strong id="ocrStatus">צילום מוכן</strong><small>אין ניסיון לזיהוי טקסט. לענן נשמר עותק JPEG מוקטן ודחוס בלבד.</small><div class="scan-result" id="scanResult"></div></div>
       <button type="button" class="btn secondary" id="clearPhotoBtn">הסר צילום</button>
     </div>
   </form>
@@ -2132,8 +2132,79 @@ async function runOcr(file){
  }
 }
 $('#cameraBtn').onclick=()=>$('#cameraInput').click();
-$('#cameraInput').onchange=async e=>{const f=e.target.files?.[0];if(!f)return;pendingPhotoOriginal=f;if(pendingPhotoPreview?.startsWith('blob:'))URL.revokeObjectURL(pendingPhotoPreview);pendingPhotoPreview=URL.createObjectURL(f);updatePhotoPreview();$('#ocrStatus').textContent='מכין צילום...';try{pendingPhotoFile=await compressForStorage(f)}catch{pendingPhotoFile=f}await runOcr(f)};
-$('#clearPhotoBtn').onclick=()=>{pendingPhotoFile=null;pendingPhotoOriginal=null;if(pendingPhotoPreview?.startsWith('blob:'))URL.revokeObjectURL(pendingPhotoPreview);pendingPhotoPreview='';$('#cameraInput').value='';$('#scanResult').innerHTML='';updatePhotoPreview()};
+
+async function savePhotoOnlyMovement(file){
+  const status=$('#ocrStatus');
+  status.textContent='שומר צילום...';
+  let compressed=file;
+  try{compressed=await compressForStorage(file)}catch{}
+  try{
+    const photoUrl=await cloudUploadPhoto(compressed);
+    const payload={
+      container_no:null,
+      agent:null,
+      container_type:null,
+      current_location:null,
+      target_location:null,
+      note:null,
+      photo_url:photoUrl,
+      movement_at:new Date().toISOString()
+    };
+    const saved=await cloudInsertMovement(payload);
+    rows.unshift(saved||{id:crypto.randomUUID(),...payload});
+    saveLocal();
+    status.textContent='✓ הצילום נשמר כשורה חדשה';
+    $('#scanResult').innerHTML='<span class="scan-chip scan-warning"><b>צילום בלבד</b> — ניתן להשלים פרטים באמצעות ✏️ עריכה</span>';
+    render();
+
+    setTimeout(()=>{
+      pendingPhotoFile=null;
+      pendingPhotoOriginal=null;
+      if(pendingPhotoPreview?.startsWith('blob:'))URL.revokeObjectURL(pendingPhotoPreview);
+      pendingPhotoPreview='';
+      $('#cameraInput').value='';
+      updatePhotoPreview();
+    },900);
+
+    const tableCard=document.querySelector('.table-card-visual') || document.querySelector('.tablewrap');
+    if(tableCard) setTimeout(()=>tableCard.scrollIntoView({behavior:'smooth',block:'start'}),150);
+  }catch(err){
+    status.textContent='שמירת הצילום נכשלה';
+    alert('שמירת הצילום בענן נכשלה: '+err.message);
+  }
+}
+
+$('#cameraInput').onchange=async e=>{
+  const f=e.target.files?.[0];
+  if(!f)return;
+
+  pendingPhotoOriginal=f;
+  if(pendingPhotoPreview?.startsWith('blob:'))URL.revokeObjectURL(pendingPhotoPreview);
+  pendingPhotoPreview=URL.createObjectURL(f);
+  updatePhotoPreview();
+
+  // בעריכת שורה קיימת: הצילום מצורף לעריכה ולא יוצר רשומה חדשה.
+  if(editingId){
+    $('#ocrStatus').textContent='צילום חדש צורף לעריכה — לחץ "שמור שינויים"';
+    $('#scanResult').innerHTML='<span class="scan-chip">📷 הצילום יצורף לרשומה הקיימת</span>';
+    try{pendingPhotoFile=await compressForStorage(f)}catch{pendingPhotoFile=f}
+    return;
+  }
+
+  // בהוספה רגילה: אין OCR ואין ניסיון לזהות טקסט.
+  // התמונה נשמרת מיד כשורה חדשה עם תאריך ושעת הצילום.
+  await savePhotoOnlyMovement(f);
+};
+
+$('#clearPhotoBtn').onclick=()=>{
+  pendingPhotoFile=null;
+  pendingPhotoOriginal=null;
+  if(pendingPhotoPreview?.startsWith('blob:'))URL.revokeObjectURL(pendingPhotoPreview);
+  pendingPhotoPreview='';
+  $('#cameraInput').value='';
+  $('#scanResult').innerHTML='';
+  updatePhotoPreview()
+};
 
 $('#quickEntryForm').onsubmit=async e=>{
   e.preventDefault();
