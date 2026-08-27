@@ -1279,6 +1279,20 @@ td{background:rgba(4,25,53,.13)!important}
   font-weight:800;
 }
 
+
+/* ===== v2.5 PHOTO + NOTE ===== */
+.note-field{
+  min-width:0;
+}
+.note-field input{
+  width:100%;
+}
+@media(max-width:900px){
+  .note-field{
+    grid-column:1/-1!important;
+  }
+}
+
 </style>
 <link rel="apple-touch-icon" sizes="180x180" href="./public/apple-touch-icon-v191.png?v=191">
 <meta name="theme-color" content="#08284b">
@@ -1360,7 +1374,7 @@ td{background:rgba(4,25,53,.13)!important}
   </div>
   <form id="quickEntryForm" class="entry-grid">
     <label>מספר מכולה
-      <input id="qContainerNo" required placeholder="לדוגמה MSCU1234567">
+      <input id="qContainerNo" placeholder="לדוגמה MSCU1234567 (אופציונלי אם מצורף צילום)">
     </label>
     <label>סוכן
       <input id="qAgent" placeholder="שם הסוכן (אופציונלי)">
@@ -1377,6 +1391,9 @@ td{background:rgba(4,25,53,.13)!important}
     </label>
     <label>איתור יעד
       <input id="qTargetLocation" list="locationsList" placeholder="הקלד או בחר איתור (אופציונלי)">
+    </label>
+    <label class="note-field">הערה
+      <input id="qNote" placeholder="הערה חופשית — ניתן לשמור צילום + הערה ללא מספר מכולה">
     </label>
     <div class="scan-guide">📷 לצילום מדויק: מקם במרכז התמונה את העמודה עם <b>4 אותיות + 7 ספרות</b> ואת קוד הסוג <b>22G1 / 45G1</b>. המערכת תזהה ותמלא אוטומטית.</div>
     <div class="entry-actions camera-actions">
@@ -1433,7 +1450,7 @@ td{background:rgba(4,25,53,.13)!important}
   </div>
   <div class="tablewrap">
   <table>
-    <thead><tr><th>תאריך ושעה</th><th>מספר מכולה</th><th>סוכן</th><th>סוג</th><th>איתור נוכחי</th><th>איתור יעד</th><th></th></tr></thead>
+    <thead><tr><th>תאריך ושעה</th><th>מספר מכולה</th><th>סוכן</th><th>סוג</th><th>איתור נוכחי</th><th>איתור יעד</th><th>הערה</th><th></th></tr></thead>
     <tbody id="tbody"></tbody>
   </table>
   </div>
@@ -1670,7 +1687,7 @@ function filtered(){
      if(checks.length && !checks.every(Boolean)) return false;
    } else {
      if(d<s||d>e)return false;
-     if(q && ![r.container_no,r.agent,r.current_location,r.target_location,String(r.container_type)]
+     if(q && ![r.container_no,r.agent,r.current_location,r.target_location,r.note,String(r.container_type)]
        .some(v=>String(v||'').toLowerCase().includes(q))) return false;
    }
 
@@ -1743,10 +1760,10 @@ function escapeHtml(s){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':
 function render(){
  const fr=filtered(), c=new Set(fr.map(r=>r.container_no)).size, l=new Set(fr.flatMap(r=>[r.current_location,r.target_location])).size, cd=chartData(fr);
  $('#kpiMoves').textContent=fr.length;$('#kpiContainers').textContent=c;$('#kpiLocations').textContent=l;$('#kpiAverage').textContent=cd.length?Math.round(fr.length/cd.length):0;$('#rowsLabel').textContent=`${fr.length} רשומות מוצגות`;
- $('#tbody').innerHTML=fr.length?fr.map(r=>{const miss=!r.agent||!r.current_location||!r.target_location;return `<tr><td>${fmt(new Date(r.movement_at))}</td><td class="mono">${r.container_no?escapeHtml(r.container_no):''} ${!r.container_no&&r.photo_url?'<span class="unrecognized">📷 צילום בלבד — דורש עריכה</span>':''} ${miss?'<span class="missing">⚠ חסרים פרטים</span>':''} ${r.photo_url?`<a class="photo-link" href="${escapeHtml(r.photo_url)}" target="_blank" title="פתח צילום">📷</a>`:''}</td><td>${escapeHtml(r.agent||'—')}</td><td>${r.container_type?`<span class="pill">${r.container_type} פיט</span>`:'—'}</td><td>⌖ ${escapeHtml(r.current_location||'—')}</td><td>⌖ ${escapeHtml(r.target_location||'—')}</td><td class="row-actions"><button class="edit" data-id="${r.id}" title="עריכה">✏️</button><button class="delete" data-id="${r.id}">🗑</button></td></tr>`}).join(''):`<tr><td class="empty" colspan="7">אין תנועות בטווח שנבחר</td></tr>`;
+ $('#tbody').innerHTML=fr.length?fr.map(r=>{const miss=!r.agent||!r.current_location||!r.target_location;return `<tr><td>${fmt(new Date(r.movement_at))}</td><td class="mono">${r.container_no?escapeHtml(r.container_no):''} ${!r.container_no&&r.photo_url?'<span class="unrecognized">📷 צילום בלבד — דורש עריכה</span>':''} ${miss?'<span class="missing">⚠ חסרים פרטים</span>':''} ${r.photo_url?`<a class="photo-link" href="${escapeHtml(r.photo_url)}" target="_blank" title="פתח צילום">📷</a>`:''}</td><td>${escapeHtml(r.agent||'—')}</td><td>${r.container_type?`<span class="pill">${r.container_type} פיט</span>`:'—'}</td><td>⌖ ${escapeHtml(r.current_location||'—')}</td><td>⌖ ${escapeHtml(r.target_location||'—')}</td><td>${escapeHtml(r.note||'')}</td><td class="row-actions"><button class="edit" data-id="${r.id}" title="עריכה">✏️</button><button class="delete" data-id="${r.id}">🗑</button></td></tr>`}).join(''):`<tr><td class="empty" colspan="8">אין תנועות בטווח שנבחר</td></tr>`;
  $$('.edit').forEach(b=>b.onclick=()=>{
    const r=rows.find(x=>String(x.id)===String(b.dataset.id)); if(!r)return;
-   editingId=r.id; $('#qContainerNo').value=r.container_no||''; $('#qAgent').value=r.agent||''; $('#qContainerType').value=r.container_type?String(r.container_type):''; $('#qCurrentLocation').value=r.current_location||''; $('#qTargetLocation').value=r.target_location||'';
+   editingId=r.id; $('#qContainerNo').value=r.container_no||''; $('#qAgent').value=r.agent||''; $('#qContainerType').value=r.container_type?String(r.container_type):''; $('#qCurrentLocation').value=r.current_location||''; $('#qTargetLocation').value=r.target_location||''; $('#qNote').value=r.note||'';
    pendingPhotoFile=null; pendingPhotoPreview=r.photo_url||''; updatePhotoPreview();
    $('#quickSaveBtn').textContent='💾 שמור שינויים';
    if(!$('#editBanner')){const d=document.createElement('div');d.id='editBanner';d.className='editing-banner';d.innerHTML='✏️ עריכת רשומה קיימת <button type="button" class="btn secondary cancel-edit" id="cancelEditBtn">ביטול עריכה</button>';$('#quickEntryForm').prepend(d);$('#cancelEditBtn').onclick=cancelEdit;}
@@ -1785,7 +1802,7 @@ $('#locateBtn').onclick=()=>{
     $('#qContainerNo').value='';
     $('#qAgent').value='';
     $('#qCurrentLocation').value='';
-    $('#qTargetLocation').value='';
+    $('#qTargetLocation').value=''; if($('#qNote')) $('#qNote').value='';
     btn.classList.remove('active');
     btn.textContent='⌖ איתור';
 
@@ -1854,8 +1871,8 @@ $('#moveForm').onsubmit=async e=>{
 function exportExcel(){
  const fr=filtered(), [s,e]=getRange();
  const esc=s=>String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
- const trs=fr.map(r=>`<tr><td>${esc(fmt(new Date(r.movement_at)))}</td><td>${esc(r.container_no)}</td><td>${esc(r.agent)}</td><td>${r.container_type}</td><td>${esc(r.current_location)}</td><td>${esc(r.target_location)}</td></tr>`).join('');
- const html=`<html dir="rtl"><head><meta charset="utf-8"></head><body><h2>מעקב מכולות</h2><p>מתאריך: ${esc(fmt(s))} | עד: ${esc(fmt(e))}</p><p>סה"כ תנועות: ${fr.length}</p><table border="1"><tr><th>תאריך ושעה</th><th>מספר מכולה</th><th>סוכן</th><th>סוג מכולה (פיט)</th><th>איתור נוכחי</th><th>איתור יעד</th></tr>${trs}</table></body></html>`;
+ const trs=fr.map(r=>`<tr><td>${esc(fmt(new Date(r.movement_at)))}</td><td>${esc(r.container_no)}</td><td>${esc(r.agent)}</td><td>${r.container_type??''}</td><td>${esc(r.current_location)}</td><td>${esc(r.target_location)}</td><td>${esc(r.note||'')}</td></tr>`).join('');
+ const html=`<html dir="rtl"><head><meta charset="utf-8"></head><body><h2>מעקב מכולות</h2><p>מתאריך: ${esc(fmt(s))} | עד: ${esc(fmt(e))}</p><p>סה"כ תנועות: ${fr.length}</p><table border="1"><tr><th>תאריך ושעה</th><th>מספר מכולה</th><th>סוכן</th><th>סוג מכולה (פיט)</th><th>איתור נוכחי</th><th>איתור יעד</th><th>הערה</th></tr>${trs}</table></body></html>`;
  const blob=new Blob(['\ufeff',html],{type:'application/vnd.ms-excel'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`מעקב_מכולות_${dateOnly(s)}_${dateOnly(e)}.xls`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)
 }
 
@@ -1929,8 +1946,9 @@ $('#clearPhotoBtn').onclick=()=>{pendingPhotoFile=null;pendingPhotoOriginal=null
 $('#quickEntryForm').onsubmit=async e=>{
   e.preventDefault();
   let c=$('#qContainerNo').value.trim().toUpperCase();
+  const noteValue=$('#qNote').value.trim();
   if(!c && !pendingPhotoFile){
-    alert('יש להזין מספר מכולה או לצרף צילום.');
+    alert('כדי לשמור ללא מספר מכולה יש לצרף צילום. ניתן להוסיף הערה.');
     return;
   }
   const candidateOk=!c || /^[A-Z]{4}[0-9]{7}$/.test(c);
@@ -1945,6 +1963,7 @@ $('#quickEntryForm').onsubmit=async e=>{
       container_type:typeValue?Number(typeValue):null,
       current_location:$('#qCurrentLocation').value.trim()||null,
       target_location:$('#qTargetLocation').value.trim()||null,
+      note:noteValue||null,
       photo_url:uploadedPhoto
     };
     if(editingId){
