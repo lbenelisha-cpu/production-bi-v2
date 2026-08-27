@@ -1733,6 +1733,29 @@ td{background:rgba(4,25,53,.13)!important}
 <link rel="manifest" href="./manifest-v192.webmanifest?v=192">
 
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+
+<style id="movement-table-size-v9">
+/* Movement list: default two steps larger + user controlled display size */
+.movement-title-row{display:flex;align-items:center;gap:14px;flex-wrap:wrap;min-width:0}
+.table-size-controls{display:flex;align-items:center;gap:7px;padding:5px 7px;border:1px solid rgba(255,255,255,.28);border-radius:12px;background:rgba(3,25,52,.32);backdrop-filter:blur(10px)}
+.table-size-controls button{width:38px;height:38px;border:1px solid rgba(100,190,255,.45);border-radius:10px;background:rgba(17,93,175,.45);color:#fff;font-size:17px;font-weight:900;cursor:pointer;text-shadow:0 1px 3px #000}
+.table-size-controls button:hover{background:rgba(25,122,225,.62)}
+.table-size-controls span{min-width:70px;text-align:center;color:#fff;font-size:13px;font-weight:900;text-shadow:0 1px 3px #000}
+body{--movement-scale:1.125}
+.table-card-visual .tablewrap thead th{font-size:calc(15px * var(--movement-scale))!important;color:#fff!important;font-weight:900!important}
+.table-card-visual .tablewrap tbody td{font-size:calc(16px * var(--movement-scale))!important;color:#fff!important;font-weight:800!important;line-height:1.4!important;padding-top:calc(10px * var(--movement-scale))!important;padding-bottom:calc(10px * var(--movement-scale))!important}
+.table-card-visual .tablewrap tbody td:nth-child(2){font-size:calc(17px * var(--movement-scale))!important;font-weight:900!important}
+.table-card-visual .pill{font-size:calc(12px * var(--movement-scale))!important}
+.table-card-visual .row-actions button{transform:scale(var(--movement-scale));transform-origin:center}
+@media(max-width:900px){
+ .movement-title-row{width:100%;justify-content:space-between}
+ .table-size-controls{margin-inline-start:auto}
+ .table-card-visual .tablewrap tbody td{font-size:calc(14px * var(--movement-scale))!important}
+ .table-card-visual .tablewrap tbody td:nth-child(1){font-size:calc(12px * var(--movement-scale))!important}
+ .table-card-visual .tablewrap tbody td:nth-child(2){font-size:calc(18px * var(--movement-scale))!important}
+ .table-card-visual .tablewrap tbody td:nth-child(3),.table-card-visual .tablewrap tbody td:nth-child(4),.table-card-visual .tablewrap tbody td:nth-child(5),.table-card-visual .tablewrap tbody td:nth-child(6),.table-card-visual .tablewrap tbody td:nth-child(7){font-size:calc(14px * var(--movement-scale))!important}
+}
+</style>
 </head>
 <body>
 
@@ -1855,7 +1878,7 @@ td{background:rgba(4,25,53,.13)!important}
 
 <section class="card glass table-card-visual">
   <div class="head">
-    <div><h2>רשימת תנועות</h2><p id="rowsLabel">0 רשומות מוצגות</p></div>
+    <div class="movement-title-row"><div><h2>רשימת תנועות</h2><p id="rowsLabel">0 רשומות מוצגות</p></div><div class="table-size-controls" aria-label="גודל תצוגת רשימת תנועות"><button type="button" id="tableSizeUp" title="הגדל תצוגה" aria-label="הגדל תצוגה">▲</button><span id="tableSizeLabel">תצוגה 8</span><button type="button" id="tableSizeDown" title="הקטן תצוגה" aria-label="הקטן תצוגה">▼</button></div></div>
     <div class="search">⌕ <input id="search" placeholder="חיפוש מכולה, סוכן או איתור..."></div>
   </div>
   <div class="table-tools">
@@ -2363,7 +2386,25 @@ function exportExcel(){
   .tablewrap tbody td:nth-child(7){font-size:14px!important}
 }
 </style>
-</head><body><h2>מעקב מכולות</h2><p>מתאריך: ${esc(fmt(s))} | עד: ${esc(fmt(e))}</p><p>סה"כ תנועות: ${fr.length}</p><table border="1"><tr><th>תאריך ושעה</th><th>מספר מכולה</th><th>סוכן</th><th>סוג מכולה (פיט)</th><th>איתור נוכחי</th><th>איתור יעד</th><th>הערה</th></tr>${trs}</table></body></html>`;
+</head><body><h2>מעקב מכולות</h2><p>מתאריך: ${esc(fmt(s))} | עד: ${esc(fmt(e))}</p><p>סה"כ תנועות: ${fr.length}</p><table border="1"><tr><th>תאריך ושעה</th><th>מספר מכולה</th><th>סוכן</th><th>סוג מכולה (פיט)</th><th>איתור נוכחי</th><th>איתור יעד</th><th>הערה</th></tr>${trs}</table>
+<script id="movement-table-size-js-v9">
+(()=>{
+  const levels={6:1,7:1.06,8:1.125,9:1.20,10:1.30,11:1.40,12:1.52};
+  let level=Number(localStorage.getItem('movementTableSize')||8);
+  if(!levels[level]) level=8;
+  const apply=()=>{
+    document.body.style.setProperty('--movement-scale',String(levels[level]));
+    const label=document.getElementById('tableSizeLabel');
+    if(label) label.textContent='תצוגה '+level;
+    localStorage.setItem('movementTableSize',String(level));
+  };
+  const up=document.getElementById('tableSizeUp'), down=document.getElementById('tableSizeDown');
+  if(up) up.addEventListener('click',()=>{if(level<12){level++;apply();}});
+  if(down) down.addEventListener('click',()=>{if(level>6){level--;apply();}});
+  apply();
+})();
+</script>
+</body></html>`;
  const blob=new Blob(['\ufeff',html],{type:'application/vnd.ms-excel'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`מעקב_מכולות_${dateOnly(s)}_${dateOnly(e)}.xls`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)
 }
 
