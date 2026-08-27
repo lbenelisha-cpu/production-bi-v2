@@ -1485,6 +1485,160 @@ td{background:rgba(4,25,53,.13)!important}
   }
 }
 
+
+/* ===== v2.8 STRICT iPHONE MOVEMENT CARDS ===== */
+@media screen and (max-width:900px){
+  .tablewrap{
+    overflow-x:hidden!important;
+    overflow-y:auto!important;
+    max-height:620px!important;
+    -webkit-overflow-scrolling:touch!important;
+  }
+
+  .tablewrap table,
+  .tablewrap tbody{
+    display:block!important;
+    width:100%!important;
+    min-width:0!important;
+    height:auto!important;
+  }
+
+  .tablewrap thead{
+    display:none!important;
+  }
+
+  .tablewrap tbody tr{
+    display:flex!important;
+    flex-direction:column!important;
+    align-items:stretch!important;
+    position:relative!important;
+    width:100%!important;
+    min-width:0!important;
+    height:auto!important;
+    min-height:0!important;
+    max-height:none!important;
+    margin:0 0 10px 0!important;
+    padding:12px!important;
+    box-sizing:border-box!important;
+    overflow:visible!important;
+    border-radius:17px!important;
+    background:rgba(7,30,58,.52)!important;
+    border:1px solid rgba(205,231,255,.22)!important;
+    backdrop-filter:blur(8px)!important;
+    -webkit-backdrop-filter:blur(8px)!important;
+  }
+
+  .tablewrap tbody td{
+    position:static!important;
+    float:none!important;
+    display:block!important;
+    width:100%!important;
+    min-width:0!important;
+    max-width:100%!important;
+    height:auto!important;
+    min-height:0!important;
+    margin:0!important;
+    padding:4px 0!important;
+    box-sizing:border-box!important;
+    transform:none!important;
+    inset:auto!important;
+    white-space:normal!important;
+    overflow:visible!important;
+    text-overflow:clip!important;
+    overflow-wrap:anywhere!important;
+    word-break:break-word!important;
+    text-align:right!important;
+    line-height:1.45!important;
+  }
+
+  .tablewrap tbody td:nth-child(1){
+    order:1!important;
+    font-size:11px!important;
+    opacity:.78!important;
+  }
+  .tablewrap tbody td:nth-child(2){
+    order:2!important;
+    font-size:17px!important;
+    line-height:1.25!important;
+    font-weight:900!important;
+    letter-spacing:.4px!important;
+  }
+  .tablewrap tbody td:nth-child(3){
+    order:3!important;
+    font-size:12px!important;
+  }
+  .tablewrap tbody td:nth-child(4){
+    order:4!important;
+    font-size:12px!important;
+  }
+  .tablewrap tbody td:nth-child(5){
+    order:5!important;
+    font-size:12px!important;
+  }
+  .tablewrap tbody td:nth-child(6){
+    order:6!important;
+    font-size:12px!important;
+  }
+  .tablewrap tbody td:nth-child(7){
+    order:7!important;
+    font-size:12px!important;
+    color:#ffe0a7!important;
+  }
+  .tablewrap tbody td:nth-child(8),
+  .tablewrap tbody td:last-child{
+    order:8!important;
+    display:flex!important;
+    flex-direction:row!important;
+    justify-content:flex-start!important;
+    align-items:center!important;
+    flex-wrap:wrap!important;
+    gap:8px!important;
+    padding-top:8px!important;
+  }
+
+  .tablewrap .row-actions button,
+  .tablewrap .edit,
+  .tablewrap .delete,
+  .tablewrap .photo-link{
+    position:static!important;
+    transform:none!important;
+    display:inline-flex!important;
+    align-items:center!important;
+    justify-content:center!important;
+    width:40px!important;
+    min-width:40px!important;
+    height:40px!important;
+    min-height:40px!important;
+    margin:0!important;
+  }
+
+  /* Photo-only rows remain readable and visibly editable. */
+  .tablewrap .unrecognized{
+    display:inline-block!important;
+    width:auto!important;
+    margin:2px 0!important;
+    padding:4px 7px!important;
+  }
+
+  /* Keep the chart and bottom controls below the list instead of visually
+     entering the movement cards on Safari. */
+  .chart-card-visual{
+    clear:both!important;
+    position:relative!important;
+    z-index:1!important;
+    margin-top:14px!important;
+  }
+}
+
+@media screen and (max-width:430px){
+  .tablewrap{
+    max-height:560px!important;
+  }
+  .tablewrap tbody tr{
+    padding:11px 10px!important;
+  }
+}
+
 </style>
 <link rel="apple-touch-icon" sizes="180x180" href="./public/apple-touch-icon-v191.png?v=191">
 <meta name="theme-color" content="#08284b">
