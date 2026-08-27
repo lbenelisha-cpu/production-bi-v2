@@ -1,0 +1,15 @@
+עדכון אייקון iPhone – v194
+
+יש להחליף/להוסיף בפרויקט:
+1. index.html
+2. manifest-v194.webmanifest
+3. תיקיית public:
+   - apple-touch-icon-v194.png
+   - icon-192-v194.png
+   - icon-512-v194.png
+   - favicon-v194.png
+
+לאחר הפריסה:
+באייפון יש למחוק את קיצור הדרך הישן ממסך הבית,
+לפתוח את האתר מחדש ב-Safari,
+שיתוף > הוסף למסך הבית.
