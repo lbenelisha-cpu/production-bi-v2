@@ -1261,6 +1261,24 @@ td{background:rgba(4,25,53,.13)!important}
 .scan-guide{grid-column:1/-1;padding:9px 12px;border-radius:12px;background:rgba(0,154,214,.12);border:1px dashed rgba(126,224,255,.38);color:#e8f8ff;font-size:12px}.scan-result{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}.scan-chip{padding:4px 8px;border-radius:9px;background:rgba(20,115,210,.18);border:1px solid rgba(155,218,255,.22)}
 @media(max-width:900px){.camera-actions{grid-template-columns:1fr!important}.camera-preview{grid-template-columns:78px 1fr!important}.camera-preview img{width:78px;height:62px}.camera-preview button{grid-column:1/-1}.row-actions{display:flex!important;gap:5px;justify-content:flex-end!important}}
 
+
+/* ===== v2.2 SAVE UNRECOGNIZED PHOTO ===== */
+.scan-warning{
+  background:rgba(255,153,0,.15)!important;
+  border-color:rgba(255,190,95,.28)!important;
+  color:#ffd38d!important;
+}
+.unrecognized{
+  display:inline-block;
+  margin-inline-start:5px;
+  padding:3px 6px;
+  border-radius:8px;
+  background:rgba(255,153,0,.16);
+  color:#ffd38d;
+  font-size:10px;
+  font-weight:800;
+}
+
 </style>
 <link rel="apple-touch-icon" sizes="180x180" href="./public/apple-touch-icon-v191.png?v=191">
 <meta name="theme-color" content="#08284b">
@@ -1724,7 +1742,7 @@ function escapeHtml(s){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':
 function render(){
  const fr=filtered(), c=new Set(fr.map(r=>r.container_no)).size, l=new Set(fr.flatMap(r=>[r.current_location,r.target_location])).size, cd=chartData(fr);
  $('#kpiMoves').textContent=fr.length;$('#kpiContainers').textContent=c;$('#kpiLocations').textContent=l;$('#kpiAverage').textContent=cd.length?Math.round(fr.length/cd.length):0;$('#rowsLabel').textContent=`${fr.length} רשומות מוצגות`;
- $('#tbody').innerHTML=fr.length?fr.map(r=>{const miss=!r.agent||!r.current_location||!r.target_location;return `<tr><td>${fmt(new Date(r.movement_at))}</td><td class="mono">${escapeHtml(r.container_no)} ${miss?'<span class="missing">⚠ חסרים פרטים</span>':''} ${r.photo_url?`<a class="photo-link" href="${escapeHtml(r.photo_url)}" target="_blank" title="פתח צילום">📷</a>`:''}</td><td>${escapeHtml(r.agent||'—')}</td><td><span class="pill">${r.container_type||20} פיט</span></td><td>⌖ ${escapeHtml(r.current_location||'—')}</td><td>⌖ ${escapeHtml(r.target_location||'—')}</td><td class="row-actions"><button class="edit" data-id="${r.id}" title="עריכה">✏️</button><button class="delete" data-id="${r.id}">🗑</button></td></tr>`}).join(''):`<tr><td class="empty" colspan="7">אין תנועות בטווח שנבחר</td></tr>`;
+ $('#tbody').innerHTML=fr.length?fr.map(r=>{const miss=!r.agent||!r.current_location||!r.target_location;return `<tr><td>${fmt(new Date(r.movement_at))}</td><td class="mono">${escapeHtml(r.container_no)} ${r.container_no===UNRECOGNIZED_CONTAINER?'<span class="unrecognized">📷 דורש זיהוי/עריכה</span>':''} ${miss?'<span class="missing">⚠ חסרים פרטים</span>':''} ${r.photo_url?`<a class="photo-link" href="${escapeHtml(r.photo_url)}" target="_blank" title="פתח צילום">📷</a>`:''}</td><td>${escapeHtml(r.agent||'—')}</td><td><span class="pill">${r.container_type||20} פיט</span></td><td>⌖ ${escapeHtml(r.current_location||'—')}</td><td>⌖ ${escapeHtml(r.target_location||'—')}</td><td class="row-actions"><button class="edit" data-id="${r.id}" title="עריכה">✏️</button><button class="delete" data-id="${r.id}">🗑</button></td></tr>`}).join(''):`<tr><td class="empty" colspan="7">אין תנועות בטווח שנבחר</td></tr>`;
  $$('.edit').forEach(b=>b.onclick=()=>{
    const r=rows.find(x=>String(x.id)===String(b.dataset.id)); if(!r)return;
    editingId=r.id; $('#qContainerNo').value=r.container_no||''; $('#qAgent').value=r.agent||''; $('#qContainerType').value=String(r.container_type||20); $('#qCurrentLocation').value=r.current_location||''; $('#qTargetLocation').value=r.target_location||'';
@@ -1840,6 +1858,7 @@ function exportExcel(){
  const blob=new Blob(['\ufeff',html],{type:'application/vnd.ms-excel'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`מעקב_מכולות_${dateOnly(s)}_${dateOnly(e)}.xls`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)
 }
 
+const UNRECOGNIZED_CONTAINER='מכולה לא זוהתה';
 function cancelEdit(){editingId=null;pendingPhotoFile=null;pendingPhotoOriginal=null;pendingPhotoPreview='';$('#quickEntryForm').reset();$('#qContainerType').value='20';$('#quickSaveBtn').textContent='שמור תנועה';$('#editBanner')?.remove();if($('#scanResult'))$('#scanResult').innerHTML='';updatePhotoPreview();}
 function updatePhotoPreview(){const box=$('#cameraPreview'),img=$('#cameraPreviewImg');if(pendingPhotoPreview){img.src=pendingPhotoPreview;box.hidden=false}else{img.removeAttribute('src');box.hidden=true}}
 function cleanOcrText(text){return String(text||'').toUpperCase().replace(/[|]/g,'I').replace(/\s+/g,' ')}
@@ -1876,18 +1895,34 @@ async function runOcr(file){
   let texts=[]; for(const rot of [0,90,-90]){const t=await ocrVariant(file,rot);texts.push(t);if(findContainer(t)&&findIsoType(t))break}
   const all=texts.join(' '), num=findContainer(all), typ=findIsoType(all);
   if(num)$('#qContainerNo').value=num;
+  else $('#qContainerNo').value=UNRECOGNIZED_CONTAINER;
   if(typ)$('#qContainerType').value=String(typ.feet);
-  const chips=[];if(num)chips.push(`<span class="scan-chip">מכולה: <b>${num}</b></span>`);if(typ)chips.push(`<span class="scan-chip">${typ.code} → <b>${typ.feet} פיט</b></span>`);$('#scanResult').innerHTML=chips.join('');
-  st.textContent=num?`✓ זוהה ${num}${typ?' + '+typ.code:''} — נא לאמת לפני שמירה`:'לא זוהה מספר בוודאות — אפשר לתקן ידנית';
- }catch(err){st.textContent='הזיהוי האוטומטי לא הצליח — ניתן להקליד ידנית';}
+  const chips=[];
+  if(num)chips.push(`<span class="scan-chip">מכולה: <b>${num}</b></span>`);
+  else chips.push(`<span class="scan-chip scan-warning"><b>${UNRECOGNIZED_CONTAINER}</b> — הצילום יישמר לעריכה מאוחרת</span>`);
+  if(typ)chips.push(`<span class="scan-chip">${typ.code} → <b>${typ.feet} פיט</b></span>`);
+  $('#scanResult').innerHTML=chips.join('');
+  st.textContent=num?`✓ זוהה ${num}${typ?' + '+typ.code:''} — נא לאמת לפני שמירה`:'⚠ מספר המכולה לא זוהה — ניתן לשמור את הרשומה עם הצילום ולערוך מאוחר יותר';
+ }catch(err){
+   $('#qContainerNo').value=UNRECOGNIZED_CONTAINER;
+   $('#scanResult').innerHTML=`<span class="scan-chip scan-warning"><b>${UNRECOGNIZED_CONTAINER}</b> — הצילום יישמר לעריכה מאוחרת</span>`;
+   st.textContent='⚠ הזיהוי האוטומטי לא הצליח — ניתן לשמור את הרשומה עם הצילום ולערוך מאוחר יותר';
+ }
 }
 $('#cameraBtn').onclick=()=>$('#cameraInput').click();
 $('#cameraInput').onchange=async e=>{const f=e.target.files?.[0];if(!f)return;pendingPhotoOriginal=f;if(pendingPhotoPreview?.startsWith('blob:'))URL.revokeObjectURL(pendingPhotoPreview);pendingPhotoPreview=URL.createObjectURL(f);updatePhotoPreview();$('#ocrStatus').textContent='מכין צילום...';try{pendingPhotoFile=await compressForStorage(f)}catch{pendingPhotoFile=f}await runOcr(f)};
 $('#clearPhotoBtn').onclick=()=>{pendingPhotoFile=null;pendingPhotoOriginal=null;if(pendingPhotoPreview?.startsWith('blob:'))URL.revokeObjectURL(pendingPhotoPreview);pendingPhotoPreview='';$('#cameraInput').value='';$('#scanResult').innerHTML='';updatePhotoPreview()};
 
 $('#quickEntryForm').onsubmit=async e=>{
-  e.preventDefault(); const c=$('#qContainerNo').value.trim().toUpperCase(); if(!c){alert('מספר מכולה הוא השדה היחיד שחובה למלא');return}
-  const candidateOk=/^[A-Z]{4}[0-9]{7}$/.test(c); if(!candidateOk&&!confirm('מספר המכולה אינו במבנה הרגיל של 4 אותיות ו-7 ספרות. לשמור בכל זאת?'))return;
+  e.preventDefault();
+  let c=$('#qContainerNo').value.trim().toUpperCase();
+  if(!c && pendingPhotoFile){
+    c=UNRECOGNIZED_CONTAINER;
+    $('#qContainerNo').value=c;
+  }
+  if(!c){alert('יש להזין מספר מכולה או לצרף צילום.');return}
+  const candidateOk=/^[A-Z]{4}[0-9]{7}$/.test(c);
+  if(c!==UNRECOGNIZED_CONTAINER && !candidateOk && !confirm('מספר המכולה אינו במבנה הרגיל של 4 אותיות ו-7 ספרות. לשמור בכל זאת?'))return;
   const existing=editingId?rows.find(r=>String(r.id)===String(editingId)):null;
   try{
     const uploadedPhoto=pendingPhotoFile?await cloudUploadPhoto(pendingPhotoFile):(existing?.photo_url||null);
