@@ -1639,6 +1639,20 @@ td{background:rgba(4,25,53,.13)!important}
   }
 }
 
+
+/* Voice entry for container number */
+.voice-input-wrap{position:relative;display:block;width:100%}
+.voice-input-wrap #qContainerNo{padding-inline-end:54px!important}
+.voice-mic-btn{position:absolute;inset-inline-end:5px;top:50%;transform:translateY(-50%);width:38px;height:38px;border-radius:50%;border:1px solid rgba(180,214,242,.42);background:rgba(255,255,255,.16);color:#dff3ff;display:grid;place-items:center;padding:0;transition:.18s ease;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+.voice-mic-btn svg{width:21px;height:21px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.voice-mic-btn:hover{background:rgba(255,255,255,.24)}
+.voice-mic-btn:focus-visible{outline:3px solid rgba(79,168,255,.34);outline-offset:2px}
+.voice-mic-btn.listening{background:#1688ff;color:#fff;border-color:rgba(255,255,255,.55);box-shadow:0 0 0 5px rgba(22,136,255,.18);animation:voicePulse 1.2s ease-in-out infinite}
+.voice-mic-btn.unsupported{opacity:.6}
+.voice-hint{display:block!important;min-height:15px;margin-top:1px!important;color:rgba(229,243,255,.68)!important;font-size:10.5px!important;font-weight:500!important}
+.voice-hint.ok{color:#9ff0cf!important}.voice-hint.warn{color:#ffd487!important}
+@keyframes voicePulse{0%,100%{box-shadow:0 0 0 4px rgba(22,136,255,.15)}50%{box-shadow:0 0 0 9px rgba(22,136,255,.07)}}
+@media(prefers-reduced-motion:reduce){.voice-mic-btn.listening{animation:none}}
 </style>
 <link rel="apple-touch-icon" sizes="180x180" href="./public/apple-touch-icon-v191.png?v=191">
 <meta name="theme-color" content="#08284b">
@@ -1720,7 +1734,13 @@ td{background:rgba(4,25,53,.13)!important}
   </div>
   <form id="quickEntryForm" class="entry-grid">
     <label>מספר מכולה
-      <input id="qContainerNo" placeholder="לדוגמה MSCU1234567 (אופציונלי אם מצורף צילום)">
+      <span class="voice-input-wrap">
+        <input id="qContainerNo" autocomplete="off" autocapitalize="characters" spellcheck="false" inputmode="text" placeholder="לדוגמה MSCU1234567 (אופציונלי אם מצורף צילום)">
+        <button class="voice-mic-btn" type="button" id="voiceMicBtn" aria-label="הקלדה קולית של מספר מכולה" title="הקלדה קולית">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15.25a3.55 3.55 0 0 0 3.55-3.55V6.05a3.55 3.55 0 1 0-7.1 0v5.65A3.55 3.55 0 0 0 12 15.25Z"/><path d="M5.95 10.95v.75a6.05 6.05 0 0 0 12.1 0v-.75M12 17.75v3.1M9.25 20.85h5.5"/></svg>
+        </button>
+      </span>
+      <small class="voice-hint" id="voiceHint">לחץ על המיקרופון ואמור את 4 האותיות ו־7 הספרות</small>
     </label>
     <label>סוכן
       <input id="qAgent" placeholder="שם הסוכן (אופציונלי)">
@@ -2285,6 +2305,77 @@ async function runOcr(file){
    st.textContent='⚠ הזיהוי האוטומטי לא הצליח — השורה תישמר עם הצילום בלבד';
  }
 }
+
+// Voice dictation for container number. It only fills the field; saving remains manual.
+(function initContainerVoiceInput(){
+  const btn=$('#voiceMicBtn'), input=$('#qContainerNo'), hint=$('#voiceHint');
+  if(!btn || !input || !hint) return;
+  const SpeechRecognition=window.SpeechRecognition || window.webkitSpeechRecognition;
+  let recognition=null, listening=false;
+
+  const digitWords={ZERO:'0',OH:'0',O:'0',ONE:'1',WON:'1',TWO:'2',TO:'2',TOO:'2',THREE:'3',FOUR:'4',FOR:'4',FIVE:'5',SIX:'6',SEVEN:'7',EIGHT:'8',ATE:'8',NINE:'9'};
+  function voiceToContainer(transcript){
+    const upper=String(transcript||'').toUpperCase().replace(/[.,;:_\-\/\\]/g,' ');
+    const words=upper.split(/\s+/).filter(Boolean);
+    const expanded=words.map(w=>digitWords[w]??w).join('');
+    const compact=expanded.replace(/[^A-Z0-9]/g,'');
+    const exact=compact.match(/[A-Z]{4}[0-9]{7}/);
+    if(exact) return exact[0];
+    return compact.slice(0,18);
+  }
+  function setListening(on){
+    listening=on; btn.classList.toggle('listening',on);
+    btn.setAttribute('aria-pressed',on?'true':'false');
+  }
+
+  if(!SpeechRecognition){
+    btn.classList.add('unsupported');
+    hint.textContent='במכשיר זה אין זיהוי קולי ישיר באתר — ניתן להשתמש במיקרופון של מקלדת האייפון';
+    btn.onclick=()=>{ input.focus(); hint.className='voice-hint warn'; hint.textContent='המקלדת נפתחה — לחץ על סמל המיקרופון במקלדת האייפון'; };
+    return;
+  }
+
+  btn.onclick=()=>{
+    if(listening){ try{recognition?.stop()}catch{} return; }
+    recognition=new SpeechRecognition();
+    recognition.lang='en-US';
+    recognition.interimResults=false;
+    recognition.maxAlternatives=3;
+    recognition.continuous=false;
+    recognition.onstart=()=>{ setListening(true); hint.className='voice-hint'; hint.textContent='מקשיב… אמור 4 אותיות ואז 7 ספרות'; };
+    recognition.onresult=e=>{
+      let best='';
+      for(let i=e.resultIndex;i<e.results.length;i++){
+        for(let j=0;j<e.results[i].length;j++){
+          const candidate=voiceToContainer(e.results[i][j].transcript);
+          if(/^[A-Z]{4}[0-9]{7}$/.test(candidate)){best=candidate;break}
+          if(!best && candidate) best=candidate;
+        }
+        if(/^[A-Z]{4}[0-9]{7}$/.test(best)) break;
+      }
+      if(best){
+        input.value=best;
+        input.dispatchEvent(new Event('input',{bubbles:true}));
+        const valid=/^[A-Z]{4}[0-9]{7}$/.test(best);
+        hint.className='voice-hint '+(valid?'ok':'warn');
+        hint.textContent=valid?`✓ זוהה: ${best} — בדוק ולחץ שמור`:`נקלט: ${best} — בדוק ותקן במידת הצורך`;
+        input.focus();
+      }else{
+        hint.className='voice-hint warn';
+        hint.textContent='לא הצלחתי לזהות מספר — נסה שוב לאט, אות-אות ואז ספרות';
+      }
+    };
+    recognition.onerror=e=>{
+      setListening(false); hint.className='voice-hint warn';
+      if(e.error==='not-allowed' || e.error==='service-not-allowed') hint.textContent='יש לאשר גישה למיקרופון בדפדפן ואז לנסות שוב';
+      else if(e.error==='no-speech') hint.textContent='לא נשמע דיבור — לחץ שוב ונסה לדבר קרוב למיקרופון';
+      else hint.textContent='הזיהוי הקולי לא הצליח — אפשר לנסות שוב או להקליד ידנית';
+    };
+    recognition.onend=()=>setListening(false);
+    try{recognition.start()}catch{setListening(false)}
+  };
+})();
+
 $('#cameraBtn').onclick=()=>$('#cameraInput').click();
 
 async function savePhotoOnlyMovement(file){
