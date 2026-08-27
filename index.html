@@ -2281,7 +2281,56 @@ function exportExcel(){
  const fr=filtered(), [s,e]=getRange();
  const esc=s=>String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
  const trs=fr.map(r=>`<tr><td>${esc(fmt(new Date(r.movement_at)))}</td><td>${esc(r.container_no)}</td><td>${esc(r.agent)}</td><td>${r.container_type??''}</td><td>${esc(r.current_location)}</td><td>${esc(r.target_location)}</td><td>${esc(r.note||'')}</td></tr>`).join('');
- const html=`<html dir="rtl"><head><meta charset="utf-8"></head><body><h2>מעקב מכולות</h2><p>מתאריך: ${esc(fmt(s))} | עד: ${esc(fmt(e))}</p><p>סה"כ תנועות: ${fr.length}</p><table border="1"><tr><th>תאריך ושעה</th><th>מספר מכולה</th><th>סוכן</th><th>סוג מכולה (פיט)</th><th>איתור נוכחי</th><th>איתור יעד</th><th>הערה</th></tr>${trs}</table></body></html>`;
+ const html=`<html dir="rtl"><head><meta charset="utf-8">
+<style id="table-readability-v3">
+/* Readability update: brighter white and larger movement-table text */
+.tablewrap thead th{
+  color:#ffffff!important;
+  font-size:15px!important;
+  font-weight:900!important;
+  letter-spacing:.01em!important;
+  text-shadow:0 1px 2px rgba(0,0,0,.95),0 0 9px rgba(255,255,255,.22)!important;
+}
+.tablewrap tbody td{
+  color:#ffffff!important;
+  font-size:16px!important;
+  font-weight:800!important;
+  line-height:1.35!important;
+  text-shadow:0 1px 2px rgba(0,0,0,.95),0 0 7px rgba(255,255,255,.14)!important;
+}
+.tablewrap tbody td:nth-child(2){
+  font-size:17px!important;
+  font-weight:900!important;
+  letter-spacing:.25px!important;
+}
+.tablewrap tbody td .notice,
+.tablewrap tbody td .missing{
+  text-shadow:none!important;
+}
+.tablewrap tbody tr{
+  min-height:42px!important;
+}
+.tablewrap tbody td{
+  padding-top:10px!important;
+  padding-bottom:10px!important;
+}
+@media(max-width:900px){
+  .tablewrap tbody td{
+    color:#fff!important;
+    font-size:14px!important;
+    font-weight:800!important;
+    text-shadow:0 1px 2px rgba(0,0,0,.95),0 0 7px rgba(255,255,255,.12)!important;
+  }
+  .tablewrap tbody td:nth-child(1){font-size:12px!important;color:#f5f9ff!important;opacity:1!important}
+  .tablewrap tbody td:nth-child(2){font-size:18px!important;font-weight:900!important}
+  .tablewrap tbody td:nth-child(3),
+  .tablewrap tbody td:nth-child(4),
+  .tablewrap tbody td:nth-child(5),
+  .tablewrap tbody td:nth-child(6),
+  .tablewrap tbody td:nth-child(7){font-size:14px!important}
+}
+</style>
+</head><body><h2>מעקב מכולות</h2><p>מתאריך: ${esc(fmt(s))} | עד: ${esc(fmt(e))}</p><p>סה"כ תנועות: ${fr.length}</p><table border="1"><tr><th>תאריך ושעה</th><th>מספר מכולה</th><th>סוכן</th><th>סוג מכולה (פיט)</th><th>איתור נוכחי</th><th>איתור יעד</th><th>הערה</th></tr>${trs}</table></body></html>`;
  const blob=new Blob(['\ufeff',html],{type:'application/vnd.ms-excel'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`מעקב_מכולות_${dateOnly(s)}_${dateOnly(e)}.xls`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)
 }
 
