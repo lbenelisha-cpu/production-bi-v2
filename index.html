@@ -1367,6 +1367,7 @@ td{background:rgba(4,25,53,.13)!important}
     </label>
     <label>סוג מכולה
       <select id="qContainerType">
+        <option value="">לא נבחר</option>
         <option value="20">20 פיט</option>
         <option value="40">40 פיט</option>
       </select>
@@ -1742,10 +1743,10 @@ function escapeHtml(s){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':
 function render(){
  const fr=filtered(), c=new Set(fr.map(r=>r.container_no)).size, l=new Set(fr.flatMap(r=>[r.current_location,r.target_location])).size, cd=chartData(fr);
  $('#kpiMoves').textContent=fr.length;$('#kpiContainers').textContent=c;$('#kpiLocations').textContent=l;$('#kpiAverage').textContent=cd.length?Math.round(fr.length/cd.length):0;$('#rowsLabel').textContent=`${fr.length} רשומות מוצגות`;
- $('#tbody').innerHTML=fr.length?fr.map(r=>{const miss=!r.agent||!r.current_location||!r.target_location;return `<tr><td>${fmt(new Date(r.movement_at))}</td><td class="mono">${escapeHtml(r.container_no)} ${r.container_no===UNRECOGNIZED_CONTAINER?'<span class="unrecognized">📷 דורש זיהוי/עריכה</span>':''} ${miss?'<span class="missing">⚠ חסרים פרטים</span>':''} ${r.photo_url?`<a class="photo-link" href="${escapeHtml(r.photo_url)}" target="_blank" title="פתח צילום">📷</a>`:''}</td><td>${escapeHtml(r.agent||'—')}</td><td><span class="pill">${r.container_type||20} פיט</span></td><td>⌖ ${escapeHtml(r.current_location||'—')}</td><td>⌖ ${escapeHtml(r.target_location||'—')}</td><td class="row-actions"><button class="edit" data-id="${r.id}" title="עריכה">✏️</button><button class="delete" data-id="${r.id}">🗑</button></td></tr>`}).join(''):`<tr><td class="empty" colspan="7">אין תנועות בטווח שנבחר</td></tr>`;
+ $('#tbody').innerHTML=fr.length?fr.map(r=>{const miss=!r.agent||!r.current_location||!r.target_location;return `<tr><td>${fmt(new Date(r.movement_at))}</td><td class="mono">${r.container_no?escapeHtml(r.container_no):''} ${!r.container_no&&r.photo_url?'<span class="unrecognized">📷 צילום בלבד — דורש עריכה</span>':''} ${miss?'<span class="missing">⚠ חסרים פרטים</span>':''} ${r.photo_url?`<a class="photo-link" href="${escapeHtml(r.photo_url)}" target="_blank" title="פתח צילום">📷</a>`:''}</td><td>${escapeHtml(r.agent||'—')}</td><td>${r.container_type?`<span class="pill">${r.container_type} פיט</span>`:'—'}</td><td>⌖ ${escapeHtml(r.current_location||'—')}</td><td>⌖ ${escapeHtml(r.target_location||'—')}</td><td class="row-actions"><button class="edit" data-id="${r.id}" title="עריכה">✏️</button><button class="delete" data-id="${r.id}">🗑</button></td></tr>`}).join(''):`<tr><td class="empty" colspan="7">אין תנועות בטווח שנבחר</td></tr>`;
  $$('.edit').forEach(b=>b.onclick=()=>{
    const r=rows.find(x=>String(x.id)===String(b.dataset.id)); if(!r)return;
-   editingId=r.id; $('#qContainerNo').value=r.container_no||''; $('#qAgent').value=r.agent||''; $('#qContainerType').value=String(r.container_type||20); $('#qCurrentLocation').value=r.current_location||''; $('#qTargetLocation').value=r.target_location||'';
+   editingId=r.id; $('#qContainerNo').value=r.container_no||''; $('#qAgent').value=r.agent||''; $('#qContainerType').value=r.container_type?String(r.container_type):''; $('#qCurrentLocation').value=r.current_location||''; $('#qTargetLocation').value=r.target_location||'';
    pendingPhotoFile=null; pendingPhotoPreview=r.photo_url||''; updatePhotoPreview();
    $('#quickSaveBtn').textContent='💾 שמור שינויים';
    if(!$('#editBanner')){const d=document.createElement('div');d.id='editBanner';d.className='editing-banner';d.innerHTML='✏️ עריכת רשומה קיימת <button type="button" class="btn secondary cancel-edit" id="cancelEditBtn">ביטול עריכה</button>';$('#quickEntryForm').prepend(d);$('#cancelEditBtn').onclick=cancelEdit;}
@@ -1858,8 +1859,7 @@ function exportExcel(){
  const blob=new Blob(['\ufeff',html],{type:'application/vnd.ms-excel'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`מעקב_מכולות_${dateOnly(s)}_${dateOnly(e)}.xls`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)
 }
 
-const UNRECOGNIZED_CONTAINER='מכולה לא זוהתה';
-function cancelEdit(){editingId=null;pendingPhotoFile=null;pendingPhotoOriginal=null;pendingPhotoPreview='';$('#quickEntryForm').reset();$('#qContainerType').value='20';$('#quickSaveBtn').textContent='שמור תנועה';$('#editBanner')?.remove();if($('#scanResult'))$('#scanResult').innerHTML='';updatePhotoPreview();}
+function cancelEdit(){editingId=null;pendingPhotoFile=null;pendingPhotoOriginal=null;pendingPhotoPreview='';$('#quickEntryForm').reset();$('#qContainerType').value='';$('#quickSaveBtn').textContent='שמור תנועה';$('#editBanner')?.remove();if($('#scanResult'))$('#scanResult').innerHTML='';updatePhotoPreview();}
 function updatePhotoPreview(){const box=$('#cameraPreview'),img=$('#cameraPreviewImg');if(pendingPhotoPreview){img.src=pendingPhotoPreview;box.hidden=false}else{img.removeAttribute('src');box.hidden=true}}
 function cleanOcrText(text){return String(text||'').toUpperCase().replace(/[|]/g,'I').replace(/\s+/g,' ')}
 function findContainer(text){
@@ -1894,19 +1894,32 @@ async function runOcr(file){
   if(!window.Tesseract)throw new Error('OCR unavailable');
   let texts=[]; for(const rot of [0,90,-90]){const t=await ocrVariant(file,rot);texts.push(t);if(findContainer(t)&&findIsoType(t))break}
   const all=texts.join(' '), num=findContainer(all), typ=findIsoType(all);
-  if(num)$('#qContainerNo').value=num;
-  else $('#qContainerNo').value=UNRECOGNIZED_CONTAINER;
-  if(typ)$('#qContainerType').value=String(typ.feet);
   const chips=[];
-  if(num)chips.push(`<span class="scan-chip">מכולה: <b>${num}</b></span>`);
-  else chips.push(`<span class="scan-chip scan-warning"><b>${UNRECOGNIZED_CONTAINER}</b> — הצילום יישמר לעריכה מאוחרת</span>`);
-  if(typ)chips.push(`<span class="scan-chip">${typ.code} → <b>${typ.feet} פיט</b></span>`);
+  if(num){
+    $('#qContainerNo').value=num;
+    if(typ)$('#qContainerType').value=String(typ.feet);
+    chips.push(`<span class="scan-chip">מכולה: <b>${num}</b></span>`);
+    if(typ)chips.push(`<span class="scan-chip">${typ.code} → <b>${typ.feet} פיט</b></span>`);
+    st.textContent=`✓ זוהה ${num}${typ?' + '+typ.code:''} — נא לאמת לפני שמירה`;
+  }else{
+    // No confident container number: do not copy ANY OCR text into the row.
+    $('#qContainerNo').value='';
+    $('#qAgent').value='';
+    $('#qCurrentLocation').value='';
+    $('#qTargetLocation').value='';
+    $('#qContainerType').value='';
+    chips.push(`<span class="scan-chip scan-warning"><b>לא זוהה טקסט בוודאות</b> — תישמר שורה עם הצילום בלבד</span>`);
+    st.textContent='⚠ לא זוהה מספר מכולה — השורה תישמר עם הצילום בלבד ותוכל לערוך אותה מאוחר יותר';
+  }
   $('#scanResult').innerHTML=chips.join('');
-  st.textContent=num?`✓ זוהה ${num}${typ?' + '+typ.code:''} — נא לאמת לפני שמירה`:'⚠ מספר המכולה לא זוהה — ניתן לשמור את הרשומה עם הצילום ולערוך מאוחר יותר';
  }catch(err){
-   $('#qContainerNo').value=UNRECOGNIZED_CONTAINER;
-   $('#scanResult').innerHTML=`<span class="scan-chip scan-warning"><b>${UNRECOGNIZED_CONTAINER}</b> — הצילום יישמר לעריכה מאוחרת</span>`;
-   st.textContent='⚠ הזיהוי האוטומטי לא הצליח — ניתן לשמור את הרשומה עם הצילום ולערוך מאוחר יותר';
+   $('#qContainerNo').value='';
+   $('#qAgent').value='';
+   $('#qCurrentLocation').value='';
+   $('#qTargetLocation').value='';
+   $('#qContainerType').value='';
+   $('#scanResult').innerHTML=`<span class="scan-chip scan-warning"><b>לא זוהה טקסט</b> — תישמר שורה עם הצילום בלבד</span>`;
+   st.textContent='⚠ הזיהוי האוטומטי לא הצליח — השורה תישמר עם הצילום בלבד';
  }
 }
 $('#cameraBtn').onclick=()=>$('#cameraInput').click();
@@ -1916,19 +1929,34 @@ $('#clearPhotoBtn').onclick=()=>{pendingPhotoFile=null;pendingPhotoOriginal=null
 $('#quickEntryForm').onsubmit=async e=>{
   e.preventDefault();
   let c=$('#qContainerNo').value.trim().toUpperCase();
-  if(!c && pendingPhotoFile){
-    c=UNRECOGNIZED_CONTAINER;
-    $('#qContainerNo').value=c;
+  if(!c && !pendingPhotoFile){
+    alert('יש להזין מספר מכולה או לצרף צילום.');
+    return;
   }
-  if(!c){alert('יש להזין מספר מכולה או לצרף צילום.');return}
-  const candidateOk=/^[A-Z]{4}[0-9]{7}$/.test(c);
-  if(c!==UNRECOGNIZED_CONTAINER && !candidateOk && !confirm('מספר המכולה אינו במבנה הרגיל של 4 אותיות ו-7 ספרות. לשמור בכל זאת?'))return;
+  const candidateOk=!c || /^[A-Z]{4}[0-9]{7}$/.test(c);
+  if(c && !candidateOk && !confirm('מספר המכולה אינו במבנה הרגיל של 4 אותיות ו-7 ספרות. לשמור בכל זאת?'))return;
   const existing=editingId?rows.find(r=>String(r.id)===String(editingId)):null;
   try{
     const uploadedPhoto=pendingPhotoFile?await cloudUploadPhoto(pendingPhotoFile):(existing?.photo_url||null);
-    const payload={container_no:c,agent:$('#qAgent').value.trim()||null,container_type:Number($('#qContainerType').value)||20,current_location:$('#qCurrentLocation').value.trim()||null,target_location:$('#qTargetLocation').value.trim()||null,photo_url:uploadedPhoto};
-    if(editingId){const saved=await cloudUpdateMovement(editingId,payload);rows=rows.map(r=>String(r.id)===String(editingId)?{...r,...saved,...payload}:r)}
-    else{payload.movement_at=new Date().toISOString();const saved=await cloudInsertMovement(payload);rows.unshift(saved||{id:crypto.randomUUID(),...payload})}
+    const typeValue=$('#qContainerType').value;
+    const payload={
+      container_no:c||null,
+      agent:$('#qAgent').value.trim()||null,
+      container_type:typeValue?Number(typeValue):null,
+      current_location:$('#qCurrentLocation').value.trim()||null,
+      target_location:$('#qTargetLocation').value.trim()||null,
+      photo_url:uploadedPhoto
+    };
+    if(editingId){
+      // IMPORTANT: movement_at is intentionally NOT sent on edit.
+      // The original movement date/time remains exactly as it was.
+      const saved=await cloudUpdateMovement(editingId,payload);
+      rows=rows.map(r=>String(r.id)===String(editingId)?{...r,...saved,...payload,movement_at:r.movement_at}:r);
+    }else{
+      payload.movement_at=new Date().toISOString();
+      const saved=await cloudInsertMovement(payload);
+      rows.unshift(saved||{id:crypto.randomUUID(),...payload});
+    }
     saveLocal();cancelEdit();render();
   }catch(err){alert('השמירה בענן נכשלה: '+err.message)}
 };
