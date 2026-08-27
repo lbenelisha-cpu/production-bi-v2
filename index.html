@@ -1682,8 +1682,14 @@ td{background:rgba(4,25,53,.13)!important}
   text-shadow:0 1px 2px rgba(0,0,0,.6)!important;
 }
 .voice-input-wrap{position:relative;display:block;width:100%;min-width:0}
-.voice-input-wrap #qContainerNo{padding-inline-end:58px!important}
+.voice-input-wrap #qContainerNo{padding-inline-end:106px!important}
 .voice-mic-btn{position:absolute;inset-inline-end:6px;top:50%;transform:translateY(-50%);width:42px;height:42px;border-radius:50%;border:1px solid rgba(210,234,255,.72);background:rgba(255,255,255,.18);color:#fff;display:grid;place-items:center;padding:0;transition:.18s ease;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);z-index:2}
+
+.voice-lang-btn{position:absolute;inset-inline-end:54px;top:50%;transform:translateY(-50%);height:34px;min-width:42px;border-radius:17px;border:1px solid rgba(210,234,255,.58);background:rgba(4,31,63,.72);color:#fff;font-size:12px;font-weight:950;line-height:1;padding:0 8px;z-index:2;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+.voice-lang-btn:hover{background:rgba(14,72,126,.88)}
+.voice-lang-btn:focus-visible{outline:3px solid rgba(79,168,255,.42);outline-offset:2px}
+.voice-lang-btn.hebrew{background:rgba(22,136,255,.92);border-color:#fff}
+
 .voice-mic-btn svg{width:23px;height:23px;fill:none;stroke:currentColor;stroke-width:2.1;stroke-linecap:round;stroke-linejoin:round}
 .voice-mic-btn:hover{background:rgba(255,255,255,.28)}
 .voice-mic-btn:focus-visible{outline:3px solid rgba(79,168,255,.42);outline-offset:2px}
@@ -1779,11 +1785,12 @@ td{background:rgba(4,25,53,.13)!important}
     <label>מספר מכולה
       <span class="voice-input-wrap">
         <input id="qContainerNo" autocomplete="off" autocapitalize="characters" spellcheck="false" inputmode="text" placeholder="לדוגמה MSCU1234567 (אופציונלי אם מצורף צילום)">
+        <button class="voice-lang-btn" type="button" id="voiceLangBtn" aria-label="שפת זיהוי קולי" title="החלף שפת זיהוי">EN</button>
         <button class="voice-mic-btn" type="button" id="voiceMicBtn" aria-label="הקלדה קולית של מספר מכולה" title="הקלדה קולית">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15.25a3.55 3.55 0 0 0 3.55-3.55V6.05a3.55 3.55 0 1 0-7.1 0v5.65A3.55 3.55 0 0 0 12 15.25Z"/><path d="M5.95 10.95v.75a6.05 6.05 0 0 0 12.1 0v-.75M12 17.75v3.1M9.25 20.85h5.5"/></svg>
         </button>
       </span>
-      <small class="voice-hint" id="voiceHint">לחץ על המיקרופון: אמור 4 אותיות באנגלית ואז 7 ספרות בעברית או באנגלית</small>
+      <small class="voice-hint" id="voiceHint">בחר EN לדיבור באנגלית, או עב לזיהוי דו־שלבי: 4 אותיות ואז 7 ספרות בעברית</small>
     </label>
     <label>סוכן
       <input id="qAgent" placeholder="שם הסוכן (אופציונלי)">
@@ -2400,76 +2407,48 @@ async function runOcr(file){
 
 // Voice dictation for container number. It only fills the field; saving remains manual.
 (function initContainerVoiceInput(){
-  const btn=$('#voiceMicBtn'), input=$('#qContainerNo'), hint=$('#voiceHint');
+  const btn=$('#voiceMicBtn'), langBtn=$('#voiceLangBtn'), input=$('#qContainerNo'), hint=$('#voiceHint');
   if(!btn || !input || !hint) return;
   const SpeechRecognition=window.SpeechRecognition || window.webkitSpeechRecognition;
-  let recognition=null, listening=false;
+  let recognition=null, listening=false, voiceMode='en', hebrewPrefix='';
 
   const digitWords={
-    // English digit words / common speech-recognition variants
-    ZERO:'0',OH:'0',O:'0',ZEROH:'0',
-    ONE:'1',WON:'1',
-    TWO:'2',TO:'2',TOO:'2',
-    THREE:'3',TREE:'3',
-    FOUR:'4',FOR:'4',
-    FIVE:'5',
-    SIX:'6',
-    SEVEN:'7',
-    EIGHT:'8',ATE:'8',
-    NINE:'9',
-
-    // Hebrew digit words
-    'אפס':'0','אֶפֶס':'0',
-    'אחד':'1','אחת':'1','ראשון':'1','וואן':'1',
-    'שתיים':'2','שניים':'2','שתים':'2','שנים':'2','טו':'2',
-    'שלוש':'3','שלושה':'3','טרי':'3',
-    'ארבע':'4','ארבעה':'4','פור':'4',
-    'חמש':'5','חמישה':'5','פייב':'5',
-    'שש':'6','שישה':'6','סיקס':'6',
-    'שבע':'7','שבעה':'7','סבן':'7',
-    'שמונה':'8','אייט':'8',
-    'תשע':'9','תשעה':'9','ניין':'9',
-
-    // Common Latin transliterations returned when recognition runs in English.
-    // This prevents Hebrew number words such as "אחד" becoming container letters (e.g. AHCHAD).
-    EFES:'0',EFESS:'0',EFS:'0',
-    AHCHAD:'1',ACHAD:'1',AHAD:'1',ECHAD:'1',EHAD:'1',EHCHAD:'1',AKHAD:'1',
-    ACHAT:'1',AHAT:'1',ECHAT:'1',
-    SHTAYIM:'2',SHTAIM:'2',SHTEIM:'2',SHTEYM:'2',SHNAYIM:'2',SHNAIM:'2',SHNEIM:'2',SHNEYIM:'2',
-    SHALOSH:'3',SHLOSH:'3',SHALOS:'3',SHLOSH:'3',
-    ARBA:'4',ARBAA:'4',ARBAH:'4',
-    CHAMESH:'5',HAMESH:'5',KHAMESH:'5',CHAMISH:'5',HAMISH:'5',
-    SHESH:'6',SHES:'6',
-    SHEVA:'7',SHEVAA:'7',SHEVAH:'7',SHIVA:'7',
-    SHMONE:'8',SHMONEH:'8',SHEMONE:'8',SHMONA:'8',
-    TESHA:'9',TESHAA:'9',TISHA:'9',TISHAH:'9'
+    ZERO:'0',OH:'0',O:'0',ZEROH:'0', ONE:'1',WON:'1', TWO:'2',TO:'2',TOO:'2',
+    THREE:'3',TREE:'3', FOUR:'4',FOR:'4', FIVE:'5', SIX:'6', SEVEN:'7', EIGHT:'8',ATE:'8', NINE:'9',
+    'אפס':'0','אֶפֶס':'0','אחד':'1','אחת':'1','שתיים':'2','שניים':'2','שתים':'2','שנים':'2',
+    'שלוש':'3','שלושה':'3','ארבע':'4','ארבעה':'4','חמש':'5','חמישה':'5','שש':'6','שישה':'6',
+    'שבע':'7','שבעה':'7','שמונה':'8','תשע':'9','תשעה':'9',
+    EFES:'0',EFESS:'0',EFS:'0', AHCHAD:'1',ACHAD:'1',AHAD:'1',ECHAD:'1',EHAD:'1',EHCHAD:'1',AKHAD:'1',
+    ACHAT:'1',AHAT:'1',ECHAT:'1', SHTAYIM:'2',SHTAIM:'2',SHTEIM:'2',SHTEYM:'2',SHNAYIM:'2',SHNAIM:'2',SHNEIM:'2',SHNEYIM:'2',
+    SHALOSH:'3',SHLOSH:'3',SHALOS:'3', ARBA:'4',ARBAA:'4',ARBAH:'4', CHAMESH:'5',HAMESH:'5',KHAMESH:'5',CHAMISH:'5',HAMISH:'5',
+    SHESH:'6',SHES:'6', SHEVA:'7',SHEVAA:'7',SHEVAH:'7',SHIVA:'7', SHMONE:'8',SHMONEH:'8',SHEMONE:'8',SHMONA:'8', TESHA:'9',TESHAA:'9',TISHA:'9',TISHAH:'9'
   };
-  function voiceToContainer(transcript){
-    let text=String(transcript||'')
-      .replace(/[.,;:_\-\/\\]/g,' ')
-      .replace(/[־–—]/g,' ')
-      .replace(/\s+/g,' ')
-      .trim();
-    // Speech engines on iPhone may return the letters in English but the digits as Hebrew words.
-    // Convert every recognised Hebrew/English digit word before stripping non-container characters.
+
+  function parseDigits(transcript){
+    const raw=String(transcript||'').replace(/[.,;:_\-\/\\־–—]/g,' ').replace(/["'׳״]/g,' ').replace(/\s+/g,' ').trim();
+    if(!raw) return '';
+    let digits='';
+    for(const token of raw.split(/\s+/)){
+      const clean=token.trim();
+      const upper=clean.toUpperCase().replace(/[^A-Z0-9]/g,'');
+      if(/^\d+$/.test(clean)){ digits += clean; continue; }
+      if(digitWords[clean] != null){ digits += digitWords[clean]; continue; }
+      if(digitWords[upper] != null){ digits += digitWords[upper]; continue; }
+      // Hebrew recognition sometimes returns a compact number such as 1183380.
+      const numeric=clean.replace(/[^0-9]/g,'');
+      if(numeric) digits += numeric;
+    }
+    return digits.slice(0,7);
+  }
+
+  function parseEnglishContainer(transcript){
+    let text=String(transcript||'').replace(/[.,;:_\-\/\\־–—]/g,' ').replace(/\s+/g,' ').trim();
     const words=text.split(/\s+/).filter(Boolean);
     const expanded=words.map(raw=>{
       const clean=raw.replace(/["'׳״]/g,'');
       const upper=clean.toUpperCase().replace(/[^A-Z0-9]/g,'');
-      // Check known number words BEFORE treating Latin text as container letters.
       if(digitWords[clean] != null) return digitWords[clean];
       if(digitWords[upper] != null) return digitWords[upper];
-      // Some engines attach punctuation or slightly vary "AHCHAD"; normalize a few phonetic families.
-      if(/^(?:A|E)H?C?H?AD$/.test(upper) || /^(?:A|E)K?HAD$/.test(upper)) return '1';
-      if(/^SHT(?:AY|AI|EI|EY)M$/.test(upper) || /^SHN(?:AY|AI|EI|EY)M$/.test(upper)) return '2';
-      if(/^SH(?:A)?LOSH$/.test(upper)) return '3';
-      if(/^ARBAH?$/.test(upper) || /^ARBAA$/.test(upper)) return '4';
-      if(/^(?:C|K)?HAMESH$/.test(upper) || /^HAM(?:E|I)SH$/.test(upper)) return '5';
-      if(/^SHESH$/.test(upper)) return '6';
-      if(/^SHEVAA?H?$/.test(upper)) return '7';
-      if(/^SH?E?MONEH?$/.test(upper) || /^SHMONA$/.test(upper)) return '8';
-      if(/^T(?:E|I)SHAA?H?$/.test(upper)) return '9';
-      if(/^EFES+$/.test(upper)) return '0';
       return clean;
     }).join('');
     const compact=expanded.toUpperCase().replace(/[^A-Z0-9]/g,'');
@@ -2477,56 +2456,137 @@ async function runOcr(file){
     if(exact) return exact[0];
     return compact.slice(0,18);
   }
+
+  function parsePrefix(transcript){
+    // Stage 1 runs in English specifically so owner-code letters are recognised reliably.
+    const compact=String(transcript||'').toUpperCase().replace(/[^A-Z]/g,'');
+    return compact.slice(0,4);
+  }
+
   function setListening(on){
     listening=on; btn.classList.toggle('listening',on);
     btn.setAttribute('aria-pressed',on?'true':'false');
+    if(langBtn) langBtn.disabled=on;
+  }
+
+  function updateModeUi(){
+    if(!langBtn) return;
+    const he=voiceMode==='he';
+    langBtn.textContent=he?'עב':'EN';
+    langBtn.classList.toggle('hebrew',he);
+    langBtn.setAttribute('aria-label',he?'מצב עברית — לחץ למצב אנגלית':'מצב אנגלית — לחץ למצב עברית');
+    hint.className='voice-hint';
+    hint.textContent=he
+      ? 'מצב עברית: לחץ על המיקרופון, אמור 4 אותיות באנגלית; לאחר מכן המערכת תבקש 7 ספרות בעברית'
+      : 'מצב EN: לחץ על המיקרופון ואמור את כל מספר המכולה באנגלית';
+  }
+
+  if(langBtn){
+    langBtn.onclick=()=>{ if(listening) return; voiceMode=voiceMode==='en'?'he':'en'; updateModeUi(); };
+    updateModeUi();
   }
 
   if(!SpeechRecognition){
     btn.classList.add('unsupported');
     hint.textContent='במכשיר זה אין זיהוי קולי ישיר באתר — ניתן להשתמש במיקרופון של מקלדת האייפון';
     btn.onclick=()=>{ input.focus(); hint.className='voice-hint warn'; hint.textContent='המקלדת נפתחה — לחץ על סמל המיקרופון במקלדת האייפון'; };
+    if(langBtn) langBtn.disabled=true;
     return;
   }
 
-  btn.onclick=()=>{
-    if(listening){ try{recognition?.stop()}catch{} return; }
+  function runRecognition(lang, onResult, onDone){
     recognition=new SpeechRecognition();
-    recognition.lang='en-US';
+    recognition.lang=lang;
     recognition.interimResults=false;
-    recognition.maxAlternatives=3;
+    recognition.maxAlternatives=5;
     recognition.continuous=false;
-    recognition.onstart=()=>{ setListening(true); hint.className='voice-hint'; hint.textContent='מקשיב… אמור 4 אותיות באנגלית ואז 7 ספרות בעברית או באנגלית'; };
     recognition.onresult=e=>{
-      let best='';
+      const alternatives=[];
       for(let i=e.resultIndex;i<e.results.length;i++){
-        for(let j=0;j<e.results[i].length;j++){
-          const candidate=voiceToContainer(e.results[i][j].transcript);
-          if(/^[A-Z]{4}[0-9]{7}$/.test(candidate)){best=candidate;break}
-          if(!best && candidate) best=candidate;
-        }
-        if(/^[A-Z]{4}[0-9]{7}$/.test(best)) break;
+        for(let j=0;j<e.results[i].length;j++) alternatives.push(e.results[i][j].transcript);
       }
+      onResult(alternatives);
+    };
+    recognition.onerror=e=>{
+      setListening(false);
+      hint.className='voice-hint warn';
+      if(e.error==='not-allowed' || e.error==='service-not-allowed') hint.textContent='יש לאשר גישה למיקרופון בדפדפן ואז לנסות שוב';
+      else if(e.error==='no-speech') hint.textContent='לא נשמע דיבור — לחץ שוב ונסה לדבר קרוב למיקרופון';
+      else hint.textContent='הזיהוי הקולי לא הצליח — אפשר לנסות שוב או להקליד ידנית';
+      if(onDone) onDone(false);
+    };
+    recognition.onend=()=>{ if(onDone) onDone(true); };
+    try{ recognition.start(); }catch{ setListening(false); hint.className='voice-hint warn'; hint.textContent='לא ניתן להפעיל את המיקרופון כרגע — נסה שוב'; }
+  }
+
+  function startEnglishMode(){
+    setListening(true);
+    hint.className='voice-hint'; hint.textContent='מקשיב… אמור את מספר המכולה באנגלית';
+    let best='';
+    runRecognition('en-US', alternatives=>{
+      for(const t of alternatives){
+        const c=parseEnglishContainer(t);
+        if(/^[A-Z]{4}[0-9]{7}$/.test(c)){ best=c; break; }
+        if(!best && c) best=c;
+      }
+    }, ok=>{
+      if(!ok) return;
+      setListening(false);
       if(best){
-        input.value=best;
-        input.dispatchEvent(new Event('input',{bubbles:true}));
+        input.value=best; input.dispatchEvent(new Event('input',{bubbles:true}));
         const valid=/^[A-Z]{4}[0-9]{7}$/.test(best);
         hint.className='voice-hint '+(valid?'ok':'warn');
         hint.textContent=valid?`✓ זוהה: ${best} — בדוק ולחץ שמור`:`נקלט: ${best} — בדוק ותקן במידת הצורך`;
         input.focus();
-      }else{
-        hint.className='voice-hint warn';
-        hint.textContent='לא הצלחתי לזהות מספר — נסה שוב לאט, אות-אות ואז ספרות';
+      }else{ hint.className='voice-hint warn'; hint.textContent='לא הצלחתי לזהות מספר — נסה שוב'; }
+    });
+  }
+
+  function startHebrewMode(){
+    setListening(true); hebrewPrefix='';
+    hint.className='voice-hint'; hint.textContent='שלב 1 מתוך 2 — אמור עכשיו רק את 4 האותיות באנגלית';
+    runRecognition('en-US', alternatives=>{
+      for(const t of alternatives){
+        const p=parsePrefix(t);
+        if(p.length===4){ hebrewPrefix=p; break; }
+        if(!hebrewPrefix && p) hebrewPrefix=p;
       }
-    };
-    recognition.onerror=e=>{
-      setListening(false); hint.className='voice-hint warn';
-      if(e.error==='not-allowed' || e.error==='service-not-allowed') hint.textContent='יש לאשר גישה למיקרופון בדפדפן ואז לנסות שוב';
-      else if(e.error==='no-speech') hint.textContent='לא נשמע דיבור — לחץ שוב ונסה לדבר קרוב למיקרופון';
-      else hint.textContent='הזיהוי הקולי לא הצליח — אפשר לנסות שוב או להקליד ידנית';
-    };
-    recognition.onend=()=>setListening(false);
-    try{recognition.start()}catch{setListening(false)}
+    }, ok=>{
+      if(!ok) return;
+      if(hebrewPrefix.length!==4){
+        setListening(false); hint.className='voice-hint warn'; hint.textContent=`נקלטו ${hebrewPrefix.length} אותיות בלבד — נסה שוב ואמור 4 אותיות`; return;
+      }
+      // Start a fresh recognition session in Hebrew so Hebrew number words are actually returned as Hebrew/numerals.
+      setTimeout(()=>{
+        hint.className='voice-hint'; hint.textContent=`✓ אותיות: ${hebrewPrefix} — עכשיו אמור 7 ספרות בעברית`;
+        let digits='';
+        runRecognition('he-IL', alternatives=>{
+          for(const t of alternatives){
+            const d=parseDigits(t);
+            if(d.length===7){ digits=d; break; }
+            if(d.length>digits.length) digits=d;
+          }
+        }, ok2=>{
+          setListening(false);
+          if(!ok2) return;
+          if(digits.length===7){
+            const finalValue=hebrewPrefix+digits;
+            input.value=finalValue; input.dispatchEvent(new Event('input',{bubbles:true}));
+            hint.className='voice-hint ok'; hint.textContent=`✓ זוהה: ${finalValue} — בדוק ולחץ שמור`;
+            input.focus();
+          }else{
+            input.value=hebrewPrefix+digits; input.dispatchEvent(new Event('input',{bubbles:true}));
+            hint.className='voice-hint warn'; hint.textContent=`נקלטו ${digits.length} ספרות בלבד — נסה שוב במצב עברית`;
+            input.focus();
+          }
+        });
+      },350);
+    });
+  }
+
+  btn.onclick=()=>{
+    if(listening){ try{recognition?.stop()}catch{} return; }
+    if(voiceMode==='he') startHebrewMode(); else startEnglishMode();
   };
 })();
 
