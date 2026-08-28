@@ -1953,7 +1953,7 @@ body{--movement-scale:1.125}
     <label class="note-field">הערה
       <input id="qNote" placeholder="הערה חופשית — ניתן לשמור צילום + הערה ללא מספר מכולה">
     </label>
-    <div class="scan-guide">📷 הוספה מצילום: לאחר הצילום תישמר מיד שורה חדשה עם התמונה בלבד. את מספר המכולה ושאר הפרטים ניתן להשלים אחר כך באמצעות ✏️ עריכה.</div>
+    <div class="scan-guide">📷 הוספה מצילום: המערכת תנסה לזהות מספר מכולה תקני (4 אותיות + 7 ספרות) ותאמת גם את ספרת הביקורת. זיהוי ודאי יישמר אוטומטית; אחרת תישמר שורה עם הצילום בלבד לעריכה מאוחרת.</div>
     <div class="entry-actions camera-actions">
       <button class="btn camera-btn" type="button" id="cameraBtn">📷 הוספה מצילום</button>
       <button class="btn locate-btn" type="button" id="locateBtn">⌖ איתור</button>
@@ -1962,7 +1962,7 @@ body{--movement-scale:1.125}
     </div>
     <div class="camera-preview" id="cameraPreview" hidden>
       <img id="cameraPreviewImg" alt="צילום מכולה">
-      <div><strong id="ocrStatus">צילום מוכן</strong><small>אין ניסיון לזיהוי טקסט. לענן נשמר עותק JPEG מוקטן ודחוס בלבד.</small><div class="scan-result" id="scanResult"></div></div>
+      <div><strong id="ocrStatus">צילום מוכן</strong><small>המערכת בודקת מספר מכולה לפי ISO 6346. לענן נשמר עותק JPEG מוקטן ודחוס בלבד.</small><div class="scan-result" id="scanResult"></div></div>
       <button type="button" class="btn secondary" id="clearPhotoBtn">הסר צילום</button>
     </div>
   </form>
@@ -2499,14 +2499,62 @@ function exportExcel(){
 function cancelEdit(){editingId=null;pendingPhotoFile=null;pendingPhotoOriginal=null;pendingPhotoPreview='';$('#quickEntryForm').reset();$('#qContainerType').value='';$('#quickSaveBtn').textContent='שמור תנועה';$('#editBanner')?.remove();if($('#scanResult'))$('#scanResult').innerHTML='';updatePhotoPreview();}
 function updatePhotoPreview(){const box=$('#cameraPreview'),img=$('#cameraPreviewImg');if(pendingPhotoPreview){img.src=pendingPhotoPreview;box.hidden=false}else{img.removeAttribute('src');box.hidden=true}}
 function cleanOcrText(text){return String(text||'').toUpperCase().replace(/[|]/g,'I').replace(/\s+/g,' ')}
-function findContainer(text){
- const raw=cleanOcrText(text), compact=raw.replace(/[^A-Z0-9]/g,'');
- let m=compact.match(/[A-Z]{4}[0-9]{7}/); if(m)return m[0];
- // common OCR confusion correction only inside expected letter/digit positions
- const chunks=compact.match(/[A-Z0-9]{10,13}/g)||[];
- for(const x of chunks){for(let i=0;i<=x.length-11;i++){let c=x.slice(i,i+11);let a=c.slice(0,4).replace(/0/g,'O').replace(/1/g,'I').replace(/5/g,'S').replace(/8/g,'B');let d=c.slice(4).replace(/O/g,'0').replace(/[IL]/g,'1').replace(/S/g,'5').replace(/B/g,'8').replace(/G/g,'6');if(/^[A-Z]{4}$/.test(a)&&/^\d{7}$/.test(d))return a+d}}
- return '';
+
+// ISO 6346 check digit. This is the strongest guard against a wrong OCR result.
+const ISO6346_LETTER_VALUES={
+ A:10,B:12,C:13,D:14,E:15,F:16,G:17,H:18,I:19,J:20,K:21,L:23,M:24,
+ N:25,O:26,P:27,Q:28,R:29,S:30,T:31,U:32,V:34,W:35,X:36,Y:37,Z:38
+};
+function iso6346CheckDigit(first10){
+ const s=String(first10||'').toUpperCase();
+ if(!/^[A-Z]{4}[0-9]{6}$/.test(s))return null;
+ let sum=0;
+ for(let i=0;i<10;i++){
+  const ch=s[i], value=/\d/.test(ch)?Number(ch):ISO6346_LETTER_VALUES[ch];
+  if(value==null)return null;
+  sum+=value*(2**i);
+ }
+ const r=sum%11;
+ return r===10?0:r;
 }
+function isValidIso6346(num){
+ const s=String(num||'').toUpperCase();
+ if(!/^[A-Z]{4}[0-9]{7}$/.test(s))return false;
+ // ISO equipment category identifier: U freight container, J detachable equipment, Z chassis/trailer.
+ if(!/[UJZ]/.test(s[3]))return false;
+ return iso6346CheckDigit(s.slice(0,10))===Number(s[10]);
+}
+function normalizeContainerWindow(value){
+ const c=String(value||'').toUpperCase();
+ if(c.length!==11)return '';
+ const letters=c.slice(0,4)
+  .replace(/0/g,'O').replace(/1/g,'I').replace(/2/g,'Z')
+  .replace(/5/g,'S').replace(/6/g,'G').replace(/8/g,'B');
+ const digits=c.slice(4)
+  .replace(/[OQD]/g,'0').replace(/[ILT]/g,'1').replace(/Z/g,'2')
+  .replace(/S/g,'5').replace(/G/g,'6').replace(/B/g,'8');
+ return /^[A-Z]{4}[0-9]{7}$/.test(letters+digits)?letters+digits:'';
+}
+function findContainerResult(text){
+ const raw=cleanOcrText(text);
+ const streams=[
+  raw.replace(/[^A-Z0-9]/g,''),
+  ...raw.split(/\s+/).map(x=>x.replace(/[^A-Z0-9]/g,'')).filter(Boolean)
+ ];
+ const seen=new Set(), structural=[];
+ for(const stream of streams){
+  if(stream.length<11)continue;
+  for(let i=0;i<=stream.length-11;i++){
+   const candidate=normalizeContainerWindow(stream.slice(i,i+11));
+   if(!candidate||seen.has(candidate))continue;
+   seen.add(candidate);
+   if(isValidIso6346(candidate))return {number:candidate,validCheckDigit:true};
+   structural.push(candidate);
+  }
+ }
+ return {number:'',validCheckDigit:false,structuralCandidate:structural[0]||''};
+}
+function findContainer(text){return findContainerResult(text).number}
 function findIsoType(text){
  const compact=cleanOcrText(text).replace(/[^A-Z0-9]/g,'');
  if(compact.includes('45G1'))return {code:'45G1',feet:40};
@@ -2520,43 +2568,76 @@ async function compressForStorage(file){
  const blob=await new Promise(r=>c.toBlob(r,'image/jpeg',.60));
  return new File([blob],`container_${Date.now()}.jpg`,{type:'image/jpeg'});
 }
-async function ocrVariant(file, rotate=0){
- let source=file;
- if(rotate){const b=await createImageBitmap(file),c=document.createElement('canvas');c.width=b.height;c.height=b.width;const x=c.getContext('2d');x.translate(c.width/2,c.height/2);x.rotate(rotate*Math.PI/180);x.drawImage(b,-b.width/2,-b.height/2);if(b.close)b.close();source=c}
- const {data}=await Tesseract.recognize(source,'eng',{logger:m=>{if(m.status==='recognizing text')$('#ocrStatus').textContent=`מזהה... ${Math.round((m.progress||0)*100)}%`;}});return data.text||'';
+async function makeOcrSource(file, rotate=0, highContrast=false){
+ const b=await createImageBitmap(file);
+ const rad=rotate*Math.PI/180, swap=Math.abs(rotate)%180===90;
+ const maxSide=2200, scale=Math.min(1.6,maxSide/Math.max(b.width,b.height));
+ const srcW=Math.max(1,Math.round(b.width*scale)), srcH=Math.max(1,Math.round(b.height*scale));
+ const c=document.createElement('canvas');
+ c.width=swap?srcH:srcW; c.height=swap?srcW:srcH;
+ const x=c.getContext('2d',{willReadFrequently:highContrast});
+ x.save();x.translate(c.width/2,c.height/2);x.rotate(rad);x.drawImage(b,-srcW/2,-srcH/2,srcW,srcH);x.restore();
+ if(b.close)b.close();
+ if(highContrast){
+  const img=x.getImageData(0,0,c.width,c.height),d=img.data;
+  for(let i=0;i<d.length;i+=4){
+   const g=.299*d[i]+.587*d[i+1]+.114*d[i+2];
+   const v=g>155?255:(g<85?0:Math.round((g-85)*255/70));
+   d[i]=d[i+1]=d[i+2]=v;
+  }
+  x.putImageData(img,0,0);
+ }
+ return c;
+}
+async function ocrVariant(file, rotate=0, highContrast=false){
+ const source=await makeOcrSource(file,rotate,highContrast);
+ const {data}=await Tesseract.recognize(source,'eng',{
+  logger:m=>{if(m.status==='recognizing text')$('#ocrStatus').textContent=`מזהה... ${Math.round((m.progress||0)*100)}%`;},
+  tessedit_char_whitelist:'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+ });
+ return data.text||'';
 }
 async function runOcr(file){
- const st=$('#ocrStatus');st.textContent='מזהה מספר וקוד סוג...';
+ const st=$('#ocrStatus');st.textContent='מזהה מספר מכולה...';
  try{
   if(!window.Tesseract)throw new Error('OCR unavailable');
-  let texts=[]; for(const rot of [0,90,-90]){const t=await ocrVariant(file,rot);texts.push(t);if(findContainer(t)&&findIsoType(t))break}
-  const all=texts.join(' '), num=findContainer(all), typ=findIsoType(all);
-  const chips=[];
-  if(num){
-    $('#qContainerNo').value=num;
-    if(typ)$('#qContainerType').value=String(typ.feet);
-    chips.push(`<span class="scan-chip">מכולה: <b>${num}</b></span>`);
-    if(typ)chips.push(`<span class="scan-chip">${typ.code} → <b>${typ.feet} פיט</b></span>`);
-    st.textContent=`✓ זוהה ${num}${typ?' + '+typ.code:''} — נא לאמת לפני שמירה`;
+  const texts=[];
+  // Handles a normal row and vertical/rotated markings.
+  for(const rot of [0,90,-90,180]){
+   const t=await ocrVariant(file,rot,false);texts.push(t);
+   const found=findContainerResult(texts.join(' '));
+   if(found.number)break;
+  }
+  let result=findContainerResult(texts.join(' '));
+  // Second pass with stronger contrast only when the first pass was not conclusive.
+  if(!result.number){
+   for(const rot of [0,90,-90]){
+    const t=await ocrVariant(file,rot,true);texts.push(t);
+    result=findContainerResult(texts.join(' '));
+    if(result.number)break;
+   }
+  }
+  const all=texts.join(' '), typ=findIsoType(all), chips=[];
+  if(result.number){
+   chips.push(`<span class="scan-chip">מכולה: <b>${result.number}</b> ✓ ספרת ביקורת תקינה</span>`);
+   if(typ)chips.push(`<span class="scan-chip">${typ.code} → <b>${typ.feet} פיט</b></span>`);
+   st.textContent=`✓ זוהה בוודאות ${result.number} — נשמר אוטומטית`;
+   $('#scanResult').innerHTML=chips.join('');
+   return {number:result.number,type:typ,confident:true};
+  }
+  if(result.structuralCandidate){
+   chips.push(`<span class="scan-chip scan-warning"><b>נמצא מועמד ${result.structuralCandidate}</b>, אך ספרת הביקורת אינה תקינה — המספר לא יישמר</span>`);
+   st.textContent='⚠ הזיהוי אינו ודאי — נשמר צילום בלבד';
   }else{
-    // No confident container number: do not copy ANY OCR text into the row.
-    $('#qContainerNo').value='';
-    $('#qAgent').value='';
-    $('#qCurrentLocation').value='';
-    $('#qTargetLocation').value='';
-    $('#qContainerType').value='';
-    chips.push(`<span class="scan-chip scan-warning"><b>לא זוהה טקסט בוודאות</b> — תישמר שורה עם הצילום בלבד</span>`);
-    st.textContent='⚠ לא זוהה מספר מכולה — השורה תישמר עם הצילום בלבד ותוכל לערוך אותה מאוחר יותר';
+   chips.push(`<span class="scan-chip scan-warning"><b>לא זוהה מספר מכולה בוודאות</b> — נשמר צילום בלבד</span>`);
+   st.textContent='⚠ לא זוהה מספר מכולה — נשמר צילום בלבד';
   }
   $('#scanResult').innerHTML=chips.join('');
+  return {number:'',type:null,confident:false};
  }catch(err){
-   $('#qContainerNo').value='';
-   $('#qAgent').value='';
-   $('#qCurrentLocation').value='';
-   $('#qTargetLocation').value='';
-   $('#qContainerType').value='';
-   $('#scanResult').innerHTML=`<span class="scan-chip scan-warning"><b>לא זוהה טקסט</b> — תישמר שורה עם הצילום בלבד</span>`;
-   st.textContent='⚠ הזיהוי האוטומטי לא הצליח — השורה תישמר עם הצילום בלבד';
+  $('#scanResult').innerHTML='<span class="scan-chip scan-warning"><b>הזיהוי האוטומטי לא הצליח</b> — נשמר צילום בלבד</span>';
+  st.textContent='⚠ OCR לא הצליח — נשמר צילום בלבד';
+  return {number:'',type:null,confident:false};
  }
 }
 
@@ -2796,17 +2877,17 @@ async function runOcr(file){
 
 $('#cameraBtn').onclick=()=>$('#cameraInput').click();
 
-async function savePhotoOnlyMovement(file){
+async function savePhotoMovement(file, detected={number:'',type:null,confident:false}){
   const status=$('#ocrStatus');
-  status.textContent='שומר צילום...';
+  status.textContent=detected.confident?'זוהה מספר — שומר צילום ותנועה...':'שומר צילום...';
   let compressed=file;
   try{compressed=await compressForStorage(file)}catch{}
   try{
     const photoUrl=await cloudUploadPhoto(compressed);
     const payload={
-      container_no:null,
+      container_no:detected.confident?detected.number:null,
       agent:null,
-      container_type:null,
+      container_type:detected.confident&&detected.type?Number(detected.type.feet):null,
       current_location:null,
       target_location:null,
       note:null,
@@ -2816,8 +2897,12 @@ async function savePhotoOnlyMovement(file){
     const saved=await cloudInsertMovement(payload);
     rows.unshift(saved||{id:crypto.randomUUID(),...payload});
     saveLocal();
-    status.textContent='✓ הצילום נשמר כשורה חדשה';
-    $('#scanResult').innerHTML='<span class="scan-chip scan-warning"><b>צילום בלבד</b> — ניתן להשלים פרטים באמצעות ✏️ עריכה</span>';
+    status.textContent=detected.confident?`✓ ${detected.number} זוהה ונשמר עם הצילום`:'✓ הצילום נשמר — מספר המכולה דורש עריכה';
+    if(detected.confident){
+      $('#scanResult').innerHTML=`<span class="scan-chip">✓ <b>${detected.number}</b> נשמר לאחר אימות ISO 6346</span>`;
+    }else{
+      $('#scanResult').innerHTML='<span class="scan-chip scan-warning"><b>צילום בלבד</b> — ניתן להשלים את המספר באמצעות ✏️ עריכה</span>';
+    }
     render();
 
     setTimeout(()=>{
@@ -2827,7 +2912,7 @@ async function savePhotoOnlyMovement(file){
       pendingPhotoPreview='';
       $('#cameraInput').value='';
       updatePhotoPreview();
-    },900);
+    },1200);
 
     const tableCard=document.querySelector('.table-card-visual') || document.querySelector('.tablewrap');
     if(tableCard) setTimeout(()=>tableCard.scrollIntoView({behavior:'smooth',block:'start'}),150);
@@ -2846,17 +2931,25 @@ $('#cameraInput').onchange=async e=>{
   pendingPhotoPreview=URL.createObjectURL(f);
   updatePhotoPreview();
 
-  // בעריכת שורה קיימת: הצילום מצורף לעריכה ולא יוצר רשומה חדשה.
+  // בעריכת שורה קיימת: נזהה את המספר ונציע אותו בתוך שדה העריכה, ללא יצירת רשומה חדשה.
   if(editingId){
-    $('#ocrStatus').textContent='צילום חדש צורף לעריכה — לחץ "שמור שינויים"';
-    $('#scanResult').innerHTML='<span class="scan-chip">📷 הצילום יצורף לרשומה הקיימת</span>';
+    $('#ocrStatus').textContent='מזהה מספר בצילום החדש...';
     try{pendingPhotoFile=await compressForStorage(f)}catch{pendingPhotoFile=f}
+    const detected=await runOcr(f);
+    if(detected.confident){
+      $('#qContainerNo').value=detected.number;
+      if(detected.type)$('#qContainerType').value=String(detected.type.feet);
+      $('#ocrStatus').textContent=`✓ זוהה ${detected.number} — לחץ "שמור שינויים"`;
+    }else{
+      $('#ocrStatus').textContent='צילום צורף לעריכה — המספר לא זוהה בוודאות';
+    }
     return;
   }
 
-  // בהוספה רגילה: אין OCR ואין ניסיון לזהות טקסט.
-  // התמונה נשמרת מיד כשורה חדשה עם תאריך ושעת הצילום.
-  await savePhotoOnlyMovement(f);
+  // בהוספה רגילה: OCR חכם. רק מספר שעובר מבנה ISO + ספרת ביקורת נשמר אוטומטית.
+  // אם אין זיהוי ודאי, עדיין נשמרת מיד שורה עם הצילום בלבד.
+  const detected=await runOcr(f);
+  await savePhotoMovement(f,detected);
 };
 
 $('#clearPhotoBtn').onclick=()=>{
