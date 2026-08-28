@@ -2798,6 +2798,9 @@ async function ocrCanvas(canvas,whitelist,psm='7',label=''){
 }
 /* Tesseract's own confidence for the most recent ocrCanvas call. */
 let lastOcrConfidence=0;
+/* A one-line summary of the last scan, shown on screen when nothing was
+   recognised so a failure can be diagnosed from a screenshot alone. */
+let lastScanDiag='';
 
 /* Same shared worker, but the raw text (with spacing) is preserved —
    the horizontal reader tokenises on whitespace. */
@@ -3345,6 +3348,7 @@ async function runGlyphLineOcr(file,primaryAxis='v'){
       buf._integral=null;
       _ccScratch.n=0;_ccScratch.seen=null;_ccScratch.qx=null;_ccScratch.qy=null;
       if(bmp.close)bmp.close();
+      lastScanDiag=scanW+'px · 0 מועמדים · '+buf.w+'x'+buf.h;
       if(scanW===SCAN_W){
         console.info('Container OCR v13: nothing at '+scanW+'px, retrying larger');
         st.textContent='סורק ברזולוציה גבוהה יותר...';
@@ -3368,6 +3372,7 @@ async function runGlyphLineOcr(file,primaryAxis='v'){
          same eleven characters AND ISO 6346 validates them. No digit is
          ever calculated, completed or repaired. */
       const votes=new Map();
+      const seenReadings=[];          // for the on-screen diagnosis
       let calls=0;
       const MAX_CALLS=20;
       const started=Date.now();
@@ -3394,6 +3399,7 @@ async function runGlyphLineOcr(file,primaryAxis='v'){
              recognition rather than pay for it. */
           if(!/^[A-Z]{3}[UJZ]$/.test(letters)){
             console.info('v13 pass',cand.tag,'pad',pad,lettersRaw,'-> owner code rejected');
+            if(seenReadings.length<8)seenReadings.push((letters||'?')+'?');
             continue;
           }
 
@@ -3406,6 +3412,8 @@ async function runGlyphLineOcr(file,primaryAxis='v'){
           const digitsConf=lastOcrConfidence;
           console.info('v13 pass',cand.tag,'pad',pad,letters,digits,'->',candidateNum,
                        'conf L'+Math.round(lettersConf)+' D'+Math.round(digitsConf));
+
+          if(seenReadings.length<8)seenReadings.push(candidateNum+(isValidContainer(candidateNum)?'✓':'✗'));
 
           if(!/^[A-Z]{4}\d{7}$/.test(candidateNum))continue;
           if(!isValidContainer(candidateNum))continue;   // ISO only rejects, never invents
@@ -3432,6 +3440,7 @@ async function runGlyphLineOcr(file,primaryAxis='v'){
             if(/^[A-Z]{3}[UJZ]\d{7}$/.test(c)&&isValidContainer(c)){lineNum=c;break}
           }
           console.info('v13 line',cand.tag,lineRaw,'->',lineNum||'(no valid window)');
+          if(seenReadings.length<8)seenReadings.push('line:'+(lineNum||lineRaw.slice(0,12)||'-'));
           if(lineNum){
             const n2=(votes.get(lineNum)||0)+1;
             votes.set(lineNum,n2);
@@ -3444,6 +3453,8 @@ async function runGlyphLineOcr(file,primaryAxis='v'){
       }
 
       console.info('Container OCR v13: no two-pass agreement at '+scanW+'px',JSON.stringify([...votes.entries()]));
+      lastScanDiag=scanW+'px · '+candidates.length+' מועמדים · '+calls+' קריאות · '+
+                   (seenReadings.length?seenReadings.slice(0,5).join(' , '):'אין קריאות');
       if(scanW===SCAN_W)continue;      // give the larger scan a chance
       return {num:'',typ:null,
               reason:ranked.length?'קריאות לא עקביות':'התווים אותרו אך לא נקראו בוודאות',
@@ -3779,7 +3790,7 @@ async function rotateCanvas90(source,clockwise=true){
 
 async function ocrAdaptiveContainer(canvas){
   const raw=await ocrCanvas(canvas,'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789','7','ניגודיות אדפטיבית...');
-  console.info('Adaptive OCR raw',raw,data.text);
+  console.info('Adaptive OCR raw',raw);
 
   for(let i=0;i<=raw.length-11;i++){
     const part=raw.slice(i,i+11);
@@ -3820,8 +3831,21 @@ async function runBlackWhiteVerticalFallback(file){
   return {num:'',typ:null};
 }
 
+/* One failing stage must never take the remaining stages — or the cloud
+   fallback — down with it. */
+async function tryStage(fn,file,name){
+  try{
+    const r=await fn(file);
+    return r||{num:'',typ:null};
+  }catch(err){
+    console.warn('OCR stage failed:',name,err);
+    return {num:'',typ:null};
+  }
+}
+
 async function runOcr(file){
   const st=$('#ocrStatus');
+  lastScanDiag='';
 
   try{
     if(!window.Tesseract)throw new Error('OCR unavailable');
@@ -3831,27 +3855,27 @@ async function runOcr(file){
 
     if(orientation.portrait){
       // 1. v13 glyph reader (multi-mask, tilt tolerant, two-pass consensus).
-      result=await runGlyphLineOcr(file,'v');
+      result=await tryStage(f=>runGlyphLineOcr(f,'v'),file,'glyph-v');
 
       const firstReason=result.reason;
 
       // 2. Rotated whole-column fallback.
-      if(!result.num)result=await runVerticalRotatedFallback(file);
+      if(!result.num)result=await tryStage(runVerticalRotatedFallback,file,'rotated');
 
       // 3. Adaptive black/white fallback.
-      if(!result.num)result=await runBlackWhiteVerticalFallback(file);
+      if(!result.num)result=await tryStage(runBlackWhiteVerticalFallback,file,'adaptive');
 
       // 4. A portrait photo can still carry a horizontal marking.
-      if(!result.num)result=await runHorizontalFastOcr(file);
+      if(!result.num)result=await tryStage(runHorizontalFastOcr,file,'horizontal');
 
       if(!result.num&&firstReason)result.reason=firstReason;
     }else{
       // Horizontal path first — it is unchanged and already performs well.
-      result=await runHorizontalFastOcr(file);
+      result=await tryStage(runHorizontalFastOcr,file,'horizontal');
 
       // Then the glyph reader, which also copes with vertical markings
       // photographed in landscape.
-      if(!result.num)result=await runGlyphLineOcr(file,'h');
+      if(!result.num)result=await tryStage(f=>runGlyphLineOcr(f,'h'),file,'glyph-h');
     }
 
     // 5. Optional cloud fallback, only when nothing was read on device.
@@ -3875,11 +3899,13 @@ async function runOcr(file){
 
     $('#qContainerNo').value='';
     $('#qContainerType').value='';
-    const why=result.reason
-      ? ' ('+String(result.reason).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))+')'
+    const esc2=s=>String(s||'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+    const why=result.reason?' ('+esc2(result.reason)+')':'';
+    const diag=lastScanDiag
+      ? `<div style="font-size:11px;opacity:.85;margin-top:4px;direction:ltr;text-align:left">${esc2(lastScanDiag)}</div>`
       : '';
     $('#scanResult').innerHTML=
-      `<span class="scan-chip scan-warning"><b>לא נמצאה קריאה ודאית</b>${why} — לא נשמר מספר; הצילום בלבד נשמר</span>`;
+      `<span class="scan-chip scan-warning"><b>לא נמצאה קריאה ודאית</b>${why} — לא נשמר מספר; הצילום בלבד נשמר</span>${diag}`;
     st.textContent='⚠ לא זוהה מספר בוודאות — נשמר צילום בלבד';
     return {num:'',typ:null};
 
