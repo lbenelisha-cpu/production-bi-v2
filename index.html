@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="he" dir="rtl">
 <head>
-<!-- Container OCR v14: stable primary + relaxed 10-main-glyph geometry + separate boxed check digit -->
+<!-- Container OCR v16: stable primary + 11 single-glyph OCR fallback + ISO validation -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>מעקב מכולות</title>
@@ -3611,6 +3611,135 @@ async function runRelaxed10PlusCheckOcr(file){
   return {num:candidate,typ:null};
 }
 
+
+async function recognizeSingleGlyph(canvas, whitelist){
+  const {data}=await Tesseract.recognize(canvas,'eng',{
+    tessedit_char_whitelist:whitelist,
+    tessedit_pageseg_mode:'10',
+    preserve_interword_spaces:'0',
+    logger:m=>{
+      if(m.status==='recognizing text'){
+        $('#ocrStatus').textContent=`קורא תו בודד... ${Math.round((m.progress||0)*100)}%`;
+      }
+    }
+  });
+
+  const raw=String(data.text||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+  return {
+    raw,
+    ch:raw ? raw[0] : '',
+    confidence:Number(data.confidence||0)
+  };
+}
+
+async function buildSingleGlyphCanvas(file,detected,index){
+  const bmp=await createImageBitmap(file);
+  const invScale=1/detected.scale;
+  const g=detected.seq[index];
+
+  const pad=22;
+  const sx=Math.max(0,Math.round((g.x-pad)*invScale));
+  const sy=Math.max(0,Math.round((g.y-pad)*invScale));
+  const sw=Math.max(1,Math.min(bmp.width-sx,Math.round((g.w+pad*2)*invScale)));
+  const sh=Math.max(1,Math.min(bmp.height-sy,Math.round((g.h+pad*2)*invScale)));
+
+  const tmp=document.createElement('canvas');
+  tmp.width=sw;
+  tmp.height=sh;
+  const tx=tmp.getContext('2d',{willReadFrequently:true});
+  tx.drawImage(bmp,sx,sy,sw,sh,0,0,sw,sh);
+
+  const im=tx.getImageData(0,0,sw,sh),d=im.data;
+
+  // Local adaptive-ish isolation:
+  // detect bright/neutral paint and render it black on white.
+  let sum=0,count=0;
+  for(let p=0;p<d.length;p+=4){
+    sum+=(d[p]+d[p+1]+d[p+2])/3;
+    count++;
+  }
+  const mean=sum/Math.max(1,count);
+  const threshold=Math.max(115,Math.min(190,mean+18));
+
+  for(let p=0;p<d.length;p+=4){
+    const r=d[p],gg=d[p+1],b=d[p+2];
+    const minRGB=Math.min(r,gg,b),maxRGB=Math.max(r,gg,b);
+    const neutral=(maxRGB-minRGB)<105;
+    const whitePaint=minRGB>threshold && neutral;
+    const v=whitePaint?0:255;
+    d[p]=d[p+1]=d[p+2]=v;
+  }
+
+  tx.putImageData(im,0,0);
+
+  // Place glyph on a fixed square canvas with large margins.
+  const out=document.createElement('canvas');
+  out.width=180;
+  out.height=180;
+  const ox=out.getContext('2d');
+  ox.fillStyle='white';
+  ox.fillRect(0,0,out.width,out.height);
+
+  const fit=Math.min(130/sw,130/sh);
+  const dw=Math.max(1,sw*fit),dh=Math.max(1,sh*fit);
+  ox.drawImage(tmp,(180-dw)/2,(180-dh)/2,dw,dh);
+
+  if(bmp.close)bmp.close();
+  return out;
+}
+
+async function runPerGlyphVerticalOcr(file){
+  $('#ocrStatus').textContent='מזהה תווים בנפרד...';
+
+  // Reuse the relaxed geometry detector from v14.
+  const detected=await detectRelaxedVertical10PlusCheck(file);
+  if(!detected || !detected.seq || detected.seq.length!==11){
+    console.info('v16 per-glyph: geometry not found');
+    return {num:'',typ:null};
+  }
+
+  const chars=[];
+  const confidences=[];
+
+  for(let i=0;i<11;i++){
+    const canvas=await buildSingleGlyphCanvas(file,detected,i);
+    const whitelist=i<4
+      ? 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+      : '0123456789';
+
+    const info=await recognizeSingleGlyph(canvas,whitelist);
+    chars.push(info.ch);
+    confidences.push(Math.round(info.confidence||0));
+
+    console.info('v16 glyph',i,info);
+  }
+
+  const letters=chars.slice(0,4).join('');
+  const serial=chars.slice(4,10).join('');
+  const check=chars[10]||'';
+
+  const candidate=letters+serial+check;
+
+  console.info('v16 per-glyph result',{
+    chars,
+    confidences,
+    candidate
+  });
+
+  if(!/^[A-Z]{4}$/.test(letters))return {num:'',typ:null};
+  if(!/^\d{6}$/.test(serial))return {num:'',typ:null};
+  if(!/^\d$/.test(check))return {num:'',typ:null};
+
+  if(!isValidContainer(candidate))return {num:'',typ:null};
+
+  return {
+    num:candidate,
+    typ:null,
+    perGlyph:true,
+    confidences
+  };
+}
+
 async function runOcr(file){
   hideOcrDiag();
   const st=$('#ocrStatus');
@@ -3625,17 +3754,22 @@ async function runOcr(file){
       // 1. Preserve the stable path that already reads MAGU correctly.
       result=await runVerticalSegmentedOcr(file);
 
-      // 2. NEW v14 geometry: 10 main glyphs + separately spaced/boxed check digit.
+      // 2. v16: recognize each of the 11 physical glyphs separately.
+      if(!result.num){
+        result=await runPerGlyphVerticalOcr(file);
+      }
+
+      // 3. v14 geometry: grouped 4 letters + 6 digits + separate check digit.
       if(!result.num){
         result=await runRelaxed10PlusCheckOcr(file);
       }
 
-      // 3. Existing rotated fallback.
+      // 4. Existing rotated fallback.
       if(!result.num){
         result=await runVerticalRotatedFallback(file);
       }
 
-      // 4. Adaptive diagnostic fallback remains last.
+      // 5. Adaptive diagnostic fallback remains last.
       if(!result.num){
         result=await runBlackWhiteVerticalFallback(file);
       }
@@ -3648,7 +3782,7 @@ async function runOcr(file){
       if(result.typ)$('#qContainerType').value=String(result.typ.feet);
 
       $('#scanResult').innerHTML=
-        `<span class="scan-chip">מכולה: <b>${result.num}</b> ✓ ${orientation.portrait?'קריאה אנכית':'קריאה אופקית'} + ISO 6346</span>`;
+        `<span class="scan-chip">מכולה: <b>${result.num}</b> ✓ ${result.perGlyph?'זיהוי תווים נפרד':(orientation.portrait?'קריאה אנכית':'קריאה אופקית')} + ISO 6346</span>`;
 
       st.textContent=`✓ זוהה ${result.num}`;
       return result;
