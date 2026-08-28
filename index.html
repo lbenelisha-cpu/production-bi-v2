@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="he" dir="rtl">
 <head>
-<!-- Container OCR v9: v7 primary preserved + minimal rotated-column fallback -->
+<!-- Container OCR v11: v9 preserved + white characters isolated on pure black fallback -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>מעקב מכולות</title>
@@ -3004,6 +3004,112 @@ async function runVerticalRotatedFallback(file){
   return {num:'',typ:null};
 }
 
+async function makeWhiteOnBlackVerticalCanvas(file,{x=.16,y=.02,w=.46,h=.96,threshold=155,scale=3.0}={}){
+  const b=await createImageBitmap(file);
+
+  const sx=Math.max(0,Math.round(b.width*x));
+  const sy=Math.max(0,Math.round(b.height*y));
+  const sw=Math.max(1,Math.min(b.width-sx,Math.round(b.width*w)));
+  const sh=Math.max(1,Math.min(b.height-sy,Math.round(b.height*h)));
+
+  const ow=Math.max(1,Math.round(sw*scale));
+  const oh=Math.max(1,Math.round(sh*scale));
+
+  const c=document.createElement('canvas');
+  c.width=ow;c.height=oh;
+  const ctx=c.getContext('2d',{willReadFrequently:true});
+  ctx.drawImage(b,sx,sy,sw,sh,0,0,ow,oh);
+  if(b.close)b.close();
+
+  const im=ctx.getImageData(0,0,ow,oh),d=im.data;
+
+  for(let i=0;i<d.length;i+=4){
+    const r=d[i],g=d[i+1],bl=d[i+2];
+
+    // Keep only bright, near-neutral painted characters.
+    // Everything else becomes pure black.
+    const minRGB=Math.min(r,g,bl);
+    const maxRGB=Math.max(r,g,bl);
+    const neutral=(maxRGB-minRGB)<80;
+    const isWhiteCharacter=minRGB>threshold && neutral;
+
+    const v=isWhiteCharacter?255:0;
+    d[i]=d[i+1]=d[i+2]=v;
+  }
+
+  ctx.putImageData(im,0,0);
+  return c;
+}
+
+async function rotateCanvas90(source,clockwise=true){
+  const out=document.createElement('canvas');
+  out.width=source.height;
+  out.height=source.width;
+
+  const ctx=out.getContext('2d');
+  ctx.fillStyle='black';
+  ctx.fillRect(0,0,out.width,out.height);
+  ctx.translate(out.width/2,out.height/2);
+  ctx.rotate((clockwise?90:-90)*Math.PI/180);
+  ctx.drawImage(source,-source.width/2,-source.height/2);
+  return out;
+}
+
+async function ocrExactWhiteOnBlack(canvas){
+  const {data}=await Tesseract.recognize(canvas,'eng',{
+    tessedit_char_whitelist:'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789',
+    tessedit_pageseg_mode:'7',
+    preserve_interword_spaces:'0',
+    logger:m=>{
+      if(m.status==='recognizing text')
+        $('#ocrStatus').textContent=`טקסט לבן על שחור... ${Math.round((m.progress||0)*100)}%`;
+    }
+  });
+
+  const raw=String(data.text||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+  console.info('White-on-black OCR raw',raw,data.text);
+
+  for(let i=0;i<=raw.length-11;i++){
+    const part=raw.slice(i,i+11);
+    const owner=normalizeOwner(part.slice(0,4));
+    const digits=normalizeDigits(part.slice(4));
+    const candidate=owner+digits;
+
+    // No guessing: exact 4 letters + 7 digits + ISO check.
+    if(/^[A-Z]{4}\d{7}$/.test(candidate) && isValidContainer(candidate)){
+      return candidate;
+    }
+  }
+
+  return '';
+}
+
+async function runBlackWhiteVerticalFallback(file){
+  $('#ocrStatus').textContent='מבודד טקסט לבן על רקע שחור...';
+
+  // Keep it fast: only two masks, then two reading directions.
+  const configs=[
+    {x:.14,y:.01,w:.48,h:.97,threshold:145,scale:3.0},
+    {x:.14,y:.01,w:.48,h:.97,threshold:170,scale:3.0}
+  ];
+
+  for(const cfg of configs){
+    const masked=await makeWhiteOnBlackVerticalCanvas(file,cfg);
+
+    for(const clockwise of [true,false]){
+      const rotated=await rotateCanvas90(masked,clockwise);
+      const num=await ocrExactWhiteOnBlack(rotated);
+
+      if(num){
+        console.info('White-on-black fallback success',cfg,clockwise,num);
+        return {num,typ:null};
+      }
+    }
+  }
+
+  return {num:'',typ:null};
+}
+
 async function runOcr(file){
   const st=$('#ocrStatus');
 
@@ -3014,13 +3120,17 @@ async function runOcr(file){
     let result;
 
     if(orientation.portrait){
-      // PRIMARY: exact v7 segmented path that already worked for MAGU2202704.
+      // 1. Preserve the stable v7/v9 path that already reads MAGU correctly.
       result=await runVerticalSegmentedOcr(file);
 
-      // FALLBACK: only if v7 found nothing, rotate a narrow vertical column
-      // so the 11 stacked characters become one horizontal OCR line.
+      // 2. Existing minimal rotated fallback.
       if(!result.num){
         result=await runVerticalRotatedFallback(file);
+      }
+
+      // 3. NEW: black/white fallback only after the proven paths fail.
+      if(!result.num){
+        result=await runBlackWhiteVerticalFallback(file);
       }
     }else{
       result=await runHorizontalFastOcr(file);
@@ -3045,7 +3155,7 @@ async function runOcr(file){
     return {num:'',typ:null};
 
   }catch(err){
-    console.error('Container OCR v9 failed',err);
+    console.error('Container OCR v10 failed',err);
     $('#qContainerNo').value='';
     $('#qContainerType').value='';
     $('#scanResult').innerHTML=
