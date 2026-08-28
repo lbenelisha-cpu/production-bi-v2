@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="he" dir="rtl">
 <head>
-<!-- Container OCR v8: direct 11 glyphs OR 10 main glyphs + separately boxed physical check digit -->
+<!-- Container OCR v9: v7 primary preserved + minimal rotated-column fallback -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>מעקב מכולות</title>
@@ -2705,6 +2705,7 @@ async function getImageOrientation(file){
 async function detectVerticalGlyphColumn(file){
   const bmp=await createImageBitmap(file);
 
+  // Downscale only for geometric detection; this keeps component scanning fast.
   const maxW=900;
   const scale=Math.min(1,maxW/bmp.width);
   const w=Math.max(1,Math.round(bmp.width*scale));
@@ -2718,31 +2719,37 @@ async function detectVerticalGlyphColumn(file){
   const im=ctx.getImageData(0,0,w,h),d=im.data;
   const mask=new Uint8Array(w*h);
 
+  // Detect bright/near-white painted characters.
+  // We require all RGB channels to be high to avoid orange/red container paint.
   for(let y=0;y<h;y++){
     for(let x=0;x<w;x++){
       const i=(y*w+x)*4;
       const r=d[i],g=d[i+1],b=d[i+2];
       const minRGB=Math.min(r,g,b);
       const maxRGB=Math.max(r,g,b);
-      const neutral=(maxRGB-minRGB)<75;
-      if(minRGB>145 && neutral)mask[y*w+x]=1;
+      const neutral=(maxRGB-minRGB)<65;
+      if(minRGB>155 && neutral)mask[y*w+x]=1;
     }
   }
 
+  // 8-connected components.
   const seen=new Uint8Array(w*h);
   const comps=[];
-  const qx=[],qy=[];
+  const qx=new Int32Array(w*h>1500000?1500000:w*h);
+  const qy=new Int32Array(qx.length);
 
   for(let sy=0;sy<h;sy++){
     for(let sx=0;sx<w;sx++){
-      const idx=sy*w+sx;
-      if(!mask[idx]||seen[idx])continue;
+      const sidx=sy*w+sx;
+      if(!mask[sidx]||seen[sidx])continue;
 
-      qx.length=0;qy.length=0;
-      qx.push(sx);qy.push(sy);seen[idx]=1;
+      let head=0,tail=0;
+      qx[tail]=sx;qy[tail]=sy;tail++;
+      seen[sidx]=1;
 
-      let head=0,minX=sx,maxX=sx,minY=sy,maxY=sy,area=0;
-      while(head<qx.length){
+      let minX=sx,maxX=sx,minY=sy,maxY=sy,area=0;
+
+      while(head<tail){
         const x=qx[head],y=qy[head];head++;area++;
         if(x<minX)minX=x;if(x>maxX)maxX=x;
         if(y<minY)minY=y;if(y>maxY)maxY=y;
@@ -2751,18 +2758,20 @@ async function detectVerticalGlyphColumn(file){
           for(let xx=Math.max(0,x-1);xx<=Math.min(w-1,x+1);xx++){
             const ni=yy*w+xx;
             if(!seen[ni]&&mask[ni]){
-              seen[ni]=1;qx.push(xx);qy.push(yy);
+              seen[ni]=1;
+              if(tail<qx.length){qx[tail]=xx;qy[tail]=yy;tail++;}
             }
           }
         }
       }
 
       const bw=maxX-minX+1,bh=maxY-minY+1;
+      // Character-size filter. Excludes tiny scratches and large signs/borders.
       if(
-        area>=28 &&
-        bw>=Math.max(4,w*.006) && bw<=w*.12 &&
-        bh>=Math.max(10,h*.014) && bh<=h*.12 &&
-        bw/bh>.14 && bw/bh<1.45
+        area>=35 &&
+        bw>=Math.max(5,w*.008) && bw<=w*.11 &&
+        bh>=Math.max(12,h*.018) && bh<=h*.11 &&
+        bw/bh>.18 && bw/bh<1.35
       ){
         comps.push({
           x:minX,y:minY,w:bw,h:bh,area,
@@ -2774,97 +2783,62 @@ async function detectVerticalGlyphColumn(file){
 
   if(bmp.close)bmp.close();
 
-  function sequenceScore(seq){
-    const meanX=seq.reduce((s,p)=>s+p.cx,0)/seq.length;
-    const tolX=Math.max(12,w*.04);
-    const xSpread=Math.max(...seq.map(p=>Math.abs(p.cx-meanX)));
-    if(xSpread>tolX)return null;
-
-    const gaps=[];
-    for(let j=1;j<seq.length;j++){
-      const gap=seq[j].cy-seq[j-1].cy;
-      if(gap<=0)return null;
-      gaps.push(gap);
-    }
-
-    const sorted=[...gaps].sort((a,b)=>a-b);
-    const median=sorted[Math.floor(sorted.length/2)]||1;
-    const wild=gaps.filter(g=>g<median*.30 || g>median*2.8).length;
-    if(wild>2)return null;
-
-    const heights=seq.map(p=>p.h).sort((a,b)=>a-b);
-    const medH=heights[Math.floor(heights.length/2)]||1;
-    const odd=seq.filter(p=>p.h<medH*.42 || p.h>medH*2.0).length;
-    if(odd>2)return null;
-
-    return {score:100-xSpread-wild*10-odd*7,meanX,medianGap:median};
-  }
-
-  // First prefer 11 direct glyphs (MAGU-like photo).
-  let best11=null;
+  // Find a true vertical run of >=11 glyphs with nearly the same X center.
+  // This prevents mixing 45G1 / height labels / IC marks with the container ID.
+  let best=null;
   for(const anchor of comps){
-    const tolX=Math.max(12,w*.04);
-    const col=comps
-      .filter(p=>Math.abs(p.cx-anchor.cx)<=tolX && p.cx>w*.08 && p.cx<w*.80)
-      .sort((a,b)=>a.cy-b.cy);
+    const tolX=Math.max(12,w*.035);
+    let col=comps.filter(p=>Math.abs(p.cx-anchor.cx)<=tolX);
+
+    // Prefer the main body of the door; ignore edge noise.
+    col=col.filter(p=>p.cx>w*.08 && p.cx<w*.78);
+    col.sort((a,b)=>a.cy-b.cy);
+
+    if(col.length<11)continue;
 
     for(let i=0;i<=col.length-11;i++){
       const seq=col.slice(i,i+11);
-      const sc=sequenceScore(seq);
-      if(sc && (!best11||sc.score>best11.score)){
-        best11={...sc,seq,scale,w,h,mode:'11'};
+
+      // X alignment.
+      const meanX=seq.reduce((s,p)=>s+p.cx,0)/11;
+      const xSpread=Math.max(...seq.map(p=>Math.abs(p.cx-meanX)));
+      if(xSpread>tolX)continue;
+
+      // Positive vertical gaps; allow one larger owner/serial gap and boxed check digit gap.
+      const gaps=[];
+      let valid=true;
+      for(let j=1;j<seq.length;j++){
+        const gap=seq[j].cy-seq[j-1].cy;
+        if(gap<=0){valid=false;break}
+        gaps.push(gap);
       }
-    }
-  }
-  if(best11)return best11;
+      if(!valid)continue;
 
-  // New: find 10 main glyphs (4 letters + 6 serial digits).
-  // Then locate a separated boxed check digit below them.
-  let best10=null;
-  for(const anchor of comps){
-    const tolX=Math.max(12,w*.04);
-    const col=comps
-      .filter(p=>Math.abs(p.cx-anchor.cx)<=tolX && p.cx>w*.08 && p.cx<w*.80)
-      .sort((a,b)=>a.cy-b.cy);
+      const sorted=[...gaps].sort((a,b)=>a-b);
+      const median=sorted[Math.floor(sorted.length/2)]||1;
+      const wild=gaps.filter(g=>g<median*.35 || g>median*3.2).length;
+      if(wild>2)continue;
 
-    for(let i=0;i<=col.length-10;i++){
-      const seq=col.slice(i,i+10);
-      const sc=sequenceScore(seq);
-      if(!sc)continue;
+      // Similar glyph heights.
+      const heights=seq.map(p=>p.h).sort((a,b)=>a-b);
+      const medH=heights[Math.floor(heights.length/2)]||1;
+      const oddH=seq.filter(p=>p.h<medH*.45 || p.h>medH*1.9).length;
+      if(oddH>2)continue;
 
-      const last=seq[9];
-      const checkCandidates=comps.filter(p=>{
-        const dx=Math.abs(p.cx-sc.meanX);
-        const dy=p.cy-last.cy;
-        return (
-          dx<=Math.max(18,w*.055) &&
-          dy>sc.medianGap*.9 &&
-          dy<sc.medianGap*5.5 &&
-          p.cy>last.cy
-        );
-      });
-
-      // Prefer the closest reasonable glyph below the main run.
-      checkCandidates.sort((a,b)=>(a.cy-last.cy)-(b.cy-last.cy));
-
-      for(const check of checkCandidates.slice(0,5)){
-        const score=sc.score - Math.abs(check.cx-sc.meanX)*.4 - Math.abs((check.cy-last.cy)-sc.medianGap*2.0)*.06;
-        if(!best10||score>best10.score){
-          best10={score,seq:[...seq,check],scale,w,h,mode:'10+check'};
-        }
-      }
+      const score=100 - xSpread - wild*10 - oddH*8 - Math.abs(seq.length-11)*5;
+      if(!best || score>best.score)best={score,seq,scale,w,h};
     }
   }
 
-  return best10;
+  return best;
 }
 
-async function buildGlyphStrip(file,detected,startIndex,count){
+async function buildGlyphStrip(file,detected,startIndex,count,lettersOnly){
   const bmp=await createImageBitmap(file);
   const invScale=1/detected.scale;
   const glyphs=detected.seq.slice(startIndex,startIndex+count);
 
-  const cellW=120,cellH=160,pad=14;
+  const cellW=110,cellH=150,pad=12;
   const strip=document.createElement('canvas');
   strip.width=cellW*count;
   strip.height=cellH;
@@ -2887,13 +2861,14 @@ async function buildGlyphStrip(file,detected,startIndex,count){
     for(let p=0;p<d.length;p+=4){
       const r=d[p],gg=d[p+1],b=d[p+2];
       const minRGB=Math.min(r,gg,b),maxRGB=Math.max(r,gg,b);
-      const whiteInk=minRGB>135 && (maxRGB-minRGB)<85;
+      const whiteInk=minRGB>150 && (maxRGB-minRGB)<70;
       const v=whiteInk?0:255;
       d[p]=d[p+1]=d[p+2]=v;
     }
     tx.putImageData(im,0,0);
 
-    const fit=Math.min((cellW-18)/sw,(cellH-18)/sh);
+    // Fit into one OCR cell.
+    const fit=Math.min((cellW-16)/sw,(cellH-16)/sh);
     const dw=Math.max(1,sw*fit),dh=Math.max(1,sh*fit);
     const dx=i*cellW+(cellW-dw)/2,dy=(cellH-dh)/2;
     out.drawImage(tmp,dx,dy,dw,dh);
@@ -2918,43 +2893,40 @@ async function recognizeGlyphStrip(canvas,whitelist){
 
 async function runVerticalSegmentedOcr(file){
   const st=$('#ocrStatus');
-  st.textContent='זוהה צילום אנכי — מאתר עמודת מספר...';
+  st.textContent='זוהה צילום אנכי — מאתר 11 תווים...';
 
   const detected=await detectVerticalGlyphColumn(file);
   if(!detected || !detected.seq || detected.seq.length!==11){
-    console.info('Vertical OCR v8: no valid glyph column',detected);
+    console.info('Vertical OCR v7: no 11-glyph column',detected);
     return {num:'',typ:null};
   }
 
-  // OCR only 3 compact strips:
-  // 4 letters, 6 serial digits, and the physical check digit separately.
-  const lettersCanvas=await buildGlyphStrip(file,detected,0,4);
-  const serialCanvas=await buildGlyphStrip(file,detected,4,6);
-  const checkCanvas=await buildGlyphStrip(file,detected,10,1);
+  // Exactly two OCR operations: 4 letters and 7 digits.
+  const lettersCanvas=await buildGlyphStrip(file,detected,0,4,true);
+  const digitsCanvas=await buildGlyphStrip(file,detected,4,7,false);
 
   const lettersRaw=await recognizeGlyphStrip(lettersCanvas,'ABCDEFGHIJKLMNOPQRSTUVWXYZ');
-  const serialRaw=await recognizeGlyphStrip(serialCanvas,'0123456789');
-  const checkRaw=await recognizeGlyphStrip(checkCanvas,'0123456789');
+  const digitsRaw=await recognizeGlyphStrip(digitsCanvas,'0123456789');
 
-  const letters=normalizeOwner(lettersRaw);
-  const serial=normalizeDigits(serialRaw);
-  const check=normalizeDigits(checkRaw);
+  const letters=normalizeOwner(lettersRaw).slice(0,4);
+  const digits=normalizeDigits(digitsRaw).slice(0,7);
 
-  console.info('Vertical OCR v8 segmented',{
-    mode:detected.mode,
-    lettersRaw,serialRaw,checkRaw,
-    letters,serial,check,
-    components:detected.seq
+  console.info('Vertical OCR v7 segmented',{
+    components:detected.seq,
+    lettersRaw,digitsRaw,letters,digits
   });
 
-  if(!/^[A-Z]{4}$/.test(letters))return {num:'',typ:null};
-  if(!/^\d{6}$/.test(serial))return {num:'',typ:null};
-  if(!/^\d$/.test(check))return {num:'',typ:null};
+  // Hard guard: must physically read exactly 4 letters + exactly 7 digits.
+  if(!/^[A-Z]{4}$/.test(letters) || !/^\d{7}$/.test(digits)){
+    return {num:'',typ:null};
+  }
 
-  const candidate=letters+serial+check;
+  const candidate=letters+digits;
 
-  // Never replace or calculate the check digit. It must be physically OCR-read.
-  if(!isValidContainer(candidate))return {num:'',typ:null};
+  // ISO is validation only. Never calculate or replace any digit.
+  if(!isValidContainer(candidate)){
+    return {num:'',typ:null};
+  }
 
   return {num:candidate,typ:null};
 }
@@ -2990,6 +2962,48 @@ async function runHorizontalFastOcr(file){
   return {num:d.num||'',typ};
 }
 
+async function runVerticalRotatedFallback(file){
+  const st=$('#ocrStatus');
+  st.textContent='ניסיון גיבוי אנכי...';
+
+  // Keep this fallback deliberately small: 2 column crops × 2 rotation directions.
+  // It only accepts an exact 11-character ISO-valid container number.
+  const crops=[
+    {x:.22,y:.04,w:.36,h:.92},
+    {x:.28,y:.04,w:.34,h:.92}
+  ];
+
+  for(const crop of crops){
+    for(const rot of [90,-90]){
+      const t=await ocrVariant(file,{
+        ...crop,
+        rotate:rot,
+        mode:'gray',
+        threshold:null,
+        scale:3.2,
+        psm:'7'
+      },false);
+
+      const raw=String(t||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+      console.info('Vertical rotated fallback',crop,rot,t,raw);
+
+      // Search every 11-char window, but never invent a digit.
+      for(let i=0;i<=raw.length-11;i++){
+        const part=raw.slice(i,i+11);
+        const owner=normalizeOwner(part.slice(0,4));
+        const digits=normalizeDigits(part.slice(4));
+        const candidate=owner+digits;
+
+        if(/^[A-Z]{4}\d{7}$/.test(candidate) && isValidContainer(candidate)){
+          return {num:candidate,typ:null};
+        }
+      }
+    }
+  }
+
+  return {num:'',typ:null};
+}
+
 async function runOcr(file){
   const st=$('#ocrStatus');
 
@@ -2997,31 +3011,41 @@ async function runOcr(file){
     if(!window.Tesseract)throw new Error('OCR unavailable');
 
     const orientation=await getImageOrientation(file);
-    const result=orientation.portrait
-      ? await runVerticalSegmentedOcr(file)
-      : await runHorizontalFastOcr(file);
+    let result;
+
+    if(orientation.portrait){
+      // PRIMARY: exact v7 segmented path that already worked for MAGU2202704.
+      result=await runVerticalSegmentedOcr(file);
+
+      // FALLBACK: only if v7 found nothing, rotate a narrow vertical column
+      // so the 11 stacked characters become one horizontal OCR line.
+      if(!result.num){
+        result=await runVerticalRotatedFallback(file);
+      }
+    }else{
+      result=await runHorizontalFastOcr(file);
+    }
 
     if(result.num){
       $('#qContainerNo').value=result.num;
       if(result.typ)$('#qContainerType').value=String(result.typ.feet);
 
       $('#scanResult').innerHTML=
-        `<span class="scan-chip">מכולה: <b>${result.num}</b> ✓ ${orientation.portrait?'11 תווים שאותרו פיזית':'קריאה אופקית'} + ISO 6346</span>`;
+        `<span class="scan-chip">מכולה: <b>${result.num}</b> ✓ ${orientation.portrait?'קריאה אנכית':'קריאה אופקית'} + ISO 6346</span>`;
+
       st.textContent=`✓ זוהה ${result.num}`;
       return result;
     }
 
-    // DATA-INTEGRITY RULE:
-    // No uncertain or generated value is ever saved.
     $('#qContainerNo').value='';
     $('#qContainerType').value='';
     $('#scanResult').innerHTML=
-      '<span class="scan-chip scan-warning"><b>לא נמצאה קריאה ודאית</b> — לא יישמר מספר מכולה; הצילום בלבד יישמר</span>';
+      '<span class="scan-chip scan-warning"><b>לא נמצאה קריאה ודאית</b> — לא נשמר מספר; הצילום בלבד נשמר</span>';
     st.textContent='⚠ לא זוהה מספר בוודאות — נשמר צילום בלבד';
     return {num:'',typ:null};
 
   }catch(err){
-    console.error('Container OCR v7 failed',err);
+    console.error('Container OCR v9 failed',err);
     $('#qContainerNo').value='';
     $('#qContainerType').value='';
     $('#scanResult').innerHTML=
