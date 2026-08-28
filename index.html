@@ -2785,14 +2785,19 @@ async function ocrCanvas(canvas,whitelist,psm='7',label=''){
   };
   if(label)$('#ocrStatus').textContent=label;
   const worker=await getTessWorker();
+  let data;
   if(worker){
     await worker.setParameters(params);
-    const {data}=await worker.recognize(canvas);
-    return String(data.text||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+    data=(await worker.recognize(canvas)).data;
+  }else{
+    data=(await Tesseract.recognize(canvas,'eng',params)).data;
   }
-  const {data}=await Tesseract.recognize(canvas,'eng',params);
+  lastOcrConfidence=Number(data.confidence);
+  if(!isFinite(lastOcrConfidence))lastOcrConfidence=0;
   return String(data.text||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
 }
+/* Tesseract's own confidence for the most recent ocrCanvas call. */
+let lastOcrConfidence=0;
 
 /* Same shared worker, but the raw text (with spacing) is preserved —
    the horizontal reader tokenises on whitespace. */
@@ -3097,9 +3102,46 @@ function otsuThreshold(gray){
   }
   return thr;
 }
+/* A container's check digit is printed inside a box, and on a horizontal
+   marking that box hugs the digit closely enough that the two touch —
+   they become one connected part, so removing the frame by connectivity
+   does not work. Find the frame's two vertical bars first, then look for
+   the horizontal bars only between them (the top and bottom edges of that
+   box are often broken), and return the rectangle inside. */
+function findFrameInside(ink,w,h){
+  if(w<10||h<10)return null;
+
+  const colCov=new Float32Array(w);
+  for(let x=0;x<w;x++){
+    let n=0;
+    for(let y=0;y<h;y++)if(ink[y*w+x])n++;
+    colCov[x]=n/h;
+  }
+  let left=-1,right=-1;
+  for(let x=0;x<Math.floor(w*.35);x++)if(colCov[x]>=.45)left=x;
+  for(let x=w-1;x>Math.floor(w*.6);x--)if(colCov[x]>=.45){right=x;break}
+  if(left<0||right<0||right-left<w*.3)return null;
+
+  const span=right-left+1;
+  const rowCov=new Float32Array(h);
+  for(let y=0;y<h;y++){
+    let n=0;
+    for(let x=left;x<=right;x++)if(ink[y*w+x])n++;
+    rowCov[y]=n/span;
+  }
+  let top=-1,bottom=-1;
+  for(let y=0;y<Math.floor(h*.4);y++)if(rowCov[y]>=.5)top=y;
+  for(let y=h-1;y>Math.floor(h*.55);y--)if(rowCov[y]>=.5){bottom=y;break}
+  if(top<0||bottom<0||bottom-top<h*.3)return null;
+
+  return {x:left+1,y:top+1,w:right-left-1,h:bottom-top-1};
+}
+
 function buildGlyphStrip(bmp,detected,startIndex,count,pad,dark){
   const inv=1/detected.scale;
   const glyphs=detected.seq.slice(startIndex,startIndex+count);
+  const medW=medianOf(detected.seq.map(g=>g.w))||1;
+  const medH=medianOf(detected.seq.map(g=>g.h))||1;
   const cellW=110,cellH=150;
   const strip=document.createElement('canvas');
   strip.width=cellW*count;strip.height=cellH;
@@ -3113,29 +3155,131 @@ function buildGlyphStrip(bmp,detected,startIndex,count,pad,dark){
     const sw=Math.max(1,Math.min(bmp.width-sx,Math.round((g.w+pad*2)*inv)));
     const sh=Math.max(1,Math.min(bmp.height-sy,Math.round((g.h+pad*2)*inv)));
 
-    const tmp=document.createElement('canvas');
-    tmp.width=sw;tmp.height=sh;
-    const tx=tmp.getContext('2d',{willReadFrequently:true});
-    tx.drawImage(bmp,sx,sy,sw,sh,0,0,sw,sh);
+    /* Enlarge FIRST, threshold second. A 25-pixel character binarised at
+       its native size and then blown up 5x is a staircase; the same
+       character enlarged from the original photo with smoothing and then
+       thresholded keeps its shape. This is the difference between M/U and
+       2/7 being readable or not on a distant or low-resolution photo. */
+    const fit=Math.min((cellW-16)/sw,(cellH-16)/sh);
+    const tw=Math.max(1,Math.round(sw*fit)),twh=Math.max(1,Math.round(sh*fit));
 
-    const im=tx.getImageData(0,0,sw,sh),d=im.data;
-    const gray=new Uint8Array(sw*sh);
+    const tmp=document.createElement('canvas');
+    tmp.width=tw;tmp.height=twh;
+    const tx=tmp.getContext('2d',{willReadFrequently:true});
+    tx.imageSmoothingEnabled=true;
+    if('imageSmoothingQuality' in tx)tx.imageSmoothingQuality='high';
+    tx.drawImage(bmp,sx,sy,sw,sh,0,0,tw,twh);
+
+    const im=tx.getImageData(0,0,tw,twh),d=im.data;
+    const gray=new Uint8Array(tw*twh);
     for(let p=0,q=0;q<gray.length;q++,p+=4)
       gray[q]=(d[p]*299+d[p+1]*587+d[p+2]*114)/1000|0;
 
     const th=otsuThreshold(gray);
+    const ink=new Uint8Array(tw*twh);
     for(let p=0,q=0;q<gray.length;q++,p+=4){
       const isInk=dark?(gray[q]<th):(gray[q]>th);
+      ink[q]=isInk?1:0;
       const v=isInk?0:255;              // ink -> black on white
       d[p]=d[p+1]=d[p+2]=v;d[p+3]=255;
     }
     tx.putImageData(im,0,0);
 
-    const fit=Math.min((cellW-16)/sw,(cellH-16)/sh);
-    const dw=Math.max(1,sw*fit),dh=Math.max(1,sh*fit);
-    out.drawImage(tmp,i*cellW+(cellW-dw)/2,(cellH-dh)/2,dw,dh);
+    /* Only a part clearly bigger than its neighbours can be a character
+       inside a box. Without this gate the letter H — two vertical bars —
+       is mistaken for a frame and gutted. */
+    let cx=0,cy=0,cw=tw,ch=twh;
+    if(g.w>1.3*medW||g.h>1.2*medH){
+      const inner=findFrameInside(ink,tw,twh);
+      if(inner){cx=inner.x;cy=inner.y;cw=inner.w;ch=inner.h}
+    }
+
+    const fit2=Math.min((cellW-16)/cw,(cellH-16)/ch);
+    const dw=Math.max(1,cw*fit2),dh=Math.max(1,ch*fit2);
+    out.drawImage(tmp,cx,cy,cw,ch,i*cellW+(cellW-dw)/2,(cellH-dh)/2,dw,dh);
   }
   return strip;
+}
+
+/* A second, structurally different rendering of the same eleven glyphs:
+   instead of one uniform cell per character, the characters keep their real
+   spacing and are laid on a common baseline, and everything that is not a
+   detected character — sky, the line of text below, stickers — is simply
+   absent from the image. Tesseract reads this as an ordinary word, using
+   inter-character context that the uniform-cell strip destroys. Errors made
+   here are largely independent of the errors made there, which is exactly
+   what makes agreement between the two meaningful. */
+function buildNaturalLine(bmp,detected,pad,dark,vertical){
+  const inv=1/detected.scale;
+  const seq=detected.seq;
+  const medW=medianOf(seq.map(g=>g.w))||1;
+  const medH=medianOf(seq.map(g=>g.h))||1;
+  const targetH=80;
+  const f=targetH/Math.max(1,medH*inv);
+
+  const parts=[];
+  for(const g of seq){
+    const sx=Math.max(0,Math.round((g.x-pad)*inv));
+    const sy=Math.max(0,Math.round((g.y-pad)*inv));
+    const sw=Math.max(1,Math.min(bmp.width-sx,Math.round((g.w+pad*2)*inv)));
+    const sh=Math.max(1,Math.min(bmp.height-sy,Math.round((g.h+pad*2)*inv)));
+    parts.push({g,sx,sy,sw,sh});
+  }
+
+  const margin=24;
+  let canvasW,canvasH;
+  if(vertical){
+    canvasW=Math.round(Math.max(...parts.map(p=>p.sw))*f)+margin*2;
+    canvasH=Math.round(parts.reduce((s,p)=>s+p.sh*f+6,0))+margin*2;
+  }else{
+    const minX=Math.min(...parts.map(p=>p.sx));
+    canvasW=Math.round((Math.max(...parts.map(p=>p.sx+p.sw))-minX)*f)+margin*2;
+    canvasH=Math.round(Math.max(...parts.map(p=>p.sh))*f)+margin*2;
+    parts.forEach(p=>{p.ox=Math.round((p.sx-minX)*f)});
+  }
+  const line=document.createElement('canvas');
+  line.width=Math.max(32,canvasW);line.height=Math.max(32,canvasH);
+  const lc=line.getContext('2d',{willReadFrequently:true});
+  lc.fillStyle='white';lc.fillRect(0,0,line.width,line.height);
+
+  let cursor=margin;
+  for(const p of parts){
+    const tw=Math.max(1,Math.round(p.sw*f)),th=Math.max(1,Math.round(p.sh*f));
+    const tmp=document.createElement('canvas');
+    tmp.width=tw;tmp.height=th;
+    const tx=tmp.getContext('2d',{willReadFrequently:true});
+    tx.imageSmoothingEnabled=true;
+    if('imageSmoothingQuality' in tx)tx.imageSmoothingQuality='high';
+    tx.drawImage(bmp,p.sx,p.sy,p.sw,p.sh,0,0,tw,th);
+
+    const im=tx.getImageData(0,0,tw,th),d=im.data;
+    const gray=new Uint8Array(tw*th);
+    for(let q=0,k=0;k<gray.length;k++,q+=4)
+      gray[k]=(d[q]*299+d[q+1]*587+d[q+2]*114)/1000|0;
+    const th2=otsuThreshold(gray);
+    const ink=new Uint8Array(tw*th);
+    for(let q=0,k=0;k<gray.length;k++,q+=4){
+      const isInk=dark?(gray[k]<th2):(gray[k]>th2);
+      ink[k]=isInk?1:0;
+      const v=isInk?0:255;
+      d[q]=d[q+1]=d[q+2]=v;d[q+3]=255;
+    }
+    tx.putImageData(im,0,0);
+
+    let cx=0,cy=0,cw=tw,ch=th;
+    if(p.g.w>1.3*medW||p.g.h>1.2*medH){
+      const inner=findFrameInside(ink,tw,th);
+      if(inner){cx=inner.x;cy=inner.y;cw=inner.w;ch=inner.h}
+    }
+
+    if(vertical){
+      lc.drawImage(tmp,cx,cy,cw,ch,margin+(line.width-margin*2-cw)/2,cursor,cw,ch);
+      cursor+=ch+6;
+    }else{
+      lc.drawImage(tmp,cx,cy,cw,ch,margin+p.ox,margin+(line.height-margin*2-ch)/2,cw,ch);
+    }
+  }
+  return line;
 }
 
 /* ---------- 6. orchestration ---------- */
@@ -3211,29 +3355,43 @@ async function runGlyphLineOcr(file,primaryAxis='v'){
     }
 
     try{
+      /* Evidence, not a single perfect pass.
+         Each pass contributes an owner code and a serial separately; a
+         reading of the letters that is not a legal ISO owner code (the
+         4th character must be U, J or Z) contributes nothing, and the
+         digits are always read because they are the harder half. At the
+         end every owner is combined with every serial and ISO 6346
+         decides which pairing is real. Nothing is ever calculated into
+         existence — both halves must have been physically read. */
+      /* Acceptance rule, unchanged in spirit since v13:
+         a number is returned only when TWO separate passes produced the
+         same eleven characters AND ISO 6346 validates them. No digit is
+         ever calculated, completed or repaired. */
       const votes=new Map();
       let calls=0;
-      const MAX_CALLS=16;
+      const MAX_CALLS=20;
       const started=Date.now();
 
       for(const cand of candidates.slice(0,4)){
         // Padding is relative to the glyph size, so a small/low-resolution
         // photo does not pull the neighbouring line into the crop.
         const gh=medianOf(cand.seq.map(g=>g.h))||60;
-        const pads=[Math.max(4,Math.round(gh*.14)),Math.max(6,Math.round(gh*.26))];
+        const pads=[Math.max(3,Math.round(gh*.14)),
+                    Math.max(5,Math.round(gh*.26)),
+                    Math.max(7,Math.round(gh*.40))];
         for(const pad of pads){
           if(calls>=MAX_CALLS||Date.now()-started>25000)break;
           const detected={seq:cand.seq,scale};
-          const lettersCanvas=buildGlyphStrip(bmp,detected,0,4,pad,cand.dark);
 
+          const lettersCanvas=buildGlyphStrip(bmp,detected,0,4,pad,cand.dark);
           const lettersRaw=await ocrCanvas(lettersCanvas,'ABCDEFGHIJKLMNOPQRSTUVWXYZ','7','קורא קוד בעלים...');
           calls++;
+          const lettersConf=lastOcrConfidence;
           const letters=normalizeOwner(lettersRaw).slice(0,4);
 
-          /* ISO 6346 requires the equipment category to be U, J or Z.
-             If those four characters did not come out as a legal owner code
-             the number can never validate, so skip the second recognition
-             instead of paying for it. */
+          /* ISO 6346 requires the equipment category to be U, J or Z, so a
+             different fourth letter can never validate — skip the second
+             recognition rather than pay for it. */
           if(!/^[A-Z]{3}[UJZ]$/.test(letters)){
             console.info('v13 pass',cand.tag,'pad',pad,lettersRaw,'-> owner code rejected');
             continue;
@@ -3242,11 +3400,12 @@ async function runGlyphLineOcr(file,primaryAxis='v'){
           const digitsCanvas=buildGlyphStrip(bmp,detected,4,7,pad,cand.dark);
           const digitsRaw=await ocrCanvas(digitsCanvas,'0123456789','7','קורא ספרות...');
           calls++;
-
-          const digits =normalizeDigits(digitsRaw).slice(0,7);
+          const digits=normalizeDigits(digitsRaw).slice(0,7);
           const candidateNum=letters+digits;
 
-          console.info('v13 pass',cand.tag,'pad',pad,lettersRaw,digitsRaw,'->',candidateNum);
+          const digitsConf=lastOcrConfidence;
+          console.info('v13 pass',cand.tag,'pad',pad,letters,digits,'->',candidateNum,
+                       'conf L'+Math.round(lettersConf)+' D'+Math.round(digitsConf));
 
           if(!/^[A-Z]{4}\d{7}$/.test(candidateNum))continue;
           if(!isValidContainer(candidateNum))continue;   // ISO only rejects, never invents
@@ -3258,12 +3417,36 @@ async function runGlyphLineOcr(file,primaryAxis='v'){
             return {num:candidateNum,typ:null};
           }
         }
+
+        /* One reading with the independent method, for this candidate. */
+        if(calls<MAX_CALLS&&Date.now()-started<25000){
+          const detected={seq:cand.seq,scale};
+          const naturalPad=Math.max(3,Math.round(gh*.18));
+          const lineCanvas=buildNaturalLine(bmp,detected,naturalPad,cand.dark,cand.tag.endsWith('/v'));
+          const lineRaw=await ocrCanvas(lineCanvas,'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789','7','קורא את השורה...');
+          calls++;
+          let lineNum='';
+          for(let i=0;i+11<=lineRaw.length;i++){
+            const part=lineRaw.slice(i,i+11);
+            const c=normalizeOwner(part.slice(0,4))+normalizeDigits(part.slice(4));
+            if(/^[A-Z]{3}[UJZ]\d{7}$/.test(c)&&isValidContainer(c)){lineNum=c;break}
+          }
+          console.info('v13 line',cand.tag,lineRaw,'->',lineNum||'(no valid window)');
+          if(lineNum){
+            const n2=(votes.get(lineNum)||0)+1;
+            votes.set(lineNum,n2);
+            if(n2>=2){
+              console.info('Container OCR v13 accepted',lineNum,'at',scanW+'px');
+              return {num:lineNum,typ:null};
+            }
+          }
+        }
       }
 
-      console.info('Container OCR v13: no two-pass agreement at '+scanW+'px',[...votes.entries()]);
+      console.info('Container OCR v13: no two-pass agreement at '+scanW+'px',JSON.stringify([...votes.entries()]));
       if(scanW===SCAN_W)continue;      // give the larger scan a chance
       return {num:'',typ:null,
-              reason:votes.size?'קריאות לא עקביות':'התווים אותרו אך לא נקראו בוודאות',
+              reason:ranked.length?'קריאות לא עקביות':'התווים אותרו אך לא נקראו בוודאות',
               candidates:candidates.length,calls};
     }finally{
       if(bmp.close)bmp.close();
