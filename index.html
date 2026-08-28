@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="he" dir="rtl">
 <head>
-<!-- Container OCR v16: stable primary + 11 single-glyph OCR fallback + ISO validation -->
+<!-- Container OCR v17: stable primary + automatic narrow text-strip isolation before OCR -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>מעקב מכולות</title>
@@ -3740,6 +3740,234 @@ async function runPerGlyphVerticalOcr(file){
   };
 }
 
+
+async function isolateVerticalTextStrip(file){
+  const bmp=await createImageBitmap(file);
+
+  const maxW=900;
+  const scale=Math.min(1,maxW/bmp.width);
+  const w=Math.max(1,Math.round(bmp.width*scale));
+  const h=Math.max(1,Math.round(bmp.height*scale));
+
+  const c=document.createElement('canvas');
+  c.width=w;c.height=h;
+  const ctx=c.getContext('2d',{willReadFrequently:true});
+  ctx.drawImage(bmp,0,0,w,h);
+
+  const im=ctx.getImageData(0,0,w,h),d=im.data;
+
+  // Bright-neutral mask: designed for white container lettering.
+  const colScore=new Float32Array(w);
+
+  for(let y=0;y<h;y++){
+    for(let x=0;x<w;x++){
+      const i=(y*w+x)*4;
+      const r=d[i],g=d[i+1],b=d[i+2];
+      const minRGB=Math.min(r,g,b);
+      const maxRGB=Math.max(r,g,b);
+      const neutral=(maxRGB-minRGB)<95;
+      const bright=minRGB>135;
+
+      if(bright && neutral){
+        // Weight center/left-middle region a bit more;
+        // avoid extreme edges where door hardware often appears.
+        let weight=1;
+        if(x>w*.12 && x<w*.72)weight=1.25;
+        colScore[x]+=weight;
+      }
+    }
+  }
+
+  // Smooth x-density to find a narrow text band.
+  const smooth=new Float32Array(w);
+  const radius=Math.max(3,Math.round(w*.012));
+  let rolling=0;
+
+  for(let x=0;x<w;x++){
+    rolling+=colScore[x];
+    if(x-radius-1>=0)rolling-=colScore[x-radius-1];
+    smooth[x]=rolling;
+  }
+
+  let bestX=0,bestScore=-1;
+  for(let x=Math.round(w*.08);x<Math.round(w*.82);x++){
+    if(smooth[x]>bestScore){
+      bestScore=smooth[x];
+      bestX=x;
+    }
+  }
+
+  // Expand around the strongest column, but keep it narrow.
+  const stripHalf=Math.max(34,Math.round(w*.07));
+  let x0=Math.max(0,bestX-stripHalf);
+  let x1=Math.min(w-1,bestX+stripHalf);
+
+  // Refine by actual bright pixels inside the strip and ignore top/bottom hardware noise.
+  let minY=h,maxY=0,minX=w,maxX=0,count=0;
+
+  for(let y=Math.round(h*.05);y<Math.round(h*.97);y++){
+    for(let x=x0;x<=x1;x++){
+      const i=(y*w+x)*4;
+      const r=d[i],g=d[i+1],b=d[i+2];
+      const minRGB=Math.min(r,g,b);
+      const maxRGB=Math.max(r,g,b);
+      const neutral=(maxRGB-minRGB)<95;
+      const bright=minRGB>135;
+
+      if(bright && neutral){
+        if(x<minX)minX=x;
+        if(x>maxX)maxX=x;
+        if(y<minY)minY=y;
+        if(y>maxY)maxY=y;
+        count++;
+      }
+    }
+  }
+
+  // Fallback to the raw band if refinement found too little.
+  if(count<120 || minY>=maxY){
+    minX=x0;maxX=x1;
+    minY=Math.round(h*.07);
+    maxY=Math.round(h*.94);
+  }
+
+  // Add margins, keeping the crop tall and narrow like the user's example.
+  const mx=Math.max(10,Math.round((maxX-minX+1)*.22));
+  const my=Math.max(18,Math.round((maxY-minY+1)*.025));
+
+  minX=Math.max(0,minX-mx);
+  maxX=Math.min(w-1,maxX+mx);
+  minY=Math.max(0,minY-my);
+  maxY=Math.min(h-1,maxY+my);
+
+  const invScale=1/scale;
+  const sx=Math.round(minX*invScale);
+  const sy=Math.round(minY*invScale);
+  const sw=Math.max(1,Math.round((maxX-minX+1)*invScale));
+  const sh=Math.max(1,Math.round((maxY-minY+1)*invScale));
+
+  const out=document.createElement('canvas');
+  const outScale=Math.min(2.4,1400/Math.max(1,sw));
+  out.width=Math.max(1,Math.round(sw*outScale));
+  out.height=Math.max(1,Math.round(sh*outScale));
+
+  const ox=out.getContext('2d',{willReadFrequently:true});
+  ox.drawImage(bmp,sx,sy,sw,sh,0,0,out.width,out.height);
+
+  if(bmp.close)bmp.close();
+
+  console.info('v17 isolated strip',{
+    bestX,bestScore,count,
+    crop:{sx,sy,sw,sh},
+    canvas:{w:out.width,h:out.height}
+  });
+
+  return out;
+}
+
+async function enhanceIsolatedStrip(strip){
+  const out=document.createElement('canvas');
+  out.width=strip.width;
+  out.height=strip.height;
+
+  const ctx=out.getContext('2d',{willReadFrequently:true});
+  ctx.drawImage(strip,0,0);
+
+  const im=ctx.getImageData(0,0,out.width,out.height),d=im.data;
+
+  // Convert to high-contrast grayscale while preserving thin glyph strokes.
+  let minG=255,maxG=0;
+  const gs=new Uint8Array(out.width*out.height);
+
+  for(let i=0,p=0;i<d.length;i+=4,p++){
+    const g=Math.round(.299*d[i]+.587*d[i+1]+.114*d[i+2]);
+    gs[p]=g;
+    if(g<minG)minG=g;
+    if(g>maxG)maxG=g;
+  }
+
+  const range=Math.max(1,maxG-minG);
+
+  for(let i=0,p=0;i<d.length;i+=4,p++){
+    let g=Math.round((gs[p]-minG)*255/range);
+    // gentle contrast boost, not hard threshold
+    g=Math.max(0,Math.min(255,(g-110)*1.55+128));
+    d[i]=d[i+1]=d[i+2]=g;
+  }
+
+  ctx.putImageData(im,0,0);
+  return out;
+}
+
+async function recognizeIsolatedStrip(strip){
+  // Try both directions after rotating the tall strip into one OCR line.
+  for(const clockwise of [true,false]){
+    const rotated=await rotateCanvas90(strip,clockwise);
+
+    const {data}=await Tesseract.recognize(rotated,'eng',{
+      tessedit_char_whitelist:'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789',
+      tessedit_pageseg_mode:'7',
+      preserve_interword_spaces:'0',
+      logger:m=>{
+        if(m.status==='recognizing text'){
+          $('#ocrStatus').textContent=`קורא רצועת מספר... ${Math.round((m.progress||0)*100)}%`;
+        }
+      }
+    });
+
+    const raw=String(data.text||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+    console.info('v17 strip OCR',clockwise,raw,data.text);
+
+    for(let i=0;i<=raw.length-11;i++){
+      const part=raw.slice(i,i+11);
+      const owner=normalizeOwner(part.slice(0,4));
+      const digits=normalizeDigits(part.slice(4));
+      const candidate=owner+digits;
+
+      if(/^[A-Z]{4}\d{7}$/.test(candidate) && isValidContainer(candidate)){
+        return {
+          num:candidate,
+          typ:null,
+          isolatedStrip:true
+        };
+      }
+    }
+  }
+
+  return {num:'',typ:null};
+}
+
+async function runIsolatedStripOcr(file){
+  $('#ocrStatus').textContent='מבודד את עמודת מספר המכולה...';
+
+  const strip=await isolateVerticalTextStrip(file);
+  const enhanced=await enhanceIsolatedStrip(strip);
+
+  // First: whole isolated strip as one line.
+  let result=await recognizeIsolatedStrip(enhanced);
+  if(result.num)return result;
+
+  // Second: use the existing relaxed geometry/per-glyph logic,
+  // but only if the whole strip did not resolve the number.
+  // Convert strip canvas to a Blob so the same OCR helpers can reuse it.
+  const blob=await new Promise(resolve=>enhanced.toBlob(resolve,'image/png',1));
+  if(blob){
+    result=await runPerGlyphVerticalOcr(blob);
+    if(result.num){
+      result.isolatedStrip=true;
+      return result;
+    }
+
+    result=await runRelaxed10PlusCheckOcr(blob);
+    if(result.num){
+      result.isolatedStrip=true;
+      return result;
+    }
+  }
+
+  return {num:'',typ:null};
+}
+
 async function runOcr(file){
   hideOcrDiag();
   const st=$('#ocrStatus');
@@ -3754,22 +3982,27 @@ async function runOcr(file){
       // 1. Preserve the stable path that already reads MAGU correctly.
       result=await runVerticalSegmentedOcr(file);
 
-      // 2. v16: recognize each of the 11 physical glyphs separately.
+      // 2. v17: automatically isolate the narrow vertical number strip first.
+      if(!result.num){
+        result=await runIsolatedStripOcr(file);
+      }
+
+      // 3. v16: recognize each physical glyph separately on the original image.
       if(!result.num){
         result=await runPerGlyphVerticalOcr(file);
       }
 
-      // 3. v14 geometry: grouped 4 letters + 6 digits + separate check digit.
+      // 4. v14 geometry: grouped 4 letters + 6 digits + separate check digit.
       if(!result.num){
         result=await runRelaxed10PlusCheckOcr(file);
       }
 
-      // 4. Existing rotated fallback.
+      // 5. Existing rotated fallback.
       if(!result.num){
         result=await runVerticalRotatedFallback(file);
       }
 
-      // 5. Adaptive diagnostic fallback remains last.
+      // 6. Adaptive diagnostic fallback remains last.
       if(!result.num){
         result=await runBlackWhiteVerticalFallback(file);
       }
@@ -3782,7 +4015,7 @@ async function runOcr(file){
       if(result.typ)$('#qContainerType').value=String(result.typ.feet);
 
       $('#scanResult').innerHTML=
-        `<span class="scan-chip">מכולה: <b>${result.num}</b> ✓ ${result.perGlyph?'זיהוי תווים נפרד':(orientation.portrait?'קריאה אנכית':'קריאה אופקית')} + ISO 6346</span>`;
+        `<span class="scan-chip">מכולה: <b>${result.num}</b> ✓ ${result.isolatedStrip?'רצועת מספר מבודדת':(result.perGlyph?'זיהוי תווים נפרד':(orientation.portrait?'קריאה אנכית':'קריאה אופקית'))} + ISO 6346</span>`;
 
       st.textContent=`✓ זוהה ${result.num}`;
       return result;
