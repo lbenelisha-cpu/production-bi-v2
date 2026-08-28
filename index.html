@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="he" dir="rtl">
 <head>
-<!-- Container OCR v17: stable primary + automatic narrow text-strip isolation before OCR -->
+<!-- Container OCR v13: multi-mask vertical reader + tilt-tolerant column fit + two-pass consensus + optional cloud fallback -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>מעקב מכולות</title>
@@ -1723,45 +1723,6 @@ td{background:rgba(4,25,53,.13)!important}
   .entry-actions.camera-actions .btn{font-size:17px!important;min-height:54px!important}
 }
 @media(prefers-reduced-motion:reduce){.voice-mic-btn.listening{animation:none}}
-
-#ocrDiagPanel{
-  display:none;
-  margin:12px 0 0;
-  padding:12px;
-  border:1px solid rgba(255,255,255,.18);
-  border-radius:14px;
-  background:rgba(2,14,30,.78);
-  color:#fff;
-  direction:rtl;
-  font-size:13px;
-}
-#ocrDiagPanel .diag-grid{
-  display:grid;
-  grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
-  gap:10px;
-  margin-top:10px;
-}
-#ocrDiagPanel .diag-card{
-  background:rgba(255,255,255,.06);
-  border-radius:10px;
-  padding:8px;
-}
-#ocrDiagPanel canvas{
-  width:100%;
-  max-height:220px;
-  object-fit:contain;
-  background:#000;
-  border-radius:8px;
-}
-#ocrDiagPanel code{
-  direction:ltr;
-  unicode-bidi:bidi-override;
-  display:block;
-  word-break:break-all;
-  white-space:pre-wrap;
-  margin-top:6px;
-}
-
 </style>
 <link rel="apple-touch-icon" sizes="180x180" href="./public/apple-touch-icon-v194.png?v=194">
 <meta name="theme-color" content="#08284b">
@@ -2002,30 +1963,7 @@ body{--movement-scale:1.125}
     </div>
     <div class="camera-preview" id="cameraPreview" hidden>
       <img id="cameraPreviewImg" alt="צילום מכולה">
-      <div><strong id="ocrStatus">צילום מוכן</strong><small>אין ניסיון לזיהוי טקסט. לענן נשמר עותק JPEG מוקטן ודחוס בלבד.</small><div class="scan-result" id="scanResult"></div>
-<div id="ocrDiagPanel">
-  <b>אבחון OCR אנכי</b>
-  <div id="ocrDiagMeta" style="margin-top:6px"></div>
-  <div class="diag-grid">
-    <div class="diag-card">
-      <div>חיתוך אנכי</div>
-      <canvas id="ocrDiagCrop"></canvas>
-    </div>
-    <div class="diag-card">
-      <div>לאחר עיבוד</div>
-      <canvas id="ocrDiagProcessed"></canvas>
-    </div>
-    <div class="diag-card">
-      <div>לאחר סיבוב</div>
-      <canvas id="ocrDiagRotated"></canvas>
-    </div>
-  </div>
-  <div class="diag-card" style="margin-top:10px">
-    <div>טקסט גולמי מה־OCR</div>
-    <code id="ocrDiagRaw">—</code>
-  </div>
-</div>
-</div>
+      <div><strong id="ocrStatus">צילום מוכן</strong><small>אין ניסיון לזיהוי טקסט. לענן נשמר עותק JPEG מוקטן ודחוס בלבד.</small><div class="scan-result" id="scanResult"></div></div>
       <button type="button" class="btn secondary" id="clearPhotoBtn">הסר צילום</button>
     </div>
   </form>
@@ -2094,6 +2032,7 @@ body{--movement-scale:1.125}
   <button type="button">🚚 משאיות ממתינות</button>
   <button type="button" id="deletedContainersBtn">🗑 מכולות מחוקות</button>
   <button type="button" id="refreshBottom">⟳ רענון נתונים</button>
+  <button type="button" id="ocrSettingsBtn">⚙ הגדרות זיהוי צילום</button>
 </section>
 
 </main>
@@ -2172,6 +2111,40 @@ window.APP_CONFIG = {
         </thead>
         <tbody id="deletedTbody"></tbody>
       </table>
+    </div>
+  </div>
+</div>
+
+
+<div class="modalbg" id="ocrSettingsBg">
+  <div class="modal glass">
+    <div class="modaltitle">
+      <div>
+        <h2>הגדרות זיהוי צילום</h2>
+        <div class="sub">זיהוי בענן פועל רק כאשר הזיהוי במכשיר לא הצליח</div>
+      </div>
+      <button type="button" class="close" id="closeOcrSettings">✕</button>
+    </div>
+    <div style="display:grid;gap:12px;margin-top:14px">
+      <label>ספק זיהוי בענן
+        <select id="ocrProvider">
+          <option value="">ללא — זיהוי במכשיר בלבד</option>
+          <option value="ocrspace">OCR.space</option>
+          <option value="google">Google Cloud Vision</option>
+        </select>
+      </label>
+      <label>מפתח API
+        <input id="ocrApiKey" type="password" autocomplete="off" placeholder="הדבק כאן את המפתח">
+      </label>
+      <div class="scan-guide">
+        המפתח נשמר רק בדפדפן הזה (localStorage) ואינו נשלח לשרת של המערכת ואינו נשמר בענן של הנתונים.
+        כאשר הזיהוי המקומי נכשל, נשלחת תמונה מוקטנת בלבד לספק שנבחר. הכלל של ISO 6346 נשמר גם בענן —
+        מספר שלא עובר ביקורת ספרת ביקורת לא ייכנס לשדה.
+      </div>
+      <div class="entry-actions">
+        <button type="button" class="btn primary" id="saveOcrSettings">שמור</button>
+        <span id="ocrSettingsStatus" style="align-self:center"></span>
+      </div>
     </div>
   </div>
 </div>
@@ -2698,7 +2671,7 @@ function chooseContainer(ownerVotes,digitVotes,fullVotes){
 }
 
 async function compressForStorage(file){
-  const bmp=await createImageBitmap(file),max=1400,scale=Math.min(1,max/Math.max(bmp.width,bmp.height));
+  const bmp=await loadScanBitmap(file),max=1400,scale=Math.min(1,max/Math.max(bmp.width,bmp.height));
   const c=document.createElement('canvas');
   c.width=Math.max(1,Math.round(bmp.width*scale));
   c.height=Math.max(1,Math.round(bmp.height*scale));
@@ -2709,7 +2682,7 @@ async function compressForStorage(file){
 }
 
 async function makeOcrCanvas(file,{x=0,y=0,w=1,h=1,rotate=0,mode='red',threshold=100,scale=3}={}){
-  const b=await createImageBitmap(file);
+  const b=await loadScanBitmap(file);
   const sx=Math.round(b.width*x), sy=Math.round(b.height*y);
   const sw=Math.max(1,Math.round(b.width*w)), sh=Math.max(1,Math.round(b.height*h));
   const ow=Math.max(1,Math.round(sw*scale)), oh=Math.max(1,Math.round(sh*scale));
@@ -2744,253 +2717,671 @@ async function makeOcrCanvas(file,{x=0,y=0,w=1,h=1,rotate=0,mode='red',threshold
 
 async function ocrVariant(file,opts={},digitsOnly=false){
   const source=await makeOcrCanvas(file,opts);
-  const {data}=await Tesseract.recognize(source,'eng',{
-    tessedit_char_whitelist:digitsOnly?'0123456789':'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789',
-    tessedit_pageseg_mode:opts.psm||'6',
-    preserve_interword_spaces:'1',
-    logger:m=>{
-      if(m.status==='recognizing text')
-        $('#ocrStatus').textContent=`מזהה... ${Math.round((m.progress||0)*100)}%`;
-    }
-  });
-  return data.text||'';
+  $('#ocrStatus').textContent='מזהה...';
+  return await ocrCanvasRaw(
+    source,
+    digitsOnly?'0123456789':'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789',
+    opts.psm||'6'
+  );
 }
 
 
 async function getImageOrientation(file){
-  const b=await createImageBitmap(file);
+  const b=await loadScanBitmap(file);
   const info={width:b.width,height:b.height,portrait:b.height>b.width*1.15};
   if(b.close)b.close();
   return info;
 }
 
-async function detectVerticalGlyphColumn(file){
-  const bmp=await createImageBitmap(file);
+/* ============================================================
+   Container OCR v13 — vertical (portrait) reading engine
+   ------------------------------------------------------------
+   Fixes vs v12:
+   1.  EXIF orientation is honoured (createImageBitmap from-image).
+   2.  Ink detection is no longer a single fixed brightness cut.
+       We try several global thresholds derived from the image's own
+       histogram plus local-adaptive masks, in BOTH polarities
+       (white paint on dark box, dark paint on light box).
+   3.  Frame/box outlines around the check digit are removed, so the
+       boxed digit no longer breaks the 11-glyph run.
+   4.  Column detection is a line fit (RANSAC style) instead of a
+       constant-X test, so a tilted photo still lines up.
+   5.  Non-character bright objects (vents, stickers, warning signs)
+       are removed by a per-column height/width consistency filter.
+   6.  Each glyph is binarised with its own Otsu threshold, so a
+       shadow across the door no longer erases half the number.
+   7.  A reading is accepted only when TWO independent passes agree
+       AND ISO 6346 validates. No digit is ever calculated/invented.
+   ============================================================ */
 
-  // Downscale only for geometric detection; this keeps component scanning fast.
-  const maxW=900;
-  const scale=Math.min(1,maxW/bmp.width);
+const SCAN_W=900;
+
+async function loadScanBitmap(file){
+  try{return await createImageBitmap(file,{imageOrientation:'from-image'})}
+  catch{return await createImageBitmap(file)}
+}
+
+/* One shared Tesseract worker: creating a worker per recognise call
+   was the main reason a scan took many seconds. */
+let _tessWorker=null,_tessWorkerPromise=null;
+async function getTessWorker(){
+  if(_tessWorker)return _tessWorker;
+  if(!_tessWorkerPromise){
+    _tessWorkerPromise=(async()=>{
+      if(!window.Tesseract||!Tesseract.createWorker)return null;
+      try{
+        const w=await Tesseract.createWorker('eng');
+        _tessWorker=w;return w;
+      }catch(e){console.warn('Tesseract worker unavailable, falling back',e);return null}
+    })();
+  }
+  return _tessWorkerPromise;
+}
+async function ocrCanvas(canvas,whitelist,psm='7',label=''){
+  const params={
+    tessedit_char_whitelist:whitelist,
+    tessedit_pageseg_mode:psm,
+    preserve_interword_spaces:'0'
+  };
+  if(label)$('#ocrStatus').textContent=label;
+  const worker=await getTessWorker();
+  if(worker){
+    await worker.setParameters(params);
+    const {data}=await worker.recognize(canvas);
+    return String(data.text||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+  }
+  const {data}=await Tesseract.recognize(canvas,'eng',params);
+  return String(data.text||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+}
+
+/* Same shared worker, but the raw text (with spacing) is preserved —
+   the horizontal reader tokenises on whitespace. */
+async function ocrCanvasRaw(canvas,whitelist,psm='6'){
+  const params={
+    tessedit_char_whitelist:whitelist,
+    tessedit_pageseg_mode:psm,
+    preserve_interword_spaces:'1'
+  };
+  const worker=await getTessWorker();
+  if(worker){
+    await worker.setParameters(params);
+    const {data}=await worker.recognize(canvas);
+    return data.text||'';
+  }
+  const {data}=await Tesseract.recognize(canvas,'eng',params);
+  return data.text||'';
+}
+
+function medianOf(arr){
+  if(!arr.length)return 0;
+  const s=[...arr].sort((a,b)=>a-b);
+  return s[Math.floor(s.length/2)];
+}
+
+/* ---------- 1. downscaled analysis buffer ---------- */
+async function buildScanBuffer(file,scanW){
+  const bmp=await loadScanBitmap(file);
+  const scale=Math.min(1,(scanW||SCAN_W)/bmp.width);
   const w=Math.max(1,Math.round(bmp.width*scale));
   const h=Math.max(1,Math.round(bmp.height*scale));
-
   const c=document.createElement('canvas');
   c.width=w;c.height=h;
   const ctx=c.getContext('2d',{willReadFrequently:true});
   ctx.drawImage(bmp,0,0,w,h);
+  const d=ctx.getImageData(0,0,w,h).data;
 
-  const im=ctx.getImageData(0,0,w,h),d=im.data;
-  const mask=new Uint8Array(w*h);
+  const n=w*h;
+  const mn=new Uint8Array(n),mx=new Uint8Array(n),gray=new Uint8Array(n);
+  for(let i=0,p=0;p<n;p++,i+=4){
+    const r=d[i],g=d[i+1],b=d[i+2];
+    mn[p]=Math.min(r,g,b);
+    mx[p]=Math.max(r,g,b);
+    gray[p]=(r*299+g*587+b*114)/1000|0;
+  }
+  return {bmp,w,h,scale,mn,mx,gray};
+}
 
-  // Detect bright/near-white painted characters.
-  // We require all RGB channels to be high to avoid orange/red container paint.
+function percentileOf(arr,q){
+  const hist=new Int32Array(256);
+  for(let i=0;i<arr.length;i++)hist[arr[i]]++;
+  const target=arr.length*q/100;
+  let acc=0;
+  for(let v=0;v<256;v++){acc+=hist[v];if(acc>=target)return v}
+  return 255;
+}
+
+/* ---------- 2. ink masks ---------- */
+function globalMask(buf,T,S){
+  const {w,h,mn,mx}=buf,n=w*h,m=new Uint8Array(n);
+  for(let i=0;i<n;i++)if(mn[i]>T&&(mx[i]-mn[i])<S)m[i]=1;
+  return m;
+}
+function adaptiveMask(buf,bias,dark){
+  const {w,h,gray}=buf;
+  const win=Math.max(15,(Math.round(w/14)|1));
+  const r=win>>1;
+  const iw=w+1;
+  // Cached on the buffer: the integral image is identical for every bias,
+  // and Int32 is exact here (max sum = 255 * pixels, well under 2^31).
+  if(!buf._integral){
+    const integral=new Int32Array(iw*(h+1));
+    for(let y=1;y<=h;y++){
+      let rowSum=0;
+      for(let x=1;x<=w;x++){
+        rowSum+=gray[(y-1)*w+(x-1)];
+        integral[y*iw+x]=integral[(y-1)*iw+x]+rowSum;
+      }
+    }
+    buf._integral=integral;
+  }
+  const integral=buf._integral;
+  const m=new Uint8Array(w*h);
   for(let y=0;y<h;y++){
+    const y0=Math.max(0,y-r),y1=Math.min(h-1,y+r);
     for(let x=0;x<w;x++){
-      const i=(y*w+x)*4;
-      const r=d[i],g=d[i+1],b=d[i+2];
-      const minRGB=Math.min(r,g,b);
-      const maxRGB=Math.max(r,g,b);
-      const neutral=(maxRGB-minRGB)<65;
-      if(minRGB>155 && neutral)mask[y*w+x]=1;
+      const x0=Math.max(0,x-r),x1=Math.min(w-1,x+r);
+      const A=integral[y0*iw+x0],B=integral[y0*iw+(x1+1)],
+            C=integral[(y1+1)*iw+x0],D=integral[(y1+1)*iw+(x1+1)];
+      const mean=(D-B-C+A)/((x1-x0+1)*(y1-y0+1));
+      const idx=y*w+x,g=gray[idx];
+      m[idx]=dark?(g<mean-bias?1:0):(g>mean+bias?1:0);
     }
   }
+  return m;
+}
+function buildMaskSet(buf){
+  /* Descriptors, not bitmaps: each mask is materialised only when it is
+     actually examined, so a phone never holds 13 full-frame masks at once. */
+  const set=[];
+  const seen=new Set();
+  for(const q of [99.6,99,98,96,93,88]){
+    const T=Math.max(80,Math.min(215,Math.round(percentileOf(buf.mn,q)*0.80)));
+    if(seen.has(T))continue;
+    seen.add(T);
+    set.push({make:()=>globalMask(buf,T,65), dark:false, tag:'g'+T+'/65'});
+    set.push({make:()=>globalMask(buf,T,100),dark:false, tag:'g'+T+'/100'});
+  }
+  if(!seen.has(155))set.push({make:()=>globalMask(buf,155,65),dark:false,tag:'g155/65'});
+  for(const bias of [8,16,26]){
+    set.push({make:()=>adaptiveMask(buf,bias,false),dark:false,tag:'ab'+bias});
+    set.push({make:()=>adaptiveMask(buf,bias,true), dark:true, tag:'ad'+bias});
+  }
+  return set;
+}
 
-  // 8-connected components.
-  const seen=new Uint8Array(w*h);
+/* A mask that covers almost everything (or almost nothing) cannot contain
+   isolated characters — skip it before paying for component labelling. */
+function maskIsUsable(mask){
+  let on=0,checked=0;
+  for(let i=0;i<mask.length;i+=7){checked++;if(mask[i])on++}
+  const ratio=checked?on/checked:0;
+  return ratio>0.0004&&ratio<0.30;
+}
+
+/* ---------- 3. connected components ---------- */
+/* The labelling scratch buffers are reused across masks. Allocating a
+   6 MB queue thirteen times per scan is what makes this stage feel heavy
+   on a phone. */
+const _ccScratch={n:0,seen:null,qx:null,qy:null};
+function ccBuffers(n,cap){
+  if(_ccScratch.n!==n||!_ccScratch.seen){
+    _ccScratch.n=n;
+    _ccScratch.seen=new Uint8Array(n);
+    _ccScratch.qx=new Int32Array(cap);
+    _ccScratch.qy=new Int32Array(cap);
+  }else{
+    _ccScratch.seen.fill(0);
+  }
+  return _ccScratch;
+}
+function extractComponents(mask,w,h){
+  const cap=Math.min(w*h,1500000);
+  const {seen,qx,qy}=ccBuffers(w*h,cap);
   const comps=[];
-  const qx=new Int32Array(w*h>1500000?1500000:w*h);
-  const qy=new Int32Array(qx.length);
+  const minArea=30,
+        minW=Math.max(4,w*.006), maxW=w*.16,
+        minH=Math.max(10,h*.014), maxH=h*.14;
 
   for(let sy=0;sy<h;sy++){
     for(let sx=0;sx<w;sx++){
       const sidx=sy*w+sx;
       if(!mask[sidx]||seen[sidx])continue;
-
       let head=0,tail=0;
-      qx[tail]=sx;qy[tail]=sy;tail++;
-      seen[sidx]=1;
-
+      qx[tail]=sx;qy[tail]=sy;tail++;seen[sidx]=1;
       let minX=sx,maxX=sx,minY=sy,maxY=sy,area=0;
-
       while(head<tail){
         const x=qx[head],y=qy[head];head++;area++;
         if(x<minX)minX=x;if(x>maxX)maxX=x;
         if(y<minY)minY=y;if(y>maxY)maxY=y;
-
         for(let yy=Math.max(0,y-1);yy<=Math.min(h-1,y+1);yy++){
           for(let xx=Math.max(0,x-1);xx<=Math.min(w-1,x+1);xx++){
             const ni=yy*w+xx;
             if(!seen[ni]&&mask[ni]){
               seen[ni]=1;
-              if(tail<qx.length){qx[tail]=xx;qy[tail]=yy;tail++;}
+              if(tail<cap){qx[tail]=xx;qy[tail]=yy;tail++;}
             }
           }
         }
       }
-
-      const bw=maxX-minX+1,bh=maxY-minY+1;
-      // Character-size filter. Excludes tiny scratches and large signs/borders.
-      if(
-        area>=35 &&
-        bw>=Math.max(5,w*.008) && bw<=w*.11 &&
-        bh>=Math.max(12,h*.018) && bh<=h*.11 &&
-        bw/bh>.18 && bw/bh<1.35
-      ){
-        comps.push({
-          x:minX,y:minY,w:bw,h:bh,area,
-          cx:(minX+maxX)/2,cy:(minY+maxY)/2
-        });
+      const bw=maxX-minX+1,bh=maxY-minY+1,ratio=bw/bh;
+      if(area>=minArea&&bw>=minW&&bw<=maxW&&bh>=minH&&bh<=maxH&&ratio>.12&&ratio<1.6){
+        comps.push({x:minX,y:minY,w:bw,h:bh,area,
+                    cx:(minX+maxX)/2,cy:(minY+maxY)/2,
+                    fill:area/(bw*bh)});
       }
     }
   }
+  if(comps.length>120){
+    comps.sort((a,b)=>b.area-a.area);
+    comps.length=120;
+  }
+  return comps;
+}
 
-  if(bmp.close)bmp.close();
+/* Remove rectangles that enclose another glyph (the box drawn around
+   the check digit, the iC frame, sticker borders) and remember which
+   character was inside a box — on a container marking that box is drawn
+   around the check digit, which is a very strong position cue. */
+function dropEnclosingBoxes(comps){
+  const out=[];
+  for(const c of comps)c.boxed=false;
+  for(const c of comps){
+    let encloses=null;
+    for(const o of comps){
+      if(o===c)continue;
+      if(c.x<=o.x&&c.y<=o.y&&c.x+c.w>=o.x+o.w&&c.y+c.h>=o.y+o.h&&
+         c.w*c.h>o.w*o.h*1.2){encloses=o;break}
+    }
+    if(encloses&&c.fill<0.5){encloses.boxed=true;continue}
+    out.push(c);
+  }
+  return out;
+}
 
-  // Find a true vertical run of >=11 glyphs with nearly the same X center.
-  // This prevents mixing 45G1 / height labels / IC marks with the container ID.
+/* ---------- 4. line of exactly 11 glyphs (vertical or horizontal) ----------
+   axis 'v' = characters stacked top-to-bottom (container door marking)
+   axis 'h' = characters side by side (side-wall marking)
+   In both cases the line is fitted, so a tilted photo still lines up. */
+function findGlyphLine(comps,w,h,axis){
+  const vertical=axis!=='h';
+  const main=p=>vertical?p.cy:p.cx;     // position along the text line
+  const cross=p=>vertical?p.cx:p.cy;    // perpendicular offset
+  const span=vertical?h:w;
+  const tolC=vertical?Math.max(14,w*.045):Math.max(12,h*.06);
+
   let best=null;
-  for(const anchor of comps){
-    const tolX=Math.max(12,w*.035);
-    let col=comps.filter(p=>Math.abs(p.cx-anchor.cx)<=tolX);
+  const n=comps.length;
+  if(n<11)return null;
 
-    // Prefer the main body of the door; ignore edge noise.
-    col=col.filter(p=>p.cx>w*.08 && p.cx<w*.78);
-    col.sort((a,b)=>a.cy-b.cy);
+  const lines=[];
+  for(let i=0;i<n;i++){
+    for(let j=i+1;j<n;j++){
+      const a=comps[i],b=comps[j];
+      const dm=main(b)-main(a);
+      if(Math.abs(dm)<span*.08)continue;
+      const slope=(cross(b)-cross(a))/dm;
+      if(Math.abs(slope)>.25)continue;
+      lines.push([slope,cross(a)-slope*main(a)]);
+    }
+  }
+  for(const c of comps)lines.push([0,cross(c)]);
 
-    if(col.length<11)continue;
+  const seenLine=new Set();
+  for(const [slope,b0] of lines){
+    const key=Math.round(slope*1000)+':'+Math.round(b0/8);
+    if(seenLine.has(key))continue;
+    seenLine.add(key);
 
-    for(let i=0;i<=col.length-11;i++){
-      const seq=col.slice(i,i+11);
+    let line=comps.filter(p=>Math.abs(cross(p)-(slope*main(p)+b0))<=tolC
+                             &&p.cx>w*.02&&p.cx<w*.98&&p.cy>h*.01&&p.cy<h*.99);
+    if(line.length<11)continue;
+    line.sort((a,b)=>main(a)-main(b));
 
-      // X alignment.
-      const meanX=seq.reduce((s,p)=>s+p.cx,0)/11;
-      const xSpread=Math.max(...seq.map(p=>Math.abs(p.cx-meanX)));
-      if(xSpread>tolX)continue;
+    const mh=medianOf(line.map(p=>p.h)),mw=medianOf(line.map(p=>p.w));
+    line=line.filter(p=>p.h>=.6*mh&&p.h<=1.55*mh&&p.w<=1.9*mw);
+    if(line.length<11)continue;
 
-      // Positive vertical gaps; allow one larger owner/serial gap and boxed check digit gap.
-      const gaps=[];
-      let valid=true;
-      for(let j=1;j<seq.length;j++){
-        const gap=seq[j].cy-seq[j-1].cy;
-        if(gap<=0){valid=false;break}
-        gaps.push(gap);
+    for(let i=0;i<=line.length-11;i++){
+      const seq=line.slice(i,i+11);
+      const dev=Math.max(...seq.map(p=>Math.abs(cross(p)-(slope*main(p)+b0))));
+      if(dev>tolC)continue;
+
+      const gaps=[];let ok=true;
+      for(let j=1;j<11;j++){
+        const g=main(seq[j])-main(seq[j-1]);
+        if(g<=0){ok=false;break}
+        gaps.push(g);
       }
-      if(!valid)continue;
+      if(!ok)continue;
 
-      const sorted=[...gaps].sort((a,b)=>a-b);
-      const median=sorted[Math.floor(sorted.length/2)]||1;
-      const wild=gaps.filter(g=>g<median*.35 || g>median*3.2).length;
+      const med=medianOf(gaps)||1;
+      const wild=gaps.filter(g=>g<med*.45||g>med*2.2).length;
       if(wild>2)continue;
 
-      // Similar glyph heights.
-      const heights=seq.map(p=>p.h).sort((a,b)=>a-b);
-      const medH=heights[Math.floor(heights.length/2)]||1;
-      const oddH=seq.filter(p=>p.h<medH*.45 || p.h>medH*1.9).length;
-      if(oddH>2)continue;
+      const mh2=medianOf(seq.map(p=>p.h))||1;
+      const odd=seq.filter(p=>p.h<mh2*.55||p.h>mh2*1.55).length;
+      if(odd>1)continue;
 
-      const score=100 - xSpread - wild*10 - oddH*8 - Math.abs(seq.length-11)*5;
-      if(!best || score>best.score)best={score,seq,scale,w,h};
+      const reg=gaps.reduce((s,g)=>s+Math.abs(g-med),0)/(10*med);
+
+      /* On a container marking the check digit — the 11th character — is
+         printed inside a box. A run that ends on a boxed character is the
+         real number; a run that merely happens to contain 11 bright blobs
+         is not. This is what separates the correct window from one that
+         starts on a vent or a scratch and stops before the check digit. */
+      let boxBonus=0;
+      if(seq[10].boxed)boxBonus+=14;
+      if(seq.slice(0,10).some(p=>p.boxed))boxBonus-=8;
+
+      const score=100-dev*.8-wild*12-odd*10-reg*60+boxBonus;
+      if(!best||score>best.score)best={score,seq};
     }
   }
-
   return best;
 }
 
-async function buildGlyphStrip(file,detected,startIndex,count,lettersOnly){
-  const bmp=await createImageBitmap(file);
-  const invScale=1/detected.scale;
+/* ---------- 5. glyph strip with per-glyph Otsu ---------- */
+function otsuThreshold(gray){
+  const hist=new Int32Array(256);
+  for(let i=0;i<gray.length;i++)hist[gray[i]]++;
+  const total=gray.length;
+  let sum=0;for(let t=0;t<256;t++)sum+=t*hist[t];
+  let sumB=0,wB=0,best=0,thr=128;
+  for(let t=0;t<256;t++){
+    wB+=hist[t];if(!wB)continue;
+    const wF=total-wB;if(!wF)break;
+    sumB+=t*hist[t];
+    const mB=sumB/wB,mF=(sum-sumB)/wF;
+    const v=wB*wF*(mB-mF)*(mB-mF);
+    if(v>best){best=v;thr=t}
+  }
+  return thr;
+}
+function buildGlyphStrip(bmp,detected,startIndex,count,pad,dark){
+  const inv=1/detected.scale;
   const glyphs=detected.seq.slice(startIndex,startIndex+count);
-
-  const cellW=110,cellH=150,pad=12;
+  const cellW=110,cellH=150;
   const strip=document.createElement('canvas');
-  strip.width=cellW*count;
-  strip.height=cellH;
+  strip.width=cellW*count;strip.height=cellH;
   const out=strip.getContext('2d',{willReadFrequently:true});
   out.fillStyle='white';out.fillRect(0,0,strip.width,strip.height);
 
   for(let i=0;i<glyphs.length;i++){
     const g=glyphs[i];
-    const sx=Math.max(0,Math.round((g.x-pad)*invScale));
-    const sy=Math.max(0,Math.round((g.y-pad)*invScale));
-    const sw=Math.min(bmp.width-sx,Math.round((g.w+pad*2)*invScale));
-    const sh=Math.min(bmp.height-sy,Math.round((g.h+pad*2)*invScale));
+    const sx=Math.max(0,Math.round((g.x-pad)*inv));
+    const sy=Math.max(0,Math.round((g.y-pad)*inv));
+    const sw=Math.max(1,Math.min(bmp.width-sx,Math.round((g.w+pad*2)*inv)));
+    const sh=Math.max(1,Math.min(bmp.height-sy,Math.round((g.h+pad*2)*inv)));
 
     const tmp=document.createElement('canvas');
-    tmp.width=Math.max(1,sw);tmp.height=Math.max(1,sh);
+    tmp.width=sw;tmp.height=sh;
     const tx=tmp.getContext('2d',{willReadFrequently:true});
     tx.drawImage(bmp,sx,sy,sw,sh,0,0,sw,sh);
 
     const im=tx.getImageData(0,0,sw,sh),d=im.data;
-    for(let p=0;p<d.length;p+=4){
-      const r=d[p],gg=d[p+1],b=d[p+2];
-      const minRGB=Math.min(r,gg,b),maxRGB=Math.max(r,gg,b);
-      const whiteInk=minRGB>150 && (maxRGB-minRGB)<70;
-      const v=whiteInk?0:255;
-      d[p]=d[p+1]=d[p+2]=v;
+    const gray=new Uint8Array(sw*sh);
+    for(let p=0,q=0;q<gray.length;q++,p+=4)
+      gray[q]=(d[p]*299+d[p+1]*587+d[p+2]*114)/1000|0;
+
+    const th=otsuThreshold(gray);
+    for(let p=0,q=0;q<gray.length;q++,p+=4){
+      const isInk=dark?(gray[q]<th):(gray[q]>th);
+      const v=isInk?0:255;              // ink -> black on white
+      d[p]=d[p+1]=d[p+2]=v;d[p+3]=255;
     }
     tx.putImageData(im,0,0);
 
-    // Fit into one OCR cell.
     const fit=Math.min((cellW-16)/sw,(cellH-16)/sh);
     const dw=Math.max(1,sw*fit),dh=Math.max(1,sh*fit);
-    const dx=i*cellW+(cellW-dw)/2,dy=(cellH-dh)/2;
-    out.drawImage(tmp,dx,dy,dw,dh);
+    out.drawImage(tmp,i*cellW+(cellW-dw)/2,(cellH-dh)/2,dw,dh);
   }
-
-  if(bmp.close)bmp.close();
   return strip;
 }
 
-async function recognizeGlyphStrip(canvas,whitelist){
-  const {data}=await Tesseract.recognize(canvas,'eng',{
-    tessedit_char_whitelist:whitelist,
-    tessedit_pageseg_mode:'7',
-    preserve_interword_spaces:'0',
-    logger:m=>{
-      if(m.status==='recognizing text')
-        $('#ocrStatus').textContent=`קורא תווים... ${Math.round((m.progress||0)*100)}%`;
-    }
-  });
-  return String(data.text||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+/* ---------- 6. orchestration ---------- */
+function lineSignature(seq){
+  return seq.map(g=>Math.round(g.cx/6)+'_'+Math.round(g.cy/6)).join(',');
 }
 
-async function runVerticalSegmentedOcr(file){
+/* Reads an 11-character container marking by isolating the individual
+   painted characters. primaryAxis just decides which direction is tried
+   first; both are always considered. */
+function collectLineCandidates(buf,primaryAxis){
+  const {w,h}=buf;
+  const masks=buildMaskSet(buf);
+  const candidates=[];
+  const seenLines=new Set();
+  const axes=primaryAxis==='h'?['h','v']:['v','h'];
+
+  for(const m of masks){
+    let mask;
+    try{mask=m.make()}catch(e){console.warn('mask failed',m.tag,e);continue}
+    if(!maskIsUsable(mask))continue;
+    const comps=dropEnclosingBoxes(extractComponents(mask,w,h));
+    mask=null;                       // let the phone reclaim it immediately
+    if(comps.length<11)continue;
+    axes.forEach((axis,axisIndex)=>{
+      const found=findGlyphLine(comps,w,h,axis);
+      if(!found)return;
+      const sig=axis+':'+lineSignature(found.seq);
+      if(seenLines.has(sig))return;
+      seenLines.add(sig);
+      candidates.push({
+        score:found.score-axisIndex*6,   // slight preference for the expected axis
+        seq:found.seq,dark:m.dark,tag:m.tag+'/'+axis
+      });
+    });
+  }
+  candidates.sort((a,b)=>b.score-a.score);
+  return candidates;
+}
+
+/* Reads an 11-character container marking by isolating the individual
+   painted characters. primaryAxis just decides which direction is tried
+   first; both are always considered. */
+async function runGlyphLineOcr(file,primaryAxis='v'){
   const st=$('#ocrStatus');
-  st.textContent='זוהה צילום אנכי — מאתר 11 תווים...';
+  st.textContent='מאתר 11 תווים בצילום...';
 
-  const detected=await detectVerticalGlyphColumn(file);
-  if(!detected || !detected.seq || detected.seq.length!==11){
-    console.info('Vertical OCR v7: no 11-glyph column',detected);
-    return {num:'',typ:null};
+  /* Two resolutions. 900px is enough for a close-up and keeps a phone
+     fast; if nothing is found the photo was probably taken from further
+     back, so the characters fall under the minimum size — retry larger. */
+  for(const scanW of [SCAN_W,1500]){
+    const buf=await buildScanBuffer(file,scanW);
+    const {bmp,w,h,scale}=buf;
+    let candidates;
+    try{
+      candidates=collectLineCandidates(buf,primaryAxis);
+    }catch(e){
+      console.warn('detection failed at width',scanW,e);
+      candidates=[];
+    }
+
+    if(!candidates.length){
+      buf._integral=null;
+      _ccScratch.n=0;_ccScratch.seen=null;_ccScratch.qx=null;_ccScratch.qy=null;
+      if(bmp.close)bmp.close();
+      if(scanW===SCAN_W){
+        console.info('Container OCR v13: nothing at '+scanW+'px, retrying larger');
+        st.textContent='סורק ברזולוציה גבוהה יותר...';
+        continue;
+      }
+      console.info('Container OCR v13: no 11-glyph line found');
+      return {num:'',typ:null,reason:'לא אותרה שורה של 11 תווים'};
+    }
+
+    try{
+      const votes=new Map();
+      let calls=0;
+      const MAX_CALLS=16;
+      const started=Date.now();
+
+      for(const cand of candidates.slice(0,4)){
+        // Padding is relative to the glyph size, so a small/low-resolution
+        // photo does not pull the neighbouring line into the crop.
+        const gh=medianOf(cand.seq.map(g=>g.h))||60;
+        const pads=[Math.max(4,Math.round(gh*.14)),Math.max(6,Math.round(gh*.26))];
+        for(const pad of pads){
+          if(calls>=MAX_CALLS||Date.now()-started>25000)break;
+          const detected={seq:cand.seq,scale};
+          const lettersCanvas=buildGlyphStrip(bmp,detected,0,4,pad,cand.dark);
+
+          const lettersRaw=await ocrCanvas(lettersCanvas,'ABCDEFGHIJKLMNOPQRSTUVWXYZ','7','קורא קוד בעלים...');
+          calls++;
+          const letters=normalizeOwner(lettersRaw).slice(0,4);
+
+          /* ISO 6346 requires the equipment category to be U, J or Z.
+             If those four characters did not come out as a legal owner code
+             the number can never validate, so skip the second recognition
+             instead of paying for it. */
+          if(!/^[A-Z]{3}[UJZ]$/.test(letters)){
+            console.info('v13 pass',cand.tag,'pad',pad,lettersRaw,'-> owner code rejected');
+            continue;
+          }
+
+          const digitsCanvas=buildGlyphStrip(bmp,detected,4,7,pad,cand.dark);
+          const digitsRaw=await ocrCanvas(digitsCanvas,'0123456789','7','קורא ספרות...');
+          calls++;
+
+          const digits =normalizeDigits(digitsRaw).slice(0,7);
+          const candidateNum=letters+digits;
+
+          console.info('v13 pass',cand.tag,'pad',pad,lettersRaw,digitsRaw,'->',candidateNum);
+
+          if(!/^[A-Z]{4}\d{7}$/.test(candidateNum))continue;
+          if(!isValidContainer(candidateNum))continue;   // ISO only rejects, never invents
+
+          const n=(votes.get(candidateNum)||0)+1;
+          votes.set(candidateNum,n);
+          if(n>=2){
+            console.info('Container OCR v13 accepted',candidateNum,'at',scanW+'px');
+            return {num:candidateNum,typ:null};
+          }
+        }
+      }
+
+      console.info('Container OCR v13: no two-pass agreement at '+scanW+'px',[...votes.entries()]);
+      if(scanW===SCAN_W)continue;      // give the larger scan a chance
+      return {num:'',typ:null,
+              reason:votes.size?'קריאות לא עקביות':'התווים אותרו אך לא נקראו בוודאות',
+              candidates:candidates.length,calls};
+    }finally{
+      if(bmp.close)bmp.close();
+      buf._integral=null;
+      _ccScratch.n=0;_ccScratch.seen=null;_ccScratch.qx=null;_ccScratch.qy=null;
+    }
+  }
+  return {num:'',typ:null,reason:'התווים אותרו אך לא נקראו בוודאות'};
+}
+
+/* Kept for backwards compatibility with the previous entry point name. */
+async function runVerticalSegmentedOcr(file){
+  return runGlyphLineOcr(file,'v');
+}
+
+/* ============================================================
+   Cloud OCR fallback (optional)
+   Runs only when the on-device engine returns nothing.
+   The key is stored in this browser's localStorage only and is
+   never written to the movements table or to Supabase.
+   ============================================================ */
+const CLOUD_OCR_KEYS={provider:'ocr_cloud_provider',key:'ocr_cloud_key'};
+function cloudOcrConfig(){
+  return{
+    provider:localStorage.getItem(CLOUD_OCR_KEYS.provider)||'',
+    key:localStorage.getItem(CLOUD_OCR_KEYS.key)||''
+  };
+}
+function cloudOcrEnabled(){
+  const c=cloudOcrConfig();
+  return !!(c.provider&&c.key&&navigator.onLine!==false);
+}
+
+async function shrinkForCloud(file,max=1600,quality=.82){
+  const bmp=await loadScanBitmap(file);
+  const scale=Math.min(1,max/Math.max(bmp.width,bmp.height));
+  const c=document.createElement('canvas');
+  c.width=Math.max(1,Math.round(bmp.width*scale));
+  c.height=Math.max(1,Math.round(bmp.height*scale));
+  c.getContext('2d').drawImage(bmp,0,0,c.width,c.height);
+  if(bmp.close)bmp.close();
+  const blob=await new Promise(r=>c.toBlob(r,'image/jpeg',quality));
+  const dataUrl=c.toDataURL('image/jpeg',quality);
+  return {blob,base64:dataUrl.split(',')[1]};
+}
+
+/* Accepts any raw text and returns an ISO-valid container number or ''. */
+function parseContainerFromText(text){
+  const ownerVotes=new Map(),digitVotes=new Map(),fullVotes=new Map();
+  collectOwnerEvidence(text,ownerVotes);
+  collectSevenDigitEvidence(text,digitVotes,2);
+  collectFullEvidence(text,fullVotes);
+  const picked=chooseContainer(ownerVotes,digitVotes,fullVotes);
+  if(picked.num&&isValidContainer(picked.num))return picked.num;
+
+  // Vertical markings often come back one character per line.
+  const flat=String(text||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+  for(let i=0;i<=flat.length-11;i++){
+    const part=flat.slice(i,i+11);
+    const c=normalizeOwner(part.slice(0,4))+normalizeDigits(part.slice(4));
+    if(/^[A-Z]{4}\d{7}$/.test(c)&&isValidContainer(c))return c;
+  }
+  return '';
+}
+
+async function cloudOcrRawText(file){
+  const {provider,key}=cloudOcrConfig();
+  const img=await shrinkForCloud(file);
+
+  if(provider==='ocrspace'){
+    const fd=new FormData();
+    fd.append('file',new File([img.blob],'container.jpg',{type:'image/jpeg'}));
+    fd.append('OCREngine','2');
+    fd.append('scale','true');
+    fd.append('detectOrientation','true');
+    fd.append('isTable','false');
+    const res=await fetch('https://api.ocr.space/parse/image',{
+      method:'POST',headers:{apikey:key},body:fd
+    });
+    const json=await res.json();
+    if(json.IsErroredOnProcessing)throw new Error(String(json.ErrorMessage||'OCR.space error'));
+    return (json.ParsedResults||[]).map(r=>r.ParsedText||'').join('\n');
   }
 
-  // Exactly two OCR operations: 4 letters and 7 digits.
-  const lettersCanvas=await buildGlyphStrip(file,detected,0,4,true);
-  const digitsCanvas=await buildGlyphStrip(file,detected,4,7,false);
-
-  const lettersRaw=await recognizeGlyphStrip(lettersCanvas,'ABCDEFGHIJKLMNOPQRSTUVWXYZ');
-  const digitsRaw=await recognizeGlyphStrip(digitsCanvas,'0123456789');
-
-  const letters=normalizeOwner(lettersRaw).slice(0,4);
-  const digits=normalizeDigits(digitsRaw).slice(0,7);
-
-  console.info('Vertical OCR v7 segmented',{
-    components:detected.seq,
-    lettersRaw,digitsRaw,letters,digits
-  });
-
-  // Hard guard: must physically read exactly 4 letters + exactly 7 digits.
-  if(!/^[A-Z]{4}$/.test(letters) || !/^\d{7}$/.test(digits)){
-    return {num:'',typ:null};
+  if(provider==='google'){
+    const res=await fetch('https://vision.googleapis.com/v1/images:annotate?key='+encodeURIComponent(key),{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({requests:[{
+        image:{content:img.base64},
+        features:[{type:'TEXT_DETECTION',maxResults:1}],
+        imageContext:{languageHints:['en']}
+      }]})
+    });
+    const json=await res.json();
+    if(json.error)throw new Error(json.error.message||'Vision error');
+    const r=(json.responses||[])[0]||{};
+    return r.fullTextAnnotation?.text || (r.textAnnotations?.[0]?.description || '');
   }
 
-  const candidate=letters+digits;
+  throw new Error('unknown provider');
+}
 
-  // ISO is validation only. Never calculate or replace any digit.
-  if(!isValidContainer(candidate)){
-    return {num:'',typ:null};
+async function runCloudOcrFallback(file){
+  if(!cloudOcrEnabled())return {num:'',typ:null};
+  const st=$('#ocrStatus');
+  st.textContent='מנסה זיהוי בענן...';
+  try{
+    const text=await cloudOcrRawText(file);
+    console.info('Cloud OCR raw text',text);
+    const num=parseContainerFromText(text);
+    const typ=findIsoType(text);
+    if(num)return {num,typ,source:'cloud'};
+    return {num:'',typ};
+  }catch(err){
+    console.warn('Cloud OCR failed',err);
+    return {num:'',typ:null,error:err};
   }
-
-  return {num:candidate,typ:null};
 }
 
 async function runHorizontalFastOcr(file){
@@ -3066,63 +3457,13 @@ async function runVerticalRotatedFallback(file){
   return {num:'',typ:null};
 }
 
-
-function copyCanvasToDiag(src,targetId){
-  const dst=document.getElementById(targetId);
-  if(!dst||!src)return;
-  dst.width=src.width;
-  dst.height=src.height;
-  const ctx=dst.getContext('2d');
-  ctx.clearRect(0,0,dst.width,dst.height);
-  ctx.drawImage(src,0,0);
-}
-
-function showOcrDiag({crop=null,processed=null,rotated=null,raw='',meta=''}={}){
-  const panel=document.getElementById('ocrDiagPanel');
-  if(!panel)return;
-  panel.style.display='block';
-
-  const metaEl=document.getElementById('ocrDiagMeta');
-  const rawEl=document.getElementById('ocrDiagRaw');
-
-  if(metaEl)metaEl.textContent=meta||'';
-  if(rawEl)rawEl.textContent=raw||'—';
-
-  if(crop)copyCanvasToDiag(crop,'ocrDiagCrop');
-  if(processed)copyCanvasToDiag(processed,'ocrDiagProcessed');
-  if(rotated)copyCanvasToDiag(rotated,'ocrDiagRotated');
-}
-
-function hideOcrDiag(){
-  const panel=document.getElementById('ocrDiagPanel');
-  if(panel)panel.style.display='none';
-}
-
-async function makeVerticalCropCanvas(file,{x=.14,y=.01,w=.48,h=.97,scale=1.2}={}){
-  const bmp=await createImageBitmap(file);
-
-  const sx=Math.max(0,Math.round(bmp.width*x));
-  const sy=Math.max(0,Math.round(bmp.height*y));
-  const sw=Math.max(1,Math.min(bmp.width-sx,Math.round(bmp.width*w)));
-  const sh=Math.max(1,Math.min(bmp.height-sy,Math.round(bmp.height*h)));
-
-  const c=document.createElement('canvas');
-  c.width=Math.max(1,Math.round(sw*scale));
-  c.height=Math.max(1,Math.round(sh*scale));
-  const ctx=c.getContext('2d');
-  ctx.drawImage(bmp,sx,sy,sw,sh,0,0,c.width,c.height);
-
-  if(bmp.close)bmp.close();
-  return c;
-}
-
 async function makeAdaptiveVerticalCanvas(file,{
   x=.16,y=.02,w=.46,h=.96,
   scale=2.6,
   windowSize=31,
   bias=11
 }={}){
-  const bmp=await createImageBitmap(file);
+  const bmp=await loadScanBitmap(file);
 
   const sx=Math.max(0,Math.round(bmp.width*x));
   const sy=Math.max(0,Math.round(bmp.height*y));
@@ -3254,25 +3595,8 @@ async function rotateCanvas90(source,clockwise=true){
 }
 
 async function ocrAdaptiveContainer(canvas){
-  const {data}=await Tesseract.recognize(canvas,'eng',{
-    tessedit_char_whitelist:'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789',
-    tessedit_pageseg_mode:'7',
-    preserve_interword_spaces:'0',
-    logger:m=>{
-      if(m.status==='recognizing text')
-        $('#ocrStatus').textContent=`ניגודיות אדפטיבית... ${Math.round((m.progress||0)*100)}%`;
-    }
-  });
-
-  const rawText=String(data.text||'');
-  const raw=rawText.toUpperCase().replace(/[^A-Z0-9]/g,'');
-  console.info('Adaptive OCR raw',raw,rawText);
-
-  window.__lastAdaptiveOcrRaw={
-    rawText,
-    cleaned:raw,
-    confidence:data.confidence
-  };
+  const raw=await ocrCanvas(canvas,'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789','7','ניגודיות אדפטיבית...');
+  console.info('Adaptive OCR raw',raw,data.text);
 
   for(let i=0;i<=raw.length-11;i++){
     const part=raw.slice(i,i+11);
@@ -3290,678 +3614,23 @@ async function ocrAdaptiveContainer(canvas){
 async function runBlackWhiteVerticalFallback(file){
   $('#ocrStatus').textContent='מבודד טקסט בניגודיות אדפטיבית...';
 
+  // Two focused variants only, to keep scan time reasonable.
   const configs=[
     {x:.14,y:.01,w:.48,h:.97,scale:2.6,windowSize:29,bias:9},
     {x:.14,y:.01,w:.48,h:.97,scale:2.6,windowSize:39,bias:14}
   ];
 
-  let bestDiag=null;
-
-  for(let ci=0;ci<configs.length;ci++){
-    const cfg=configs[ci];
-    const crop=await makeVerticalCropCanvas(file,{...cfg,scale:1.0});
+  for(const cfg of configs){
     const adaptive=await makeAdaptiveVerticalCanvas(file,cfg);
 
     for(const clockwise of [true,false]){
       const rotated=await rotateCanvas90(adaptive,clockwise);
-      window.__lastAdaptiveOcrRaw=null;
-
       const num=await ocrAdaptiveContainer(rotated);
-      const info=window.__lastAdaptiveOcrRaw||{};
-
-      const diag={
-        crop,
-        processed:adaptive,
-        rotated,
-        raw:`${info.rawText||''}\n[cleaned] ${info.cleaned||''}`,
-        meta:`ניסיון ${ci+1} · סיבוב ${clockwise?'90°':'-90°'} · confidence ${Math.round(info.confidence||0)}%`
-      };
-
-      if(!bestDiag || (info.cleaned||'').length>(bestDiag.cleanedLength||0)){
-        bestDiag={...diag,cleanedLength:(info.cleaned||'').length};
-      }
 
       if(num){
-        showOcrDiag(diag);
         console.info('Adaptive fallback success',cfg,clockwise,num);
         return {num,typ:null};
       }
-    }
-  }
-
-  if(bestDiag)showOcrDiag(bestDiag);
-  return {num:'',typ:null};
-}
-
-
-async function detectRelaxedVertical10PlusCheck(file){
-  const bmp=await createImageBitmap(file);
-
-  const maxW=900;
-  const scale=Math.min(1,maxW/bmp.width);
-  const w=Math.max(1,Math.round(bmp.width*scale));
-  const h=Math.max(1,Math.round(bmp.height*scale));
-
-  const c=document.createElement('canvas');
-  c.width=w;c.height=h;
-  const ctx=c.getContext('2d',{willReadFrequently:true});
-  ctx.drawImage(bmp,0,0,w,h);
-
-  const im=ctx.getImageData(0,0,w,h),d=im.data;
-  const mask=new Uint8Array(w*h);
-
-  // Keep bright/neutral paint, but allow a wider range than v7.
-  for(let y=0;y<h;y++){
-    for(let x=0;x<w;x++){
-      const i=(y*w+x)*4;
-      const r=d[i],g=d[i+1],b=d[i+2];
-      const minRGB=Math.min(r,g,b);
-      const maxRGB=Math.max(r,g,b);
-      const neutral=(maxRGB-minRGB)<95;
-      if(minRGB>135 && neutral)mask[y*w+x]=1;
-    }
-  }
-
-  const seen=new Uint8Array(w*h);
-  const comps=[];
-  const qx=[],qy=[];
-
-  for(let sy=0;sy<h;sy++){
-    for(let sx=0;sx<w;sx++){
-      const idx=sy*w+sx;
-      if(!mask[idx]||seen[idx])continue;
-
-      qx.length=0;qy.length=0;
-      qx.push(sx);qy.push(sy);seen[idx]=1;
-
-      let head=0,minX=sx,maxX=sx,minY=sy,maxY=sy,area=0;
-      while(head<qx.length){
-        const x=qx[head],y=qy[head];head++;area++;
-        if(x<minX)minX=x;if(x>maxX)maxX=x;
-        if(y<minY)minY=y;if(y>maxY)maxY=y;
-
-        for(let yy=Math.max(0,y-1);yy<=Math.min(h-1,y+1);yy++){
-          for(let xx=Math.max(0,x-1);xx<=Math.min(w-1,x+1);xx++){
-            const ni=yy*w+xx;
-            if(!seen[ni]&&mask[ni]){
-              seen[ni]=1;
-              qx.push(xx);qy.push(yy);
-            }
-          }
-        }
-      }
-
-      const bw=maxX-minX+1,bh=maxY-minY+1;
-      if(
-        area>=22 &&
-        bw>=Math.max(4,w*.005) && bw<=w*.13 &&
-        bh>=Math.max(9,h*.012) && bh<=h*.13 &&
-        bw/bh>.10 && bw/bh<1.60
-      ){
-        comps.push({
-          x:minX,y:minY,w:bw,h:bh,area,
-          cx:(minX+maxX)/2,cy:(minY+maxY)/2
-        });
-      }
-    }
-  }
-
-  if(bmp.close)bmp.close();
-
-  function median(arr){
-    if(!arr.length)return 0;
-    const a=[...arr].sort((a,b)=>a-b);
-    return a[Math.floor(a.length/2)];
-  }
-
-  let best=null;
-
-  // Try every plausible x-column. We deliberately score 10 main glyphs,
-  // not 11, because the boxed check digit may be far below the run.
-  for(const anchor of comps){
-    if(anchor.cx<w*.08 || anchor.cx>w*.75)continue;
-
-    const tolX=Math.max(16,w*.055);
-    const col=comps
-      .filter(p=>Math.abs(p.cx-anchor.cx)<=tolX)
-      .sort((a,b)=>a.cy-b.cy);
-
-    if(col.length<10)continue;
-
-    for(let i=0;i<=col.length-10;i++){
-      const seq=col.slice(i,i+10);
-
-      const meanX=seq.reduce((s,p)=>s+p.cx,0)/10;
-      const xSpread=Math.max(...seq.map(p=>Math.abs(p.cx-meanX)));
-      if(xSpread>tolX)continue;
-
-      const heights=seq.map(p=>p.h);
-      const medH=median(heights)||1;
-      if(seq.filter(p=>p.h<medH*.38 || p.h>medH*2.2).length>3)continue;
-
-      const gaps=[];
-      let validOrder=true
-      for(let j=1;j<10;j++){
-        const gap=seq[j].cy-seq[j-1].cy;
-        if(gap<=0){validOrder=false;break;}
-        gaps.push(gap);
-      }
-      if(!validOrder)continue;
-
-      const medGap=median(gaps)||1;
-
-      // Relaxed rule: allow one or two large internal gaps (e.g. U -> 5).
-      const tooTiny=gaps.filter(g=>g<medGap*.22).length;
-      const tooHuge=gaps.filter(g=>g>medGap*4.8).length;
-      if(tooTiny>2 || tooHuge>2)continue;
-
-      const last=seq[9];
-
-      // Search check digit separately. It may be boxed and much farther away.
-      const checkCandidates=comps.filter(p=>{
-        const dx=Math.abs(p.cx-meanX);
-        const dy=p.cy-last.cy;
-        return (
-          dx<=Math.max(22,w*.075) &&
-          dy>medGap*.65 &&
-          dy<medGap*8.5 &&
-          p.cy>last.cy &&
-          p.h>=medH*.35 &&
-          p.h<=medH*2.4
-        );
-      });
-
-      if(!checkCandidates.length)continue;
-
-      // Prefer a candidate aligned with the main column and below it.
-      for(const check of checkCandidates){
-        const dy=check.cy-last.cy;
-        const score=
-          150
-          - xSpread*1.4
-          - tooTiny*8
-          - tooHuge*10
-          - Math.abs(check.cx-meanX)*1.3
-          - Math.abs(dy-medGap*2.4)*.04;
-
-        if(!best || score>best.score){
-          best={
-            score,
-            seq:[...seq,check],
-            mainSeq:seq,
-            check,
-            scale,w,h,
-            meanX,medGap,
-            mode:'relaxed-10-plus-check'
-          };
-        }
-      }
-    }
-  }
-
-  console.info('v14 relaxed detector', {
-    components:comps.length,
-    best
-  });
-
-  return best;
-}
-
-async function buildRelaxedGlyphStrip(file,detected,startIndex,count){
-  const bmp=await createImageBitmap(file);
-  const invScale=1/detected.scale;
-  const glyphs=detected.seq.slice(startIndex,startIndex+count);
-
-  const cellW=130,cellH=180,pad=18;
-  const strip=document.createElement('canvas');
-  strip.width=cellW*count;
-  strip.height=cellH;
-  const out=strip.getContext('2d',{willReadFrequently:true});
-
-  out.fillStyle='white';
-  out.fillRect(0,0,strip.width,strip.height);
-
-  for(let i=0;i<glyphs.length;i++){
-    const g=glyphs[i];
-    const sx=Math.max(0,Math.round((g.x-pad)*invScale));
-    const sy=Math.max(0,Math.round((g.y-pad)*invScale));
-    const sw=Math.max(1,Math.min(bmp.width-sx,Math.round((g.w+pad*2)*invScale)));
-    const sh=Math.max(1,Math.min(bmp.height-sy,Math.round((g.h+pad*2)*invScale)));
-
-    const tmp=document.createElement('canvas');
-    tmp.width=sw;tmp.height=sh;
-    const tx=tmp.getContext('2d',{willReadFrequently:true});
-    tx.drawImage(bmp,sx,sy,sw,sh,0,0,sw,sh);
-
-    const im=tx.getImageData(0,0,sw,sh),d=im.data;
-
-    // White paint -> black glyph, everything else -> white background.
-    // This is intentionally local per detected glyph, not a full-image threshold.
-    for(let p=0;p<d.length;p+=4){
-      const r=d[p],g2=d[p+1],b=d[p+2];
-      const minRGB=Math.min(r,g2,b),maxRGB=Math.max(r,g2,b);
-      const neutral=(maxRGB-minRGB)<100;
-      const whitePaint=minRGB>125 && neutral;
-      const v=whitePaint?0:255;
-      d[p]=d[p+1]=d[p+2]=v;
-    }
-    tx.putImageData(im,0,0);
-
-    const fit=Math.min((cellW-20)/sw,(cellH-20)/sh);
-    const dw=Math.max(1,sw*fit),dh=Math.max(1,sh*fit);
-    const dx=i*cellW+(cellW-dw)/2;
-    const dy=(cellH-dh)/2;
-    out.drawImage(tmp,dx,dy,dw,dh);
-  }
-
-  if(bmp.close)bmp.close();
-  return strip;
-}
-
-async function recognizeRelaxedStrip(canvas,whitelist){
-  const {data}=await Tesseract.recognize(canvas,'eng',{
-    tessedit_char_whitelist:whitelist,
-    tessedit_pageseg_mode:'7',
-    preserve_interword_spaces:'0',
-    logger:m=>{
-      if(m.status==='recognizing text')
-        $('#ocrStatus').textContent=`קורא עמודה אנכית... ${Math.round((m.progress||0)*100)}%`;
-    }
-  });
-
-  return String(data.text||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
-}
-
-async function runRelaxed10PlusCheckOcr(file){
-  $('#ocrStatus').textContent='מאתר 10 תווים + ספרת ביקורת...';
-
-  const detected=await detectRelaxedVertical10PlusCheck(file);
-  if(!detected || !detected.seq || detected.seq.length!==11){
-    console.info('v14: no relaxed 10+check geometry');
-    return {num:'',typ:null};
-  }
-
-  // Read the physical characters in three separate groups.
-  const lettersCanvas=await buildRelaxedGlyphStrip(file,detected,0,4);
-  const serialCanvas=await buildRelaxedGlyphStrip(file,detected,4,6);
-  const checkCanvas=await buildRelaxedGlyphStrip(file,detected,10,1);
-
-  const lettersRaw=await recognizeRelaxedStrip(lettersCanvas,'ABCDEFGHIJKLMNOPQRSTUVWXYZ');
-  const serialRaw=await recognizeRelaxedStrip(serialCanvas,'0123456789');
-  const checkRaw=await recognizeRelaxedStrip(checkCanvas,'0123456789');
-
-  const letters=normalizeOwner(lettersRaw);
-  const serial=normalizeDigits(serialRaw);
-  const check=normalizeDigits(checkRaw);
-
-  console.info('v14 relaxed OCR',{
-    lettersRaw,serialRaw,checkRaw,
-    letters,serial,check,
-    detected
-  });
-
-  // Strict: no missing/guessed characters.
-  if(!/^[A-Z]{4}$/.test(letters))return {num:'',typ:null};
-  if(!/^\d{6}$/.test(serial))return {num:'',typ:null};
-  if(!/^\d$/.test(check))return {num:'',typ:null};
-
-  const candidate=letters+serial+check;
-  if(!isValidContainer(candidate))return {num:'',typ:null};
-
-  return {num:candidate,typ:null};
-}
-
-
-async function recognizeSingleGlyph(canvas, whitelist){
-  const {data}=await Tesseract.recognize(canvas,'eng',{
-    tessedit_char_whitelist:whitelist,
-    tessedit_pageseg_mode:'10',
-    preserve_interword_spaces:'0',
-    logger:m=>{
-      if(m.status==='recognizing text'){
-        $('#ocrStatus').textContent=`קורא תו בודד... ${Math.round((m.progress||0)*100)}%`;
-      }
-    }
-  });
-
-  const raw=String(data.text||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
-  return {
-    raw,
-    ch:raw ? raw[0] : '',
-    confidence:Number(data.confidence||0)
-  };
-}
-
-async function buildSingleGlyphCanvas(file,detected,index){
-  const bmp=await createImageBitmap(file);
-  const invScale=1/detected.scale;
-  const g=detected.seq[index];
-
-  const pad=22;
-  const sx=Math.max(0,Math.round((g.x-pad)*invScale));
-  const sy=Math.max(0,Math.round((g.y-pad)*invScale));
-  const sw=Math.max(1,Math.min(bmp.width-sx,Math.round((g.w+pad*2)*invScale)));
-  const sh=Math.max(1,Math.min(bmp.height-sy,Math.round((g.h+pad*2)*invScale)));
-
-  const tmp=document.createElement('canvas');
-  tmp.width=sw;
-  tmp.height=sh;
-  const tx=tmp.getContext('2d',{willReadFrequently:true});
-  tx.drawImage(bmp,sx,sy,sw,sh,0,0,sw,sh);
-
-  const im=tx.getImageData(0,0,sw,sh),d=im.data;
-
-  // Local adaptive-ish isolation:
-  // detect bright/neutral paint and render it black on white.
-  let sum=0,count=0;
-  for(let p=0;p<d.length;p+=4){
-    sum+=(d[p]+d[p+1]+d[p+2])/3;
-    count++;
-  }
-  const mean=sum/Math.max(1,count);
-  const threshold=Math.max(115,Math.min(190,mean+18));
-
-  for(let p=0;p<d.length;p+=4){
-    const r=d[p],gg=d[p+1],b=d[p+2];
-    const minRGB=Math.min(r,gg,b),maxRGB=Math.max(r,gg,b);
-    const neutral=(maxRGB-minRGB)<105;
-    const whitePaint=minRGB>threshold && neutral;
-    const v=whitePaint?0:255;
-    d[p]=d[p+1]=d[p+2]=v;
-  }
-
-  tx.putImageData(im,0,0);
-
-  // Place glyph on a fixed square canvas with large margins.
-  const out=document.createElement('canvas');
-  out.width=180;
-  out.height=180;
-  const ox=out.getContext('2d');
-  ox.fillStyle='white';
-  ox.fillRect(0,0,out.width,out.height);
-
-  const fit=Math.min(130/sw,130/sh);
-  const dw=Math.max(1,sw*fit),dh=Math.max(1,sh*fit);
-  ox.drawImage(tmp,(180-dw)/2,(180-dh)/2,dw,dh);
-
-  if(bmp.close)bmp.close();
-  return out;
-}
-
-async function runPerGlyphVerticalOcr(file){
-  $('#ocrStatus').textContent='מזהה תווים בנפרד...';
-
-  // Reuse the relaxed geometry detector from v14.
-  const detected=await detectRelaxedVertical10PlusCheck(file);
-  if(!detected || !detected.seq || detected.seq.length!==11){
-    console.info('v16 per-glyph: geometry not found');
-    return {num:'',typ:null};
-  }
-
-  const chars=[];
-  const confidences=[];
-
-  for(let i=0;i<11;i++){
-    const canvas=await buildSingleGlyphCanvas(file,detected,i);
-    const whitelist=i<4
-      ? 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
-      : '0123456789';
-
-    const info=await recognizeSingleGlyph(canvas,whitelist);
-    chars.push(info.ch);
-    confidences.push(Math.round(info.confidence||0));
-
-    console.info('v16 glyph',i,info);
-  }
-
-  const letters=chars.slice(0,4).join('');
-  const serial=chars.slice(4,10).join('');
-  const check=chars[10]||'';
-
-  const candidate=letters+serial+check;
-
-  console.info('v16 per-glyph result',{
-    chars,
-    confidences,
-    candidate
-  });
-
-  if(!/^[A-Z]{4}$/.test(letters))return {num:'',typ:null};
-  if(!/^\d{6}$/.test(serial))return {num:'',typ:null};
-  if(!/^\d$/.test(check))return {num:'',typ:null};
-
-  if(!isValidContainer(candidate))return {num:'',typ:null};
-
-  return {
-    num:candidate,
-    typ:null,
-    perGlyph:true,
-    confidences
-  };
-}
-
-
-async function isolateVerticalTextStrip(file){
-  const bmp=await createImageBitmap(file);
-
-  const maxW=900;
-  const scale=Math.min(1,maxW/bmp.width);
-  const w=Math.max(1,Math.round(bmp.width*scale));
-  const h=Math.max(1,Math.round(bmp.height*scale));
-
-  const c=document.createElement('canvas');
-  c.width=w;c.height=h;
-  const ctx=c.getContext('2d',{willReadFrequently:true});
-  ctx.drawImage(bmp,0,0,w,h);
-
-  const im=ctx.getImageData(0,0,w,h),d=im.data;
-
-  // Bright-neutral mask: designed for white container lettering.
-  const colScore=new Float32Array(w);
-
-  for(let y=0;y<h;y++){
-    for(let x=0;x<w;x++){
-      const i=(y*w+x)*4;
-      const r=d[i],g=d[i+1],b=d[i+2];
-      const minRGB=Math.min(r,g,b);
-      const maxRGB=Math.max(r,g,b);
-      const neutral=(maxRGB-minRGB)<95;
-      const bright=minRGB>135;
-
-      if(bright && neutral){
-        // Weight center/left-middle region a bit more;
-        // avoid extreme edges where door hardware often appears.
-        let weight=1;
-        if(x>w*.12 && x<w*.72)weight=1.25;
-        colScore[x]+=weight;
-      }
-    }
-  }
-
-  // Smooth x-density to find a narrow text band.
-  const smooth=new Float32Array(w);
-  const radius=Math.max(3,Math.round(w*.012));
-  let rolling=0;
-
-  for(let x=0;x<w;x++){
-    rolling+=colScore[x];
-    if(x-radius-1>=0)rolling-=colScore[x-radius-1];
-    smooth[x]=rolling;
-  }
-
-  let bestX=0,bestScore=-1;
-  for(let x=Math.round(w*.08);x<Math.round(w*.82);x++){
-    if(smooth[x]>bestScore){
-      bestScore=smooth[x];
-      bestX=x;
-    }
-  }
-
-  // Expand around the strongest column, but keep it narrow.
-  const stripHalf=Math.max(34,Math.round(w*.07));
-  let x0=Math.max(0,bestX-stripHalf);
-  let x1=Math.min(w-1,bestX+stripHalf);
-
-  // Refine by actual bright pixels inside the strip and ignore top/bottom hardware noise.
-  let minY=h,maxY=0,minX=w,maxX=0,count=0;
-
-  for(let y=Math.round(h*.05);y<Math.round(h*.97);y++){
-    for(let x=x0;x<=x1;x++){
-      const i=(y*w+x)*4;
-      const r=d[i],g=d[i+1],b=d[i+2];
-      const minRGB=Math.min(r,g,b);
-      const maxRGB=Math.max(r,g,b);
-      const neutral=(maxRGB-minRGB)<95;
-      const bright=minRGB>135;
-
-      if(bright && neutral){
-        if(x<minX)minX=x;
-        if(x>maxX)maxX=x;
-        if(y<minY)minY=y;
-        if(y>maxY)maxY=y;
-        count++;
-      }
-    }
-  }
-
-  // Fallback to the raw band if refinement found too little.
-  if(count<120 || minY>=maxY){
-    minX=x0;maxX=x1;
-    minY=Math.round(h*.07);
-    maxY=Math.round(h*.94);
-  }
-
-  // Add margins, keeping the crop tall and narrow like the user's example.
-  const mx=Math.max(10,Math.round((maxX-minX+1)*.22));
-  const my=Math.max(18,Math.round((maxY-minY+1)*.025));
-
-  minX=Math.max(0,minX-mx);
-  maxX=Math.min(w-1,maxX+mx);
-  minY=Math.max(0,minY-my);
-  maxY=Math.min(h-1,maxY+my);
-
-  const invScale=1/scale;
-  const sx=Math.round(minX*invScale);
-  const sy=Math.round(minY*invScale);
-  const sw=Math.max(1,Math.round((maxX-minX+1)*invScale));
-  const sh=Math.max(1,Math.round((maxY-minY+1)*invScale));
-
-  const out=document.createElement('canvas');
-  const outScale=Math.min(2.4,1400/Math.max(1,sw));
-  out.width=Math.max(1,Math.round(sw*outScale));
-  out.height=Math.max(1,Math.round(sh*outScale));
-
-  const ox=out.getContext('2d',{willReadFrequently:true});
-  ox.drawImage(bmp,sx,sy,sw,sh,0,0,out.width,out.height);
-
-  if(bmp.close)bmp.close();
-
-  console.info('v17 isolated strip',{
-    bestX,bestScore,count,
-    crop:{sx,sy,sw,sh},
-    canvas:{w:out.width,h:out.height}
-  });
-
-  return out;
-}
-
-async function enhanceIsolatedStrip(strip){
-  const out=document.createElement('canvas');
-  out.width=strip.width;
-  out.height=strip.height;
-
-  const ctx=out.getContext('2d',{willReadFrequently:true});
-  ctx.drawImage(strip,0,0);
-
-  const im=ctx.getImageData(0,0,out.width,out.height),d=im.data;
-
-  // Convert to high-contrast grayscale while preserving thin glyph strokes.
-  let minG=255,maxG=0;
-  const gs=new Uint8Array(out.width*out.height);
-
-  for(let i=0,p=0;i<d.length;i+=4,p++){
-    const g=Math.round(.299*d[i]+.587*d[i+1]+.114*d[i+2]);
-    gs[p]=g;
-    if(g<minG)minG=g;
-    if(g>maxG)maxG=g;
-  }
-
-  const range=Math.max(1,maxG-minG);
-
-  for(let i=0,p=0;i<d.length;i+=4,p++){
-    let g=Math.round((gs[p]-minG)*255/range);
-    // gentle contrast boost, not hard threshold
-    g=Math.max(0,Math.min(255,(g-110)*1.55+128));
-    d[i]=d[i+1]=d[i+2]=g;
-  }
-
-  ctx.putImageData(im,0,0);
-  return out;
-}
-
-async function recognizeIsolatedStrip(strip){
-  // Try both directions after rotating the tall strip into one OCR line.
-  for(const clockwise of [true,false]){
-    const rotated=await rotateCanvas90(strip,clockwise);
-
-    const {data}=await Tesseract.recognize(rotated,'eng',{
-      tessedit_char_whitelist:'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789',
-      tessedit_pageseg_mode:'7',
-      preserve_interword_spaces:'0',
-      logger:m=>{
-        if(m.status==='recognizing text'){
-          $('#ocrStatus').textContent=`קורא רצועת מספר... ${Math.round((m.progress||0)*100)}%`;
-        }
-      }
-    });
-
-    const raw=String(data.text||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
-    console.info('v17 strip OCR',clockwise,raw,data.text);
-
-    for(let i=0;i<=raw.length-11;i++){
-      const part=raw.slice(i,i+11);
-      const owner=normalizeOwner(part.slice(0,4));
-      const digits=normalizeDigits(part.slice(4));
-      const candidate=owner+digits;
-
-      if(/^[A-Z]{4}\d{7}$/.test(candidate) && isValidContainer(candidate)){
-        return {
-          num:candidate,
-          typ:null,
-          isolatedStrip:true
-        };
-      }
-    }
-  }
-
-  return {num:'',typ:null};
-}
-
-async function runIsolatedStripOcr(file){
-  $('#ocrStatus').textContent='מבודד את עמודת מספר המכולה...';
-
-  const strip=await isolateVerticalTextStrip(file);
-  const enhanced=await enhanceIsolatedStrip(strip);
-
-  // First: whole isolated strip as one line.
-  let result=await recognizeIsolatedStrip(enhanced);
-  if(result.num)return result;
-
-  // Second: use the existing relaxed geometry/per-glyph logic,
-  // but only if the whole strip did not resolve the number.
-  // Convert strip canvas to a Blob so the same OCR helpers can reuse it.
-  const blob=await new Promise(resolve=>enhanced.toBlob(resolve,'image/png',1));
-  if(blob){
-    result=await runPerGlyphVerticalOcr(blob);
-    if(result.num){
-      result.isolatedStrip=true;
-      return result;
-    }
-
-    result=await runRelaxed10PlusCheckOcr(blob);
-    if(result.num){
-      result.isolatedStrip=true;
-      return result;
     }
   }
 
@@ -3969,53 +3638,53 @@ async function runIsolatedStripOcr(file){
 }
 
 async function runOcr(file){
-  hideOcrDiag();
   const st=$('#ocrStatus');
 
   try{
     if(!window.Tesseract)throw new Error('OCR unavailable');
 
     const orientation=await getImageOrientation(file);
-    let result;
+    let result={num:'',typ:null};
 
     if(orientation.portrait){
-      // 1. Preserve the stable path that already reads MAGU correctly.
-      result=await runVerticalSegmentedOcr(file);
+      // 1. v13 glyph reader (multi-mask, tilt tolerant, two-pass consensus).
+      result=await runGlyphLineOcr(file,'v');
 
-      // 2. v17: automatically isolate the narrow vertical number strip first.
-      if(!result.num){
-        result=await runIsolatedStripOcr(file);
-      }
+      const firstReason=result.reason;
 
-      // 3. v16: recognize each physical glyph separately on the original image.
-      if(!result.num){
-        result=await runPerGlyphVerticalOcr(file);
-      }
+      // 2. Rotated whole-column fallback.
+      if(!result.num)result=await runVerticalRotatedFallback(file);
 
-      // 4. v14 geometry: grouped 4 letters + 6 digits + separate check digit.
-      if(!result.num){
-        result=await runRelaxed10PlusCheckOcr(file);
-      }
+      // 3. Adaptive black/white fallback.
+      if(!result.num)result=await runBlackWhiteVerticalFallback(file);
 
-      // 5. Existing rotated fallback.
-      if(!result.num){
-        result=await runVerticalRotatedFallback(file);
-      }
+      // 4. A portrait photo can still carry a horizontal marking.
+      if(!result.num)result=await runHorizontalFastOcr(file);
 
-      // 6. Adaptive diagnostic fallback remains last.
-      if(!result.num){
-        result=await runBlackWhiteVerticalFallback(file);
-      }
+      if(!result.num&&firstReason)result.reason=firstReason;
     }else{
+      // Horizontal path first — it is unchanged and already performs well.
       result=await runHorizontalFastOcr(file);
+
+      // Then the glyph reader, which also copes with vertical markings
+      // photographed in landscape.
+      if(!result.num)result=await runGlyphLineOcr(file,'h');
+    }
+
+    // 5. Optional cloud fallback, only when nothing was read on device.
+    let usedCloud=false;
+    if(!result.num&&cloudOcrEnabled()){
+      const cloud=await runCloudOcrFallback(file);
+      if(cloud.num){result={num:cloud.num,typ:cloud.typ||result.typ};usedCloud=true}
     }
 
     if(result.num){
       $('#qContainerNo').value=result.num;
       if(result.typ)$('#qContainerType').value=String(result.typ.feet);
 
+      const how=usedCloud?'זיהוי בענן':(orientation.portrait?'קריאה אנכית':'קריאה אופקית');
       $('#scanResult').innerHTML=
-        `<span class="scan-chip">מכולה: <b>${result.num}</b> ✓ ${result.isolatedStrip?'רצועת מספר מבודדת':(result.perGlyph?'זיהוי תווים נפרד':(orientation.portrait?'קריאה אנכית':'קריאה אופקית'))} + ISO 6346</span>`;
+        `<span class="scan-chip">מכולה: <b>${result.num}</b> ✓ ${how} + ISO 6346</span>`;
 
       st.textContent=`✓ זוהה ${result.num}`;
       return result;
@@ -4023,13 +3692,16 @@ async function runOcr(file){
 
     $('#qContainerNo').value='';
     $('#qContainerType').value='';
+    const why=result.reason
+      ? ' ('+String(result.reason).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))+')'
+      : '';
     $('#scanResult').innerHTML=
-      '<span class="scan-chip scan-warning"><b>לא נמצאה קריאה ודאית</b> — לא נשמר מספר; הצילום בלבד נשמר</span>';
+      `<span class="scan-chip scan-warning"><b>לא נמצאה קריאה ודאית</b>${why} — לא נשמר מספר; הצילום בלבד נשמר</span>`;
     st.textContent='⚠ לא זוהה מספר בוודאות — נשמר צילום בלבד';
     return {num:'',typ:null};
 
   }catch(err){
-    console.error('Container OCR v10 failed',err);
+    console.error('Container OCR v13 failed',err);
     $('#qContainerNo').value='';
     $('#qContainerType').value='';
     $('#scanResult').innerHTML=
@@ -4539,6 +4211,38 @@ initCloud();
 
 <script id="movement-table-size-js-v9-buildfix">
 (()=>{
+
+/* ---- OCR settings modal ---- */
+(function initOcrSettings(){
+  const bg=$('#ocrSettingsBg');
+  if(!bg)return;
+  const open=()=>{
+    const c=cloudOcrConfig();
+    $('#ocrProvider').value=c.provider;
+    $('#ocrApiKey').value=c.key;
+    $('#ocrSettingsStatus').textContent='';
+    bg.classList.add('show');
+  };
+  const close=()=>bg.classList.remove('show');
+  $('#ocrSettingsBtn').onclick=open;
+  $('#closeOcrSettings').onclick=close;
+  bg.onclick=e=>{if(e.target===bg)close()};
+  $('#saveOcrSettings').onclick=()=>{
+    const p=$('#ocrProvider').value.trim();
+    const k=$('#ocrApiKey').value.trim();
+    if(p&&!k){$('#ocrSettingsStatus').textContent='חסר מפתח API';return}
+    if(p){
+      localStorage.setItem(CLOUD_OCR_KEYS.provider,p);
+      localStorage.setItem(CLOUD_OCR_KEYS.key,k);
+    }else{
+      localStorage.removeItem(CLOUD_OCR_KEYS.provider);
+      localStorage.removeItem(CLOUD_OCR_KEYS.key);
+    }
+    $('#ocrSettingsStatus').textContent='נשמר ✓';
+    setTimeout(close,700);
+  };
+})();
+
   const levels={6:1,7:1.06,8:1.125,9:1.20,10:1.30,11:1.40,12:1.52};
   let level=Number(localStorage.getItem('movementTableSize')||8);
   if(!levels[level]) level=8;
