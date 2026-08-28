@@ -1,6 +1,7 @@
 <!doctype html>
 <html lang="he" dir="rtl">
 <head>
+<!-- Container OCR v5: dedicated vertical column scanning -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>מעקב מכולות</title>
@@ -2695,7 +2696,7 @@ async function ocrVariant(file,opts={},digitsOnly=false){
 
 async function runOcr(file){
   const st=$('#ocrStatus');
-  st.textContent='מזהה אותיות וספרות בנפרד...';
+  st.textContent='מזהה מספר מכולה — אופקי ואנכי...';
 
   try{
     if(!window.Tesseract)throw new Error('OCR unavailable');
@@ -2706,7 +2707,15 @@ async function runOcr(file){
     const rawTexts=[];
     let typ=null;
 
-    // General alphanumeric passes for owner code + exact full number.
+    const consume=(t,kind,weight=1)=>{
+      rawTexts.push({kind,text:t});
+      collectOwnerEvidence(t,ownerVotes);
+      collectSevenDigitEvidence(t,digitVotes,weight);
+      collectFullEvidence(t,fullVotes);
+      if(!typ)typ=findIsoType(t);
+    };
+
+    // 1) Horizontal path — keep the working behavior.
     const alphaVariants=[
       {x:.06,y:.04,w:.84,h:.35,mode:'red',threshold:90,scale:4,psm:'6'},
       {x:.10,y:.06,w:.76,h:.30,mode:'red',threshold:105,scale:4,psm:'6'},
@@ -2714,18 +2723,11 @@ async function runOcr(file){
       {x:0,y:0,w:1,h:.48,mode:'gray',threshold:null,scale:3,psm:'11'},
       {x:.03,y:.03,w:.94,h:.45,mode:'red',threshold:135,scale:3.5,psm:'11'}
     ];
-
     for(const v of alphaVariants){
       const t=await ocrVariant(file,v,false);
-      rawTexts.push({kind:'alpha',text:t});
-      collectOwnerEvidence(t,ownerVotes);
-      collectSevenDigitEvidence(t,digitVotes,1);
-      collectFullEvidence(t,fullVotes);
-      if(!typ)typ=findIsoType(t);
+      consume(t,'horizontal-alpha',1);
     }
 
-    // Digit-only passes: letters/logos cannot turn into 7/5/etc.
-    // Narrow upper strips reduce interference from 45G1, height plates and logos.
     const digitVariants=[
       {x:.18,y:.055,w:.58,h:.22,mode:'red',threshold:80,scale:5,psm:'7'},
       {x:.18,y:.055,w:.58,h:.22,mode:'red',threshold:95,scale:5,psm:'7'},
@@ -2734,32 +2736,62 @@ async function runOcr(file){
       {x:.12,y:.03,w:.72,h:.30,mode:'gray',threshold:null,scale:4,psm:'7'},
       {x:.08,y:.02,w:.80,h:.34,mode:'red',threshold:140,scale:4,psm:'11'}
     ];
-
     for(const v of digitVariants){
       const t=await ocrVariant(file,v,true);
-      rawTexts.push({kind:'digits',text:t});
+      rawTexts.push({kind:'horizontal-digits',text:t});
       collectSevenDigitEvidence(t,digitVotes,2);
     }
 
-    // Rotated fallbacks for vertical container numbers.
+    // 2) NEW: dedicated vertical-column path.
+    // Container IDs on doors are often printed as one tall column.
+    // We crop several likely columns and rotate each crop both ways before OCR.
+    const verticalColumns=[
+      // center-left — common location of the owner+serial column
+      {x:.22,y:.08,w:.28,h:.86},
+      {x:.27,y:.06,w:.24,h:.88},
+      {x:.31,y:.05,w:.22,h:.90},
+      // center — for photos framed differently
+      {x:.36,y:.06,w:.24,h:.88},
+      {x:.40,y:.05,w:.22,h:.90},
+      // wider safety crops
+      {x:.16,y:.04,w:.38,h:.92},
+      {x:.25,y:.04,w:.40,h:.92}
+    ];
+
+    const verticalThresholds=[90,110,130];
+    for(const c of verticalColumns){
+      for(const rot of [90,-90]){
+        for(const th of verticalThresholds){
+          const v={...c,rotate:rot,mode:'red',threshold:th,scale:4,psm:'7'};
+          const t=await ocrVariant(file,v,false);
+          consume(t,'vertical-alpha',2);
+
+          // Digits-only companion pass strengthens the 7-digit sequence.
+          const td=await ocrVariant(file,v,true);
+          rawTexts.push({kind:'vertical-digits',text:td});
+          collectSevenDigitEvidence(td,digitVotes,3);
+        }
+      }
+    }
+
+    // 3) Whole-image rotated fallback.
     const rotated=[
-      {x:0,y:0,w:1,h:1,mode:'red',threshold:100,scale:2.2,rotate:90,psm:'6'},
-      {x:0,y:0,w:1,h:1,mode:'red',threshold:100,scale:2.2,rotate:-90,psm:'6'}
+      {x:0,y:0,w:1,h:1,mode:'red',threshold:95,scale:2.4,rotate:90,psm:'11'},
+      {x:0,y:0,w:1,h:1,mode:'red',threshold:115,scale:2.4,rotate:90,psm:'11'},
+      {x:0,y:0,w:1,h:1,mode:'red',threshold:95,scale:2.4,rotate:-90,psm:'11'},
+      {x:0,y:0,w:1,h:1,mode:'red',threshold:115,scale:2.4,rotate:-90,psm:'11'}
     ];
     for(const v of rotated){
       const t=await ocrVariant(file,v,false);
-      rawTexts.push({kind:'rotated',text:t});
-      collectOwnerEvidence(t,ownerVotes);
-      collectSevenDigitEvidence(t,digitVotes,1);
-      collectFullEvidence(t,fullVotes);
+      consume(t,'vertical-whole',1);
     }
 
     const decision=chooseContainer(ownerVotes,digitVotes,fullVotes);
 
-    // Require real consensus. A single lucky checksum match is not enough.
-    const confident=decision.num && decision.score>=12 && decision.margin>=3;
+    // Vertical photos create more OCR variants, so demand a stronger consensus.
+    const confident=decision.num && decision.score>=14 && decision.margin>=3;
 
-    console.info('Container OCR v4', {
+    console.info('Container OCR v5', {
       rawTexts,
       ownerVotes:[...ownerVotes.entries()],
       digitVotes:[...digitVotes.entries()],
@@ -2770,8 +2802,10 @@ async function runOcr(file){
     if(confident){
       $('#qContainerNo').value=decision.num;
       if(typ)$('#qContainerType').value=String(typ.feet);
+
       $('#scanResult').innerHTML=
-        `<span class="scan-chip">מכולה: <b>${decision.num}</b> ✓ נקראה בכמה סריקות ואומתה ISO 6346</span>`;
+        `<span class="scan-chip">מכולה: <b>${decision.num}</b> ✓ זוהתה ואומתה ISO 6346</span>`;
+
       st.textContent=`✓ זוהה ${decision.num}`;
       return {num:decision.num,typ};
     }
@@ -2784,7 +2818,7 @@ async function runOcr(file){
     return {num:'',typ:null};
 
   }catch(err){
-    console.error('Container OCR v4 failed',err);
+    console.error('Container OCR v5 failed',err);
     $('#qContainerNo').value='';
     $('#qContainerType').value='';
     $('#scanResult').innerHTML=
