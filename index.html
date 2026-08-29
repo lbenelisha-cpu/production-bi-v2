@@ -1905,6 +1905,82 @@ body{--movement-scale:1.125}
   }
 }
 </style>
+
+<style id="desktop-entry-alignment-v2">
+/* Desktop quick-entry alignment: one straight row of fields + two equal action buttons */
+@media (min-width:901px){
+  .entry-card #quickEntryForm.entry-grid{
+    display:grid!important;
+    grid-template-columns:repeat(6,minmax(0,1fr))!important;
+    gap:12px!important;
+    align-items:start!important;
+  }
+  .entry-card #quickEntryForm.entry-grid > label{
+    width:100%!important;
+    min-width:0!important;
+    margin:0!important;
+    align-self:start!important;
+  }
+  .entry-card #quickEntryForm.entry-grid > label > input,
+  .entry-card #quickEntryForm.entry-grid > label > select,
+  .entry-card #quickEntryForm .voice-input-wrap{
+    width:100%!important;
+  }
+  .entry-card #quickEntryForm.entry-grid input,
+  .entry-card #quickEntryForm.entry-grid select{
+    height:58px!important;
+    min-height:58px!important;
+    box-sizing:border-box!important;
+  }
+  .entry-card #quickEntryForm .voice-input-wrap #qContainerNo{
+    height:58px!important;
+    min-height:58px!important;
+  }
+  .entry-card #quickEntryForm .voice-hint{
+    min-height:34px!important;
+    margin-top:6px!important;
+    line-height:1.35!important;
+  }
+  .entry-card #quickEntryForm .scan-guide{
+    grid-column:1 / -1!important;
+    margin-top:2px!important;
+  }
+  .entry-card #quickEntryForm .entry-actions.camera-actions{
+    grid-column:1 / -1!important;
+    display:grid!important;
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+    gap:12px!important;
+    width:100%!important;
+    align-items:stretch!important;
+  }
+  .entry-card #quickEntryForm .entry-actions.camera-actions #locateBtn{
+    display:none!important;
+  }
+  .entry-card #quickEntryForm .entry-actions.camera-actions .camera-btn,
+  .entry-card #quickEntryForm .entry-actions.camera-actions .entry-save{
+    width:100%!important;
+    min-width:0!important;
+    height:58px!important;
+    min-height:58px!important;
+    margin:0!important;
+    padding:0 18px!important;
+    display:flex!important;
+    align-items:center!important;
+    justify-content:center!important;
+    white-space:nowrap!important;
+    overflow:visible!important;
+    overflow-wrap:normal!important;
+    word-break:keep-all!important;
+    line-height:1!important;
+    font-size:18px!important;
+    text-align:center!important;
+  }
+  .entry-card #quickEntryForm .camera-preview{
+    grid-column:1 / -1!important;
+  }
+}
+</style>
+
 </head>
 <body>
 
