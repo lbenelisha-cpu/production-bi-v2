@@ -1153,6 +1153,27 @@ body.bulk-delete-mode #tbody tr:has(.bulk-row-check:checked){background:rgba(232
 
 /* Delete reason is optional and stored in deleted-container archive. */
 
+
+/* ===== v1.9 BULK PERMANENT DELETE FROM ARCHIVE ===== */
+.archive-delete-toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:12px 0}
+.archive-delete-btn,.archive-confirm-btn,.archive-cancel-btn{
+  border:1px solid rgba(255,255,255,.24);border-radius:12px;padding:9px 12px;font-weight:800;
+  background:rgba(255,255,255,.12);color:inherit;backdrop-filter:blur(12px)
+}
+.archive-delete-btn.active{background:rgba(255,74,97,.18);border-color:rgba(255,108,126,.38);color:#ffd7dd}
+.archive-delete-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.archive-delete-actions[hidden]{display:none!important}
+.archive-selected-count{font-weight:800;min-width:88px;text-align:center}
+.archive-confirm-btn{background:linear-gradient(135deg,#b91f3d,#e64261);color:#fff;border:0}
+.archive-confirm-btn:disabled{opacity:.45;cursor:not-allowed}
+.archive-cancel-btn{background:rgba(255,255,255,.08)}
+.archive-select-col{display:none!important;width:44px;text-align:center!important}
+#deletedModalBg.archive-delete-mode .archive-select-col{display:table-cell!important}
+.archive-row-check,.archive-select-all{width:19px;height:19px;accent-color:#e83e68;cursor:pointer}
+#deletedModalBg.archive-delete-mode #deletedTbody tr:has(.archive-row-check:checked){background:rgba(232,62,104,.09)}
+.permanent-warning{border:1px solid rgba(255,100,125,.35);background:rgba(145,15,45,.18);border-radius:14px;padding:12px;line-height:1.6;color:#ffdce3;font-weight:700}
+@media(max-width:900px){.archive-delete-toolbar,.archive-delete-actions{width:100%}.archive-delete-btn,.archive-confirm-btn,.archive-cancel-btn{min-height:42px}}
+
 /* ===== v1.7 FILTER / SORT / STICKY TABLE ===== */
 .table-tools{
   display:grid;
@@ -2124,10 +2145,19 @@ window.APP_CONFIG = {
       </div>
       <button type="button" class="close" id="closeDeletedModal">✕</button>
     </div>
+    <div class="archive-delete-toolbar">
+      <button type="button" class="archive-delete-btn" id="archiveDeleteModeBtn">☑ מחיקה מרובה מהארכיון</button>
+      <div class="archive-delete-actions" id="archiveDeleteActions" hidden>
+        <span class="archive-selected-count" id="archiveSelectedCount">0 נבחרו</span>
+        <button type="button" class="archive-confirm-btn" id="archivePermanentDeleteBtn" disabled>🗑 מחיקה לצמיתות</button>
+        <button type="button" class="archive-cancel-btn" id="archiveDeleteCancelBtn">ביטול</button>
+      </div>
+    </div>
     <div class="deleted-table-wrap">
       <table class="deleted-table">
         <thead>
           <tr>
+            <th class="archive-select-col"><input type="checkbox" id="archiveSelectAll" class="archive-select-all" title="בחר/בטל את כל הרשומות בארכיון" aria-label="בחר את כל הרשומות בארכיון"></th>
             <th>תאריך מחיקה</th>
             <th>שם המוחק</th>
             <th>סיבת מחיקה</th>
@@ -2141,6 +2171,31 @@ window.APP_CONFIG = {
         </thead>
         <tbody id="deletedTbody"></tbody>
       </table>
+    </div>
+  </div>
+</div>
+
+<div class="modalbg" id="permanentDeleteModalBg">
+  <div class="modal glass delete-modal">
+    <div class="modaltitle">
+      <div>
+        <h2>מחיקה לצמיתות מהארכיון</h2>
+        <div class="sub">הפעולה מוחקת את הרשומות מהארכיון ולא ניתן לשחזר אותן מתוך האפליקציה</div>
+      </div>
+      <button type="button" class="close" id="closePermanentDeleteModal">✕</button>
+    </div>
+    <div class="permanent-warning" id="permanentDeleteSummary"></div>
+    <div class="delete-confirm-grid">
+      <label>שם המוחק
+        <input id="permanentDeletedByInput" autocomplete="name" placeholder="הזן שם מלא" />
+      </label>
+      <label>קוד ייחודי
+        <input id="permanentDeleteCodeInput" type="password" inputmode="numeric" autocomplete="off" placeholder="הזן קוד למחיקה לצמיתות" />
+      </label>
+    </div>
+    <div class="delete-actions">
+      <button type="button" class="btn secondary" id="cancelPermanentDeleteBtn">ביטול</button>
+      <button type="button" class="btn btn-danger" id="confirmPermanentDeleteBtn">אישור מחיקה לצמיתות</button>
     </div>
   </div>
 </div>
@@ -2289,6 +2344,19 @@ async function cloudLoadDeletedMovements(){
   if(!res.ok) throw new Error(await res.text());
   return await res.json();
 }
+async function cloudDeleteArchivedMovement(id){
+  if(!cloudEnabled){
+    const local=JSON.parse(localStorage.getItem('deleted_container_movements')||'[]');
+    const next=local.filter(r=>String(r.id)!==String(id));
+    localStorage.setItem('deleted_container_movements',JSON.stringify(next));
+    return;
+  }
+  const res=await fetch(`${CLOUD.url}/rest/v1/deleted_container_movements?id=eq.${encodeURIComponent(id)}`,{
+    method:'DELETE',
+    headers:cloudHeaders()
+  });
+  if(!res.ok) throw new Error(await res.text());
+}
 function setCloudStatus(ok, text){
   const el=$('#cloudStatus');
   if(!el) return;
@@ -2310,6 +2378,9 @@ let pendingDeleteRow=null;
 let pendingDeleteRows=[];
 let bulkDeleteMode=false;
 const bulkSelectedIds=new Set();
+let archivedRows=[];
+let archiveDeleteMode=false;
+const archiveSelectedIds=new Set();
 function saveLocal(){localStorage.setItem('container_movements_static',JSON.stringify(rows))}
 function getRange(){
  const d=new Date(anchor), s=new Date(d), e=new Date(d);
@@ -4419,37 +4490,139 @@ $('#confirmArchiveDeleteBtn').onclick=async()=>{
   }
 };
 
-async function openDeletedArchive(){
-  $('#deletedModalBg').classList.add('show');
-  $('#deletedTbody').innerHTML='<tr><td colspan="9" class="empty">טוען רשומות מחוקות...</td></tr>';
-  try{
-    const deleted=await cloudLoadDeletedMovements();
-    const EMPTY_TYPE_MARKER='__IML_EMPTY_CONTAINER_TYPE__';
-    $('#deletedTbody').innerHTML=deleted.length ? deleted.map(r=>{
-      const archivedReason=String(r.deletion_reason||'');
-      const wasEmptyType=archivedReason.startsWith(EMPTY_TYPE_MARKER);
-      const visibleReason=wasEmptyType ? archivedReason.slice(EMPTY_TYPE_MARKER.length) : archivedReason;
-      return `
-      <tr>
-        <td class="deleted-date">${escapeHtml(fmt(new Date(r.deleted_at)))}</td>
-        <td class="deleted-by">${escapeHtml(r.deleted_by||'')}</td>
-        <td>${escapeHtml(visibleReason||'—')}</td>
-        <td>${escapeHtml(fmt(new Date(r.movement_at)))}</td>
-        <td class="mono">${escapeHtml(r.container_no||'')}</td>
-        <td>${escapeHtml(r.agent||'')}</td>
-        <td>${wasEmptyType ? '' : (Number(r.container_type)>0 ? escapeHtml(r.container_type)+' פיט' : '')}</td>
-        <td>${escapeHtml(r.current_location||'')}</td>
-        <td>${escapeHtml(r.target_location||'')}</td>
-      </tr>`;
-    }).join('') :
-      '<tr><td colspan="9" class="empty">אין מכולות מחוקות</td></tr>';
-  }catch(err){
-    $('#deletedTbody').innerHTML=`<tr><td colspan="9" class="empty">שגיאה בטעינת ארכיון: ${escapeHtml(err.message)}</td></tr>`;
+function syncArchiveDeleteUi(){
+  const modeBtn=$('#archiveDeleteModeBtn'), actions=$('#archiveDeleteActions'), count=$('#archiveSelectedCount'), confirm=$('#archivePermanentDeleteBtn'), selectAll=$('#archiveSelectAll');
+  if(modeBtn)modeBtn.classList.toggle('active',archiveDeleteMode);
+  if(modeBtn)modeBtn.textContent=archiveDeleteMode?'☑ מצב מחיקה מהארכיון':'☑ מחיקה מרובה מהארכיון';
+  if(actions)actions.hidden=!archiveDeleteMode;
+  if(count)count.textContent=`${archiveSelectedIds.size} נבחרו`;
+  if(confirm)confirm.disabled=archiveSelectedIds.size===0;
+  if(selectAll){
+    const ids=archivedRows.map(r=>String(r.id));
+    const selected=ids.filter(id=>archiveSelectedIds.has(id)).length;
+    selectAll.checked=ids.length>0 && selected===ids.length;
+    selectAll.indeterminate=selected>0 && selected<ids.length;
   }
 }
+function renderDeletedArchive(){
+  const EMPTY_TYPE_MARKER='__IML_EMPTY_CONTAINER_TYPE__';
+  $('#deletedTbody').innerHTML=archivedRows.length ? archivedRows.map(r=>{
+    const archivedReason=String(r.deletion_reason||'');
+    const wasEmptyType=archivedReason.startsWith(EMPTY_TYPE_MARKER);
+    const visibleReason=wasEmptyType ? archivedReason.slice(EMPTY_TYPE_MARKER.length) : archivedReason;
+    const checked=archiveSelectedIds.has(String(r.id));
+    return `
+    <tr>
+      <td class="archive-select-col"><input type="checkbox" class="archive-row-check" data-id="${escapeHtml(r.id)}" ${checked?'checked':''} aria-label="בחר רשומה למחיקה לצמיתות"></td>
+      <td class="deleted-date">${escapeHtml(fmt(new Date(r.deleted_at)))}</td>
+      <td class="deleted-by">${escapeHtml(r.deleted_by||'')}</td>
+      <td>${escapeHtml(visibleReason||'—')}</td>
+      <td>${escapeHtml(fmt(new Date(r.movement_at)))}</td>
+      <td class="mono">${escapeHtml(r.container_no||'')}</td>
+      <td>${escapeHtml(r.agent||'')}</td>
+      <td>${wasEmptyType ? '' : (Number(r.container_type)>0 ? escapeHtml(r.container_type)+' פיט' : '')}</td>
+      <td>${escapeHtml(r.current_location||'')}</td>
+      <td>${escapeHtml(r.target_location||'')}</td>
+    </tr>`;
+  }).join('') :
+    '<tr><td colspan="10" class="empty">אין מכולות מחוקות</td></tr>';
+  $$('#deletedTbody .archive-row-check').forEach(ch=>{
+    ch.onchange=()=>{
+      const id=String(ch.dataset.id);
+      if(ch.checked)archiveSelectedIds.add(id);else archiveSelectedIds.delete(id);
+      syncArchiveDeleteUi();
+    };
+  });
+  syncArchiveDeleteUi();
+}
+async function openDeletedArchive(){
+  archiveDeleteMode=false;
+  archiveSelectedIds.clear();
+  $('#deletedModalBg').classList.remove('archive-delete-mode');
+  $('#deletedModalBg').classList.add('show');
+  $('#deletedTbody').innerHTML='<tr><td colspan="10" class="empty">טוען רשומות מחוקות...</td></tr>';
+  syncArchiveDeleteUi();
+  try{
+    archivedRows=await cloudLoadDeletedMovements();
+    renderDeletedArchive();
+  }catch(err){
+    archivedRows=[];
+    $('#deletedTbody').innerHTML=`<tr><td colspan="10" class="empty">שגיאה בטעינת ארכיון: ${escapeHtml(err.message)}</td></tr>`;
+  }
+}
+function exitArchiveDeleteMode(){
+  archiveDeleteMode=false;
+  archiveSelectedIds.clear();
+  $('#deletedModalBg').classList.remove('archive-delete-mode');
+  renderDeletedArchive();
+}
 $('#deletedContainersBtn').onclick=openDeletedArchive;
-$('#closeDeletedModal').onclick=()=>$('#deletedModalBg').classList.remove('show');
-$('#deletedModalBg').onclick=e=>{if(e.target===$('#deletedModalBg'))$('#deletedModalBg').classList.remove('show')};
+$('#closeDeletedModal').onclick=()=>{$('#deletedModalBg').classList.remove('show');exitArchiveDeleteMode()};
+$('#deletedModalBg').onclick=e=>{if(e.target===$('#deletedModalBg')){$('#deletedModalBg').classList.remove('show');exitArchiveDeleteMode()}};
+$('#archiveDeleteModeBtn').onclick=()=>{
+  archiveDeleteMode=!archiveDeleteMode;
+  archiveSelectedIds.clear();
+  $('#deletedModalBg').classList.toggle('archive-delete-mode',archiveDeleteMode);
+  renderDeletedArchive();
+};
+$('#archiveDeleteCancelBtn').onclick=exitArchiveDeleteMode;
+$('#archiveSelectAll').onchange=e=>{
+  archivedRows.forEach(r=>{const id=String(r.id);if(e.target.checked)archiveSelectedIds.add(id);else archiveSelectedIds.delete(id)});
+  renderDeletedArchive();
+};
+$('#archivePermanentDeleteBtn').onclick=()=>{
+  const selected=archivedRows.filter(r=>archiveSelectedIds.has(String(r.id)));
+  if(!selected.length)return;
+  const preview=selected.slice(0,5).map(r=>escapeHtml(r.container_no||'ללא מספר מכולה')).join(' · ');
+  const more=selected.length>5?`<br><small>ועוד ${selected.length-5} רשומות</small>`:'';
+  $('#permanentDeleteSummary').innerHTML=`${selected.length} רשומות יימחקו <strong>לצמיתות</strong> מהארכיון.<br>${preview}${more}`;
+  $('#permanentDeletedByInput').value='';
+  $('#permanentDeleteCodeInput').value='';
+  $('#permanentDeleteModalBg').classList.add('show');
+  setTimeout(()=>$('#permanentDeletedByInput').focus(),50);
+};
+function closePermanentDeleteDialog(){
+  $('#permanentDeleteModalBg').classList.remove('show');
+  $('#permanentDeletedByInput').value='';
+  $('#permanentDeleteCodeInput').value='';
+}
+$('#closePermanentDeleteModal').onclick=closePermanentDeleteDialog;
+$('#cancelPermanentDeleteBtn').onclick=closePermanentDeleteDialog;
+$('#permanentDeleteModalBg').onclick=e=>{if(e.target===$('#permanentDeleteModalBg'))closePermanentDeleteDialog()};
+$('#confirmPermanentDeleteBtn').onclick=async()=>{
+  const targets=archivedRows.filter(r=>archiveSelectedIds.has(String(r.id)));
+  if(!targets.length){closePermanentDeleteDialog();return;}
+  const deletedBy=$('#permanentDeletedByInput').value.trim();
+  const code=$('#permanentDeleteCodeInput').value.trim();
+  if(!deletedBy){alert('יש להזין את שם המוחק.');$('#permanentDeletedByInput').focus();return;}
+  if(code!=='201718'){alert('הקוד הייחודי שהוזן אינו נכון. המחיקה לא בוצעה.');$('#permanentDeleteCodeInput').focus();$('#permanentDeleteCodeInput').select();return;}
+  const btn=$('#confirmPermanentDeleteBtn');
+  const original=btn.textContent;
+  btn.disabled=true;
+  btn.textContent=targets.length>1?`מוחק ${targets.length} רשומות...`:'מוחק לצמיתות...';
+  let completed=0;
+  try{
+    for(const row of targets){
+      await cloudDeleteArchivedMovement(row.id);
+      archivedRows=archivedRows.filter(r=>String(r.id)!==String(row.id));
+      archiveSelectedIds.delete(String(row.id));
+      completed++;
+    }
+    closePermanentDeleteDialog();
+    archiveDeleteMode=false;
+    archiveSelectedIds.clear();
+    $('#deletedModalBg').classList.remove('archive-delete-mode');
+    renderDeletedArchive();
+  }catch(err){
+    closePermanentDeleteDialog();
+    renderDeletedArchive();
+    const prefix=completed?`${completed} מתוך ${targets.length} רשומות נמחקו. `:'';
+    alert(prefix+'המחיקה לצמיתות נכשלה: '+err.message);
+  }finally{
+    btn.disabled=false;
+    btn.textContent=original;
+  }
+};
 
 
 function applyTableFiltersFromControls(){
