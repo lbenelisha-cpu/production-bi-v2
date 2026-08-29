@@ -2221,7 +2221,7 @@ async function cloudArchiveMovement(row, deletedBy, deletionReason){
     // Empty movement fields are allowed in the archive. Only deleted_by is mandatory.
     container_no:(row.container_no||'').trim(),
     agent:(row.agent||'').trim(),
-    container_type:row.container_type ? Number(row.container_type) : null,
+    container_type:row.container_type ? Number(row.container_type) : 0,
     current_location:(row.current_location||'').trim(),
     target_location:(row.target_location||'').trim(),
     movement_at:row.movement_at,
@@ -4320,7 +4320,7 @@ async function openDeletedArchive(){
         <td>${escapeHtml(fmt(new Date(r.movement_at)))}</td>
         <td class="mono">${escapeHtml(r.container_no||'')}</td>
         <td>${escapeHtml(r.agent||'')}</td>
-        <td>${escapeHtml(r.container_type)} פיט</td>
+        <td>${Number(r.container_type)>0 ? escapeHtml(r.container_type)+' פיט' : ''}</td>
         <td>${escapeHtml(r.current_location||'')}</td>
         <td>${escapeHtml(r.target_location||'')}</td>
       </tr>`).join('') :
