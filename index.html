@@ -1772,6 +1772,16 @@ body.bulk-delete-mode #tbody tr:has(.bulk-row-check:checked){background:rgba(232
 .desktop-only{display:inline-flex}
 @media(max-width:900px){.desktop-only{display:none!important}}
 .history-code-note{font-size:12px;opacity:.8;margin-top:4px}
+
+/* Shipping agents are displayed on a second header row beside the live-tracking subtitle */
+.brand-copy{min-width:0}
+.brand-sub-row{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.shipping-logos-inline{display:flex!important;align-items:center;gap:10px;flex-wrap:wrap;margin:0!important;white-space:normal}
+.shipping-logos-inline span{white-space:nowrap}
+@media(max-width:900px){
+  .brand-sub-row{gap:7px}
+  .shipping-logos-inline{gap:6px;font-size:10px}
+}
 </style>
 <link rel="apple-touch-icon" sizes="180x180" href="./public/apple-touch-icon-v194.png?v=194">
 <meta name="theme-color" content="#08284b">
@@ -2014,11 +2024,7 @@ body{--movement-scale:1.125}
 <header class="glass">
   <div class="brand">
     <div class="company-logo-wrap"><img class="company-logo" src="./public/overseas-commerce-logo.png" alt="Overseas Commerce"></div>
-    <div><h1>מעקב מכולות אוברסיז</h1><div class="sub">מעקב תנועות מכולות בזמן אמת</div></div>
-  </div>
-  <div class="shipping-logos" aria-label="חברות ספנות">
-    <span>MAERSK</span><span>MSC</span><span>CMA CGM</span><span>Hapag-Lloyd</span><span>EVERGREEN</span><span>ONE</span><span>ZIM</span><span>COSCO</span>
-  </div>
+    <div class="brand-copy"><h1>מעקב מכולות אוברסיז</h1><div class="brand-sub-row"><div class="sub">מעקב תנועות מכולות בזמן אמת</div><div class="shipping-logos shipping-logos-inline" aria-label="חברות ספנות"><span>MAERSK</span><span>MSC</span><span>CMA CGM</span><span>Hapag-Lloyd</span><span>EVERGREEN</span><span>ONE</span><span>ZIM</span><span>COSCO</span></div></div></div></div>
   <div class="top-info">
     <span class="notice" id="cloudStatus">בודק חיבור לענן...</span>
     <span class="date-chip" id="todayChip">📅 --/--/----</span>
@@ -2092,7 +2098,7 @@ body{--movement-scale:1.125}
       <button class="btn camera-btn" type="button" id="cameraBtn">📷 הוספה מצילום</button>
       <button class="btn locate-btn" type="button" id="locateBtn">⌖ איתור</button>
       <button class="btn primary entry-save" id="quickSaveBtn" type="submit">שמור תנועה</button>
-      <input id="cameraInput" type="file" accept="image/*" capture="environment" hidden>
+      <input id="cameraInput" type="file" accept="image/*"  hidden>
     </div>
     <div class="camera-preview" id="cameraPreview" hidden>
       <img id="cameraPreviewImg" alt="צילום מכולה">
