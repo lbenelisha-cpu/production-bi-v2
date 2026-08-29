@@ -2216,17 +2216,24 @@ async function cloudDeleteMovement(id){
   if(!res.ok) throw new Error(await res.text());
 }
 async function cloudArchiveMovement(row, deletedBy, deletionReason){
+  // The existing Supabase archive schema requires container_type to be NOT NULL
+  // and accepts only 20/40. For a source row with an empty type we archive a
+  // schema-safe sentinel (20) and mark it internally so the UI still shows it
+  // as empty. The marker is never shown to users.
+  const EMPTY_TYPE_MARKER='__IML_EMPTY_CONTAINER_TYPE__';
+  const rawType=String(row.container_type??'').trim();
+  const hasRealType=(rawType==='20' || rawType==='40');
+  const cleanReason=(deletionReason||'').trim();
   const payload={
     original_id:row.id,
-    // Empty movement fields are allowed in the archive. Only deleted_by is mandatory.
-    container_no:(row.container_no||'').trim(),
-    agent:(row.agent||'').trim(),
-    container_type:(row.container_type===20 || row.container_type===40 || String(row.container_type)==='20' || String(row.container_type)==='40') ? Number(row.container_type) : null,
-    current_location:(row.current_location||'').trim(),
-    target_location:(row.target_location||'').trim(),
-    movement_at:row.movement_at,
-    deleted_by:deletedBy,
-    deletion_reason:(deletionReason||'').trim(),
+    container_no:String(row.container_no??'').trim(),
+    agent:String(row.agent??'').trim(),
+    container_type:hasRealType ? Number(rawType) : 20,
+    current_location:String(row.current_location??'').trim(),
+    target_location:String(row.target_location??'').trim(),
+    movement_at:row.movement_at || new Date().toISOString(),
+    deleted_by:String(deletedBy||'').trim(),
+    deletion_reason:hasRealType ? cleanReason : `${EMPTY_TYPE_MARKER}${cleanReason}`,
     deleted_at:new Date().toISOString()
   };
   if(!cloudEnabled){
@@ -4312,18 +4319,24 @@ async function openDeletedArchive(){
   $('#deletedTbody').innerHTML='<tr><td colspan="9" class="empty">טוען רשומות מחוקות...</td></tr>';
   try{
     const deleted=await cloudLoadDeletedMovements();
-    $('#deletedTbody').innerHTML=deleted.length ? deleted.map(r=>`
+    const EMPTY_TYPE_MARKER='__IML_EMPTY_CONTAINER_TYPE__';
+    $('#deletedTbody').innerHTML=deleted.length ? deleted.map(r=>{
+      const archivedReason=String(r.deletion_reason||'');
+      const wasEmptyType=archivedReason.startsWith(EMPTY_TYPE_MARKER);
+      const visibleReason=wasEmptyType ? archivedReason.slice(EMPTY_TYPE_MARKER.length) : archivedReason;
+      return `
       <tr>
         <td class="deleted-date">${escapeHtml(fmt(new Date(r.deleted_at)))}</td>
         <td class="deleted-by">${escapeHtml(r.deleted_by||'')}</td>
-        <td>${escapeHtml(r.deletion_reason||'—')}</td>
+        <td>${escapeHtml(visibleReason||'—')}</td>
         <td>${escapeHtml(fmt(new Date(r.movement_at)))}</td>
         <td class="mono">${escapeHtml(r.container_no||'')}</td>
         <td>${escapeHtml(r.agent||'')}</td>
-        <td>${Number(r.container_type)>0 ? escapeHtml(r.container_type)+' פיט' : ''}</td>
+        <td>${wasEmptyType ? '' : (Number(r.container_type)>0 ? escapeHtml(r.container_type)+' פיט' : '')}</td>
         <td>${escapeHtml(r.current_location||'')}</td>
         <td>${escapeHtml(r.target_location||'')}</td>
-      </tr>`).join('') :
+      </tr>`;
+    }).join('') :
       '<tr><td colspan="9" class="empty">אין מכולות מחוקות</td></tr>';
   }catch(err){
     $('#deletedTbody').innerHTML=`<tr><td colspan="9" class="empty">שגיאה בטעינת ארכיון: ${escapeHtml(err.message)}</td></tr>`;
