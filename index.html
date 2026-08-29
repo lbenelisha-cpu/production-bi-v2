@@ -2136,7 +2136,7 @@ body{--movement-scale:1.125}
   <form id="quickEntryForm" class="entry-grid">
     <label>מספר מכולה
       <span class="voice-input-wrap">
-        <input id="qContainerNo" autocomplete="off" autocapitalize="characters" spellcheck="false" inputmode="text" placeholder="לדוגמה MSCU1234567 (אופציונלי אם מצורף צילום)">
+        <input id="qContainerNo" autocomplete="off" autocapitalize="characters" spellcheck="false" inputmode="text" maxlength="11" placeholder="לדוגמה MSCU1234567 (אופציונלי אם מצורף צילום)">
         <button class="voice-lang-btn" type="button" id="voiceLangBtn" aria-label="שפת זיהוי קולי" title="החלף שפת זיהוי">EN</button>
         <button class="voice-mic-btn" type="button" id="voiceMicBtn" aria-label="הקלדה קולית של מספר מכולה" title="הקלדה קולית">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15.25a3.55 3.55 0 0 0 3.55-3.55V6.05a3.55 3.55 0 1 0-7.1 0v5.65A3.55 3.55 0 0 0 12 15.25Z"/><path d="M5.95 10.95v.75a6.05 6.05 0 0 0 12.1 0v-.75M12 17.75v3.1M9.25 20.85h5.5"/></svg>
@@ -2256,7 +2256,7 @@ body{--movement-scale:1.125}
 <form class="modal glass" id="moveForm">
   <div class="modaltitle"><div><h2>הוספת תנועה חדשה</h2><div class="sub">התאריך והשעה נלקחים אוטומטית מהמחשב</div></div><button type="button" class="close" id="closeModal">✕</button></div>
   <div class="formgrid">
-    <label>מספר מכולה<input id="containerNo" required placeholder="לדוגמה MSCU1234567"></label>
+    <label>מספר מכולה<input id="containerNo" required maxlength="11" placeholder="לדוגמה MSCU1234567"></label>
     <label>סוכן<input id="agent" placeholder="שם הסוכן (אופציונלי)"></label>
     <label>סוג מכולה<select id="containerType"><option value="20">20 פיט</option><option value="40">40 פיט</option></select></label>
     <label>איתור נוכחי<input id="currentLocation" list="locationsList" placeholder="הקלד או בחר איתור (אופציונלי)"></label>
@@ -2830,8 +2830,14 @@ $('#historyForm').onsubmit=async e=>{
 $('#closeModal').onclick=()=>$('#modalbg').classList.remove('show');$('#modalbg').onclick=e=>{if(e.target===$('#modalbg'))$('#modalbg').classList.remove('show')};
 $('#moveForm').onsubmit=async e=>{
   e.preventDefault();
+  const containerNo=$('#containerNo').value.trim().toUpperCase();
+  if(!/^[A-Z]{4}[0-9]{7}$/.test(containerNo)){
+    alert('שים לב מס המכולה לא תקין');
+    $('#containerNo').focus();
+    return;
+  }
   const payload={
-    container_no:$('#containerNo').value.trim().toUpperCase(),
+    container_no:containerNo,
     agent:$('#agent').value.trim()||null,
     container_type:Number($('#containerType').value),
     current_location:$('#currentLocation').value.trim()||null,
@@ -4596,7 +4602,11 @@ $('#quickEntryForm').onsubmit=async e=>{
     return;
   }
   const candidateOk=!c || /^[A-Z]{4}[0-9]{7}$/.test(c);
-  if(c && !candidateOk && !confirm('מספר המכולה אינו במבנה הרגיל של 4 אותיות ו-7 ספרות. לשמור בכל זאת?'))return;
+  if(c && !candidateOk){
+    alert('שים לב מס המכולה לא תקין');
+    $('#qContainerNo').focus();
+    return;
+  }
   const existing=editingId?rows.find(r=>String(r.id)===String(editingId)):null;
   try{
     const uploadedPhoto=pendingPhotoFile?await cloudUploadPhoto(pendingPhotoFile):(existing?.photo_url||null);

@@ -162,9 +162,14 @@ function App() {
       alert('יש למלא את כל השדות')
       return
     }
+    const containerNo = form.container_no.trim().toUpperCase()
+    if (!/^[A-Z]{4}[0-9]{7}$/.test(containerNo)) {
+      alert('שים לב מס המכולה לא תקין')
+      return
+    }
     const payload = {
       ...form,
-      container_no: form.container_no.trim().toUpperCase(),
+      container_no: containerNo,
       agent: form.agent.trim(),
       container_type: Number(form.container_type),
       current_location: form.current_location.trim(),
@@ -317,7 +322,7 @@ function App() {
         <form className="movement-modal glass" onSubmit={saveMovement}>
           <div className="modal-title"><div><h2>הוספת תנועה חדשה</h2><p>התאריך והשעה נלקחים אוטומטית מהמחשב</p></div><button type="button" className="icon-btn" onClick={()=>setShowForm(false)}><X/></button></div>
           <div className="form-grid">
-            <label>מספר מכולה<input autoFocus value={form.container_no} onChange={e=>setForm({...form,container_no:e.target.value})} placeholder="לדוגמה MSCU1234567"/></label>
+            <label>מספר מכולה<input autoFocus value={form.container_no} onChange={e=>setForm({...form,container_no:e.target.value})} maxLength={11} placeholder="לדוגמה MSCU1234567"/></label>
             <label>סוכן<input value={form.agent} onChange={e=>setForm({...form,agent:e.target.value})} placeholder="שם הסוכן"/></label>
             <label>סוג מכולה<select value={form.container_type} onChange={e=>setForm({...form,container_type:e.target.value})}><option value="20">20 פיט</option><option value="40">40 פיט</option></select></label>
             <label>איתור נוכחי<input list="locations" value={form.current_location} onChange={e=>setForm({...form,current_location:e.target.value})} placeholder="הקלד או בחר איתור"/></label>
