@@ -2219,14 +2219,14 @@ async function cloudArchiveMovement(row, deletedBy, deletionReason){
   const payload={
     original_id:row.id,
     // Empty movement fields are allowed in the archive. Only deleted_by is mandatory.
-    container_no:(row.container_no||'').trim() || null,
-    agent:(row.agent||'').trim() || null,
+    container_no:(row.container_no||'').trim(),
+    agent:(row.agent||'').trim(),
     container_type:row.container_type ? Number(row.container_type) : null,
-    current_location:(row.current_location||'').trim() || null,
-    target_location:(row.target_location||'').trim() || null,
+    current_location:(row.current_location||'').trim(),
+    target_location:(row.target_location||'').trim(),
     movement_at:row.movement_at,
     deleted_by:deletedBy,
-    deletion_reason:(deletionReason||'').trim() || null,
+    deletion_reason:(deletionReason||'').trim(),
     deleted_at:new Date().toISOString()
   };
   if(!cloudEnabled){
