@@ -1786,6 +1786,32 @@ body.bulk-delete-mode #tbody tr:has(.bulk-row-check:checked){background:rgba(232
 .brand-sub-row{display:flex!important;flex-direction:column!important;align-items:flex-start!important;gap:4px!important;flex-wrap:nowrap!important}
 .shipping-logos-inline{display:flex!important;flex-wrap:nowrap!important;align-items:center!important;gap:10px!important;margin:0!important;white-space:nowrap!important;width:max-content!important}
 .shipping-logos-inline span{white-space:nowrap!important}
+
+/* Duplicate container on same calendar date: keep first normal, mark 2nd+ in red */
+#tbody tr.duplicate-container-row > td{
+  background:rgba(220,38,38,.28)!important;
+  border-top-color:rgba(248,113,113,.72)!important;
+  border-bottom-color:rgba(248,113,113,.72)!important;
+}
+#tbody tr.duplicate-container-row:hover > td{
+  background:rgba(220,38,38,.36)!important;
+}
+#tbody tr.duplicate-container-row td.mono{
+  color:#ffd6d6!important;
+  font-weight:800;
+}
+.duplicate-badge{
+  display:inline-block;
+  margin-inline-start:6px;
+  padding:2px 7px;
+  border-radius:999px;
+  background:#dc2626;
+  color:#fff;
+  font-size:11px;
+  font-weight:800;
+  white-space:nowrap;
+}
+
 </style>
 <link rel="apple-touch-icon" sizes="180x180" href="./public/apple-touch-icon-v194.png?v=194">
 <meta name="theme-color" content="#08284b">
@@ -2601,10 +2627,29 @@ function updateLocations(){
  fillSelect('#filterTarget',targets,'כל איתורי היעד',tableFilters.target);
 }
 function escapeHtml(s){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
+
+function duplicateSameDateIds(){
+  const groups=new Map();
+  rows.forEach(r=>{
+    const no=String(r.container_no||'').trim().toUpperCase().replace(/\s+/g,'');
+    const d=new Date(r.movement_at);
+    if(!no || Number.isNaN(d.getTime())) return;
+    const key=no+'|'+dateOnly(d);
+    if(!groups.has(key)) groups.set(key,[]);
+    groups.get(key).push(r);
+  });
+  const dupIds=new Set();
+  groups.forEach(list=>{
+    if(list.length<2) return;
+    list.sort((a,b)=>new Date(a.movement_at)-new Date(b.movement_at));
+    list.slice(1).forEach(r=>dupIds.add(String(r.id)));
+  });
+  return dupIds;
+}
 function render(){
  const fr=filtered(), c=new Set(fr.map(r=>r.container_no)).size, l=new Set(fr.flatMap(r=>[r.current_location,r.target_location])).size, cd=chartData(fr);
  $('#kpiMoves').textContent=fr.length;$('#kpiContainers').textContent=c;$('#kpiLocations').textContent=l;$('#kpiAverage').textContent=cd.length?Math.round(fr.length/cd.length):0;$('#rowsLabel').textContent=`${fr.length} רשומות מוצגות`;
- $('#tbody').innerHTML=fr.length?fr.map(r=>{const miss=!r.agent||!r.current_location||!r.target_location;const selected=bulkSelectedIds.has(String(r.id));return `<tr><td class="bulk-select-col"><input type="checkbox" class="bulk-row-check" data-id="${escapeHtml(r.id)}" ${selected?'checked':''} aria-label="בחר רשומה למחיקה"></td><td>${fmt(new Date(r.movement_at))}</td><td class="mono">${r.container_no?escapeHtml(r.container_no):''} ${!r.container_no&&r.photo_url?'<span class="unrecognized">📷 צילום בלבד — דורש עריכה</span>':''} ${miss?'<span class="missing">⚠ חסרים פרטים</span>':''} ${r.photo_url?`<a class="photo-link" href="${escapeHtml(r.photo_url)}" target="_blank" title="פתח צילום">📷</a>`:''}</td><td>${escapeHtml(r.agent||'—')}</td><td>${r.container_type?`<span class="pill">${r.container_type} פיט</span>`:'—'}</td><td>⌖ ${escapeHtml(r.current_location||'—')}</td><td>⌖ ${escapeHtml(r.target_location||'—')}</td><td class="movement-note">${escapeHtml(r.note||'')}</td><td class="row-actions"><button class="edit" data-id="${r.id}" title="עריכה">✏️</button><button class="delete ios-trash" data-id="${r.id}" title="מחיקה" aria-label="מחיקה"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 7V5.8C8 4.8 8.8 4 9.8 4h4.4c1 0 1.8.8 1.8 1.8V7M5 7h14M9 10v7M12 10v7M15 10v7M7 7l.7 12.1c.1.6.6.9 1.2.9h6.2c.6 0 1.1-.3 1.2-.9L17 7"/></svg></button></td></tr>`}).join(''):`<tr><td class="empty" colspan="9">אין תנועות בטווח שנבחר</td></tr>`;
+ $('#tbody').innerHTML=fr.length?fr.map(r=>{const miss=!r.agent||!r.current_location||!r.target_location;const selected=bulkSelectedIds.has(String(r.id));const isDuplicate=duplicateIds.has(String(r.id));return `<tr class="${isDuplicate?'duplicate-container-row':''}"><td class="bulk-select-col"><input type="checkbox" class="bulk-row-check" data-id="${escapeHtml(r.id)}" ${selected?'checked':''} aria-label="בחר רשומה למחיקה"></td><td>${fmt(new Date(r.movement_at))}</td><td class="mono">${r.container_no?escapeHtml(r.container_no):''}${isDuplicate?'<span class="duplicate-badge">כפול באותו תאריך</span>':''} ${!r.container_no&&r.photo_url?'<span class="unrecognized">📷 צילום בלבד — דורש עריכה</span>':''} ${miss?'<span class="missing">⚠ חסרים פרטים</span>':''} ${r.photo_url?`<a class="photo-link" href="${escapeHtml(r.photo_url)}" target="_blank" title="פתח צילום">📷</a>`:''}</td><td>${escapeHtml(r.agent||'—')}</td><td>${r.container_type?`<span class="pill">${r.container_type} פיט</span>`:'—'}</td><td>⌖ ${escapeHtml(r.current_location||'—')}</td><td>⌖ ${escapeHtml(r.target_location||'—')}</td><td class="movement-note">${escapeHtml(r.note||'')}</td><td class="row-actions"><button class="edit" data-id="${r.id}" title="עריכה">✏️</button><button class="delete ios-trash" data-id="${r.id}" title="מחיקה" aria-label="מחיקה"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 7V5.8C8 4.8 8.8 4 9.8 4h4.4c1 0 1.8.8 1.8 1.8V7M5 7h14M9 10v7M12 10v7M15 10v7M7 7l.7 12.1c.1.6.6.9 1.2.9h6.2c.6 0 1.1-.3 1.2-.9L17 7"/></svg></button></td></tr>`}).join(''):`<tr><td class="empty" colspan="9">אין תנועות בטווח שנבחר</td></tr>`;
  document.body.classList.toggle('bulk-delete-mode',bulkDeleteMode);
  syncBulkDeleteUi(fr);
  $$('.bulk-row-check').forEach(cb=>cb.onchange=()=>{
