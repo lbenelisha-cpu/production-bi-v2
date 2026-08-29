@@ -1768,6 +1768,10 @@ body.bulk-delete-mode #tbody tr:has(.bulk-row-check:checked){background:rgba(232
   .entry-actions.camera-actions .btn{font-size:17px!important;min-height:54px!important}
 }
 @media(prefers-reduced-motion:reduce){.voice-mic-btn.listening{animation:none}}
+
+.desktop-only{display:inline-flex}
+@media(max-width:900px){.desktop-only{display:none!important}}
+.history-code-note{font-size:12px;opacity:.8;margin-top:4px}
 </style>
 <link rel="apple-touch-icon" sizes="180x180" href="./public/apple-touch-icon-v194.png?v=194">
 <meta name="theme-color" content="#08284b">
@@ -1940,6 +1944,7 @@ body{--movement-scale:1.125}
   <div class="actions">
     <button class="btn secondary" id="exportBtn">⬇ יצוא לאקסל</button>
     <button class="btn primary" id="newBtn">＋ תנועה חדשה</button>
+    <button class="btn secondary desktop-only" id="historyBtn">◷ תנועה היסטורית</button>
   </div>
 </header>
 
@@ -2101,6 +2106,24 @@ body{--movement-scale:1.125}
   </div>
   <datalist id="locationsList"></datalist>
   <button class="btn primary wide" type="submit">שמור תנועה</button>
+</form>
+</div>
+
+
+<div class="modalbg" id="historyModalBg">
+<form class="modal glass" id="historyForm">
+  <div class="modaltitle"><div><h2>הוספת תנועה היסטורית</h2><div class="sub">בחירת תאריך ושעה היסטוריים מחייבת קוד ייחודי</div></div><button type="button" class="close" id="closeHistoryModal">✕</button></div>
+  <div class="formgrid">
+    <label>מספר מכולה<input id="historyContainerNo" required placeholder="לדוגמה MSCU1234567"></label>
+    <label>סוכן<input id="historyAgent" placeholder="שם הסוכן (אופציונלי)"></label>
+    <label>סוג מכולה<select id="historyContainerType"><option value="20">20 פיט</option><option value="40">40 פיט</option></select></label>
+    <label>איתור נוכחי<input id="historyCurrentLocation" list="locationsList" placeholder="הקלד או בחר איתור (אופציונלי)"></label>
+    <label>איתור יעד<input id="historyTargetLocation" list="locationsList" placeholder="הקלד או בחר איתור (אופציונלי)"></label>
+    <label>תאריך ושעה היסטוריים<input id="historyDateTime" type="datetime-local" required></label>
+    <label>קוד ייחודי<input id="historyCode" type="password" inputmode="numeric" autocomplete="off" required placeholder="הזן קוד"></label>
+  </div>
+  <div class="history-code-note">התנועה תישמר עם התאריך והשעה שנבחרו ולא עם זמן המחשב.</div>
+  <button class="btn primary wide" type="submit">שמור תנועה היסטורית</button>
 </form>
 </div>
 
@@ -2347,15 +2370,25 @@ async function cloudLoadDeletedMovements(){
 async function cloudDeleteArchivedMovement(id){
   if(!cloudEnabled){
     const local=JSON.parse(localStorage.getItem('deleted_container_movements')||'[]');
+    const before=local.length;
     const next=local.filter(r=>String(r.id)!==String(id));
     localStorage.setItem('deleted_container_movements',JSON.stringify(next));
-    return;
+    if(next.length===before) throw new Error('הרשומה לא נמצאה בארכיון המקומי.');
+    return true;
   }
-  const res=await fetch(`${CLOUD.url}/rest/v1/deleted_container_movements?id=eq.${encodeURIComponent(id)}`,{
+  // IMPORTANT: Supabase/PostgREST can return 200/204 even when RLS caused
+  // the DELETE to affect zero rows. Ask for the deleted row back and verify
+  // that one row was actually removed before changing the UI.
+  const res=await fetch(`${CLOUD.url}/rest/v1/deleted_container_movements?id=eq.${encodeURIComponent(id)}&select=id`,{
     method:'DELETE',
-    headers:cloudHeaders()
+    headers:cloudHeaders({'Prefer':'return=representation'})
   });
   if(!res.ok) throw new Error(await res.text());
+  const data=await res.json().catch(()=>[]);
+  if(!Array.isArray(data) || data.length===0){
+    throw new Error('Supabase לא אישר מחיקה של הרשומה. יש לבדוק הרשאת DELETE (RLS) לטבלת deleted_container_movements.');
+  }
+  return true;
 }
 function setCloudStatus(ok, text){
   const el=$('#cloudStatus');
@@ -2571,6 +2604,51 @@ $('#locateBtn').onclick=()=>{
   if(tableCard) tableCard.scrollIntoView({behavior:'smooth',block:'start'});
 };
 $('#newBtn').onclick=()=>{$('#nowDisplay').value=fmt(new Date());$('#modalbg').classList.add('show');$('#containerNo').focus()};
+$('#historyBtn').onclick=()=>{
+  const now=new Date();
+  const local=new Date(now.getTime()-now.getTimezoneOffset()*60000).toISOString().slice(0,16);
+  $('#historyDateTime').value=local;
+  $('#historyCode').value='';
+  $('#historyModalBg').classList.add('show');
+  $('#historyContainerNo').focus();
+};
+$('#closeHistoryModal').onclick=()=>$('#historyModalBg').classList.remove('show');
+$('#historyModalBg').onclick=e=>{if(e.target===$('#historyModalBg'))$('#historyModalBg').classList.remove('show')};
+$('#historyForm').onsubmit=async e=>{
+  e.preventDefault();
+  const code=$('#historyCode').value.trim();
+  if(code!=='201718'){
+    alert('הקוד הייחודי שהוזן אינו נכון. התנועה ההיסטורית לא נשמרה.');
+    $('#historyCode').focus();
+    $('#historyCode').select();
+    return;
+  }
+  const dt=$('#historyDateTime').value;
+  if(!dt){alert('יש לבחור תאריך ושעה היסטוריים.');return;}
+  const chosen=new Date(dt);
+  if(Number.isNaN(chosen.getTime())){alert('התאריך או השעה אינם תקינים.');return;}
+  if(chosen.getTime()>Date.now()+60000 && !confirm('נבחר תאריך עתידי. לשמור בכל זאת?'))return;
+  const c=$('#historyContainerNo').value.trim().toUpperCase();
+  if(c && !/^[A-Z]{4}[0-9]{7}$/.test(c) && !confirm('מספר המכולה אינו במבנה הרגיל של 4 אותיות ו-7 ספרות. לשמור בכל זאת?'))return;
+  const payload={
+    container_no:c,
+    agent:$('#historyAgent').value.trim()||null,
+    container_type:Number($('#historyContainerType').value),
+    current_location:$('#historyCurrentLocation').value.trim()||null,
+    target_location:$('#historyTargetLocation').value.trim()||null,
+    movement_at:chosen.toISOString()
+  };
+  try{
+    const saved=await cloudInsertMovement(payload);
+    rows.unshift(saved||{id:crypto.randomUUID(),...payload});
+    saveLocal();
+    locateCriteria=null;
+    e.target.reset();
+    $('#historyContainerType').value='20';
+    $('#historyModalBg').classList.remove('show');
+    render();
+  }catch(err){alert('שמירת התנועה ההיסטורית בענן נכשלה: '+err.message)}
+};
 $('#closeModal').onclick=()=>$('#modalbg').classList.remove('show');$('#modalbg').onclick=e=>{if(e.target===$('#modalbg'))$('#modalbg').classList.remove('show')};
 $('#moveForm').onsubmit=async e=>{
   e.preventDefault();
@@ -4608,6 +4686,9 @@ $('#confirmPermanentDeleteBtn').onclick=async()=>{
       archiveSelectedIds.delete(String(row.id));
       completed++;
     }
+    // Reload from the cloud after deletion so the screen always reflects
+    // the persistent database state (and never only a local visual change).
+    archivedRows=await cloudLoadDeletedMovements();
     closePermanentDeleteDialog();
     archiveDeleteMode=false;
     archiveSelectedIds.clear();
