@@ -1127,6 +1127,30 @@ td{background:rgba(4,25,53,.13)!important}
 
 
 /* ===== v1.8 OPTIONAL DELETE REASON ===== */
+
+/* ===== v1.6 BULK ARCHIVE DELETE ===== */
+.bulk-delete-btn,.bulk-confirm-btn,.bulk-cancel-btn{
+  border:1px solid rgba(255,255,255,.24);border-radius:12px;padding:9px 12px;font-weight:800;
+  background:rgba(255,255,255,.12);color:inherit;backdrop-filter:blur(12px);
+}
+.bulk-delete-btn.active{background:rgba(255,74,97,.18);border-color:rgba(255,108,126,.38);color:#ffd7dd}
+.bulk-delete-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.bulk-delete-actions[hidden]{display:none!important}
+.bulk-selected-count{font-weight:800;min-width:88px;text-align:center}
+.bulk-confirm-btn{background:linear-gradient(135deg,#d9364f,#ef5570);color:#fff;border:0}
+.bulk-confirm-btn:disabled{opacity:.45;cursor:not-allowed}
+.bulk-cancel-btn{background:rgba(255,255,255,.08)}
+.bulk-select-col{display:none!important;width:44px;text-align:center!important}
+body.bulk-delete-mode .bulk-select-col{display:table-cell!important}
+body.bulk-delete-mode .row-actions .edit,
+body.bulk-delete-mode .row-actions .delete{display:none!important}
+.bulk-row-check,.bulk-select-all{width:19px;height:19px;accent-color:#e83e68;cursor:pointer}
+body.bulk-delete-mode #tbody tr:has(.bulk-row-check:checked){background:rgba(232,62,104,.09)}
+@media(max-width:900px){
+  .bulk-delete-actions{width:100%}
+  .bulk-delete-btn,.bulk-confirm-btn,.bulk-cancel-btn{min-height:42px}
+}
+
 /* Delete reason is optional and stored in deleted-container archive. */
 
 /* ===== v1.7 FILTER / SORT / STICKY TABLE ===== */
@@ -2013,10 +2037,16 @@ body{--movement-scale:1.125}
     </select>
     <button type="button" class="sort-dir-btn" id="sortDirBtn" data-dir="desc" title="שינוי כיוון מיון">↓ יורד</button>
     <button type="button" class="clear-filters-btn" id="clearTableFilters">נקה סינון</button>
+    <button type="button" class="bulk-delete-btn" id="bulkDeleteModeBtn">☑ מחיקה מרובה</button>
+    <div class="bulk-delete-actions" id="bulkDeleteActions" hidden>
+      <span class="bulk-selected-count" id="bulkSelectedCount">0 נבחרו</span>
+      <button type="button" class="bulk-confirm-btn" id="bulkArchiveDeleteBtn" disabled>🗑 מחיקה לארכיון</button>
+      <button type="button" class="bulk-cancel-btn" id="bulkDeleteCancelBtn">ביטול</button>
+    </div>
   </div>
   <div class="tablewrap">
   <table>
-    <thead><tr><th>תאריך ושעה</th><th>מספר מכולה</th><th>סוכן</th><th>סוג</th><th>איתור נוכחי</th><th>איתור יעד</th><th>הערה</th><th></th></tr></thead>
+    <thead><tr><th class="bulk-select-col"><input type="checkbox" id="bulkSelectAll" class="bulk-select-all" title="בחר/בטל את כל הרשומות המוצגות" aria-label="בחר את כל הרשומות המוצגות"></th><th>תאריך ושעה</th><th>מספר מכולה</th><th>סוכן</th><th>סוג</th><th>איתור נוכחי</th><th>איתור יעד</th><th>הערה</th><th></th></tr></thead>
     <tbody id="tbody"></tbody>
   </table>
   </div>
@@ -2277,6 +2307,9 @@ function seed(){
 }
 let rows=JSON.parse(localStorage.getItem('container_movements_static')||'null') || (cloudEnabled ? [] : seed());
 let pendingDeleteRow=null;
+let pendingDeleteRows=[];
+let bulkDeleteMode=false;
+const bulkSelectedIds=new Set();
 function saveLocal(){localStorage.setItem('container_movements_static',JSON.stringify(rows))}
 function getRange(){
  const d=new Date(anchor), s=new Date(d), e=new Date(d);
@@ -2374,7 +2407,14 @@ function escapeHtml(s){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':
 function render(){
  const fr=filtered(), c=new Set(fr.map(r=>r.container_no)).size, l=new Set(fr.flatMap(r=>[r.current_location,r.target_location])).size, cd=chartData(fr);
  $('#kpiMoves').textContent=fr.length;$('#kpiContainers').textContent=c;$('#kpiLocations').textContent=l;$('#kpiAverage').textContent=cd.length?Math.round(fr.length/cd.length):0;$('#rowsLabel').textContent=`${fr.length} רשומות מוצגות`;
- $('#tbody').innerHTML=fr.length?fr.map(r=>{const miss=!r.agent||!r.current_location||!r.target_location;return `<tr><td>${fmt(new Date(r.movement_at))}</td><td class="mono">${r.container_no?escapeHtml(r.container_no):''} ${!r.container_no&&r.photo_url?'<span class="unrecognized">📷 צילום בלבד — דורש עריכה</span>':''} ${miss?'<span class="missing">⚠ חסרים פרטים</span>':''} ${r.photo_url?`<a class="photo-link" href="${escapeHtml(r.photo_url)}" target="_blank" title="פתח צילום">📷</a>`:''}</td><td>${escapeHtml(r.agent||'—')}</td><td>${r.container_type?`<span class="pill">${r.container_type} פיט</span>`:'—'}</td><td>⌖ ${escapeHtml(r.current_location||'—')}</td><td>⌖ ${escapeHtml(r.target_location||'—')}</td><td class="movement-note">${escapeHtml(r.note||'')}</td><td class="row-actions"><button class="edit" data-id="${r.id}" title="עריכה">✏️</button><button class="delete ios-trash" data-id="${r.id}" title="מחיקה" aria-label="מחיקה"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 7V5.8C8 4.8 8.8 4 9.8 4h4.4c1 0 1.8.8 1.8 1.8V7M5 7h14M9 10v7M12 10v7M15 10v7M7 7l.7 12.1c.1.6.6.9 1.2.9h6.2c.6 0 1.1-.3 1.2-.9L17 7"/></svg></button></td></tr>`}).join(''):`<tr><td class="empty" colspan="8">אין תנועות בטווח שנבחר</td></tr>`;
+ $('#tbody').innerHTML=fr.length?fr.map(r=>{const miss=!r.agent||!r.current_location||!r.target_location;const selected=bulkSelectedIds.has(String(r.id));return `<tr><td class="bulk-select-col"><input type="checkbox" class="bulk-row-check" data-id="${escapeHtml(r.id)}" ${selected?'checked':''} aria-label="בחר רשומה למחיקה"></td><td>${fmt(new Date(r.movement_at))}</td><td class="mono">${r.container_no?escapeHtml(r.container_no):''} ${!r.container_no&&r.photo_url?'<span class="unrecognized">📷 צילום בלבד — דורש עריכה</span>':''} ${miss?'<span class="missing">⚠ חסרים פרטים</span>':''} ${r.photo_url?`<a class="photo-link" href="${escapeHtml(r.photo_url)}" target="_blank" title="פתח צילום">📷</a>`:''}</td><td>${escapeHtml(r.agent||'—')}</td><td>${r.container_type?`<span class="pill">${r.container_type} פיט</span>`:'—'}</td><td>⌖ ${escapeHtml(r.current_location||'—')}</td><td>⌖ ${escapeHtml(r.target_location||'—')}</td><td class="movement-note">${escapeHtml(r.note||'')}</td><td class="row-actions"><button class="edit" data-id="${r.id}" title="עריכה">✏️</button><button class="delete ios-trash" data-id="${r.id}" title="מחיקה" aria-label="מחיקה"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 7V5.8C8 4.8 8.8 4 9.8 4h4.4c1 0 1.8.8 1.8 1.8V7M5 7h14M9 10v7M12 10v7M15 10v7M7 7l.7 12.1c.1.6.6.9 1.2.9h6.2c.6 0 1.1-.3 1.2-.9L17 7"/></svg></button></td></tr>`}).join(''):`<tr><td class="empty" colspan="9">אין תנועות בטווח שנבחר</td></tr>`;
+ document.body.classList.toggle('bulk-delete-mode',bulkDeleteMode);
+ syncBulkDeleteUi(fr);
+ $$('.bulk-row-check').forEach(cb=>cb.onchange=()=>{
+   const id=String(cb.dataset.id);
+   if(cb.checked)bulkSelectedIds.add(id);else bulkSelectedIds.delete(id);
+   syncBulkDeleteUi(filtered());
+ });
  $$('.edit').forEach(b=>b.onclick=()=>{
    const r=rows.find(x=>String(x.id)===String(b.dataset.id)); if(!r)return;
    editingId=r.id; $('#qContainerNo').value=r.container_no||''; $('#qAgent').value=r.agent||''; $('#qContainerType').value=r.container_type?String(r.container_type):''; $('#qCurrentLocation').value=r.current_location||''; $('#qTargetLocation').value=r.target_location||''; $('#qNote').value=r.note||'';
@@ -2384,8 +2424,10 @@ function render(){
    document.querySelector('.entry-card').scrollIntoView({behavior:'smooth',block:'start'});
  });
  $$('.delete').forEach(b=>b.onclick=()=>{
+   pendingDeleteRows=[];
    pendingDeleteRow=rows.find(r=>String(r.id)===String(b.dataset.id))||null;
    if(!pendingDeleteRow)return;
+   $('#deleteModalBg h2').textContent='מחיקת תנועה';
    $('#deleteSummary').innerHTML=
      `<strong>מספר מכולה:</strong> ${escapeHtml(pendingDeleteRow.container_no)}<br>`+
      `<strong>סוכן:</strong> ${escapeHtml(pendingDeleteRow.agent)}<br>`+
@@ -4278,16 +4320,65 @@ $('#exportBtn').onclick=exportExcel;
 
 
 
+function syncBulkDeleteUi(fr=filtered()){
+  const modeBtn=$('#bulkDeleteModeBtn'), actions=$('#bulkDeleteActions'), count=$('#bulkSelectedCount'), confirm=$('#bulkArchiveDeleteBtn'), selectAll=$('#bulkSelectAll');
+  if(modeBtn)modeBtn.classList.toggle('active',bulkDeleteMode);
+  if(modeBtn)modeBtn.textContent=bulkDeleteMode?'☑ מצב מחיקה מרובה':'☑ מחיקה מרובה';
+  if(actions)actions.hidden=!bulkDeleteMode;
+  if(count)count.textContent=`${bulkSelectedIds.size} נבחרו`;
+  if(confirm)confirm.disabled=bulkSelectedIds.size===0;
+  if(selectAll){
+    const ids=fr.map(r=>String(r.id));
+    const selectedVisible=ids.filter(id=>bulkSelectedIds.has(id)).length;
+    selectAll.checked=ids.length>0 && selectedVisible===ids.length;
+    selectAll.indeterminate=selectedVisible>0 && selectedVisible<ids.length;
+  }
+}
+function exitBulkDeleteMode(){
+  bulkDeleteMode=false;
+  bulkSelectedIds.clear();
+  document.body.classList.remove('bulk-delete-mode');
+  syncBulkDeleteUi(filtered());
+  render();
+}
+$('#bulkDeleteModeBtn').onclick=()=>{
+  bulkDeleteMode=!bulkDeleteMode;
+  bulkSelectedIds.clear();
+  document.body.classList.toggle('bulk-delete-mode',bulkDeleteMode);
+  render();
+};
+$('#bulkDeleteCancelBtn').onclick=exitBulkDeleteMode;
+$('#bulkSelectAll').onchange=e=>{
+  const visible=filtered();
+  visible.forEach(r=>{const id=String(r.id);if(e.target.checked)bulkSelectedIds.add(id);else bulkSelectedIds.delete(id)});
+  render();
+};
+$('#bulkArchiveDeleteBtn').onclick=()=>{
+  pendingDeleteRows=rows.filter(r=>bulkSelectedIds.has(String(r.id)));
+  pendingDeleteRow=null;
+  if(!pendingDeleteRows.length)return;
+  $('#deleteModalBg h2').textContent=`מחיקת ${pendingDeleteRows.length} תנועות`;
+  const preview=pendingDeleteRows.slice(0,5).map(r=>escapeHtml(r.container_no||'ללא מספר מכולה')).join(' · ');
+  const more=pendingDeleteRows.length>5?`<br><small>ועוד ${pendingDeleteRows.length-5} רשומות</small>`:'';
+  $('#deleteSummary').innerHTML=`<strong>${pendingDeleteRows.length} רשומות יסומנו למחיקה ויועברו לארכיון.</strong><br>${preview}${more}`;
+  $('#deletedByInput').value='';
+  $('#deleteReasonInput').value='';
+  $('#deleteModalBg').classList.add('show');
+  setTimeout(()=>$('#deletedByInput').focus(),50);
+};
+
 function closeDeleteDialog(){
   $('#deleteModalBg').classList.remove('show');
   pendingDeleteRow=null;
+  pendingDeleteRows=[];
 }
 $('#closeDeleteModal').onclick=closeDeleteDialog;
 $('#cancelDeleteBtn').onclick=closeDeleteDialog;
 $('#deleteModalBg').onclick=e=>{if(e.target===$('#deleteModalBg'))closeDeleteDialog()};
 
 $('#confirmArchiveDeleteBtn').onclick=async()=>{
-  if(!pendingDeleteRow)return;
+  const targets=pendingDeleteRows.length ? [...pendingDeleteRows] : (pendingDeleteRow?[pendingDeleteRow]:[]);
+  if(!targets.length)return;
   const deletedBy=$('#deletedByInput').value.trim();
   const deletionReason=$('#deleteReasonInput').value.trim();
   if(!deletedBy){
@@ -4298,16 +4389,30 @@ $('#confirmArchiveDeleteBtn').onclick=async()=>{
   const btn=$('#confirmArchiveDeleteBtn');
   const originalText=btn.textContent;
   btn.disabled=true;
-  btn.textContent='מעביר לארכיון...';
+  btn.textContent=targets.length>1?`מעביר ${targets.length} רשומות לארכיון...`:'מעביר לארכיון...';
+  let completed=0;
   try{
-    await cloudArchiveMovement(pendingDeleteRow,deletedBy,deletionReason);
-    await cloudDeleteMovement(pendingDeleteRow.id);
-    rows=rows.filter(r=>String(r.id)!==String(pendingDeleteRow.id));
+    for(const row of targets){
+      await cloudArchiveMovement(row,deletedBy,deletionReason);
+      await cloudDeleteMovement(row.id);
+      rows=rows.filter(r=>String(r.id)!==String(row.id));
+      bulkSelectedIds.delete(String(row.id));
+      completed++;
+    }
+    saveLocal();
+    closeDeleteDialog();
+    if(targets.length>1){
+      bulkDeleteMode=false;
+      bulkSelectedIds.clear();
+      document.body.classList.remove('bulk-delete-mode');
+    }
+    render();
+  }catch(err){
     saveLocal();
     closeDeleteDialog();
     render();
-  }catch(err){
-    alert('המחיקה/העברה לארכיון נכשלה: '+err.message);
+    const prefix=targets.length>1 && completed?`${completed} מתוך ${targets.length} רשומות הועברו בהצלחה. `:'';
+    alert(prefix+'המחיקה/העברה לארכיון נכשלה: '+err.message);
   }finally{
     btn.disabled=false;
     btn.textContent=originalText;
