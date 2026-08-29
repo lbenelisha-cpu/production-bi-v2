@@ -2218,11 +2218,12 @@ async function cloudDeleteMovement(id){
 async function cloudArchiveMovement(row, deletedBy, deletionReason){
   const payload={
     original_id:row.id,
-    container_no:row.container_no,
-    agent:row.agent,
-    container_type:Number(row.container_type),
-    current_location:row.current_location,
-    target_location:row.target_location,
+    // Empty movement fields are allowed in the archive. Only deleted_by is mandatory.
+    container_no:(row.container_no||'').trim() || null,
+    agent:(row.agent||'').trim() || null,
+    container_type:row.container_type ? Number(row.container_type) : null,
+    current_location:(row.current_location||'').trim() || null,
+    target_location:(row.target_location||'').trim() || null,
     movement_at:row.movement_at,
     deleted_by:deletedBy,
     deletion_reason:(deletionReason||'').trim() || null,
