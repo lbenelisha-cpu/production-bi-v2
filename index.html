@@ -2221,7 +2221,7 @@ async function cloudArchiveMovement(row, deletedBy, deletionReason){
     // Empty movement fields are allowed in the archive. Only deleted_by is mandatory.
     container_no:(row.container_no||'').trim(),
     agent:(row.agent||'').trim(),
-    container_type:row.container_type ? Number(row.container_type) : 0,
+    container_type:(row.container_type===20 || row.container_type===40 || String(row.container_type)==='20' || String(row.container_type)==='40') ? Number(row.container_type) : null,
     current_location:(row.current_location||'').trim(),
     target_location:(row.target_location||'').trim(),
     movement_at:row.movement_at,
