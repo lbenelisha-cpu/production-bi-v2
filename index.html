@@ -1812,6 +1812,45 @@ body.bulk-delete-mode #tbody tr:has(.bulk-row-check:checked){background:rgba(232
   white-space:nowrap;
 }
 
+
+/* iPhone fixed bottom action bar - all 5 buttons stay on one row */
+@media screen and (max-width:900px){
+  .bottom-actions{
+    position:fixed!important;
+    z-index:999!important;
+    left:6px!important;
+    right:6px!important;
+    bottom:calc(6px + env(safe-area-inset-bottom))!important;
+    width:auto!important;
+    margin:0!important;
+    display:grid!important;
+    grid-template-columns:repeat(5,minmax(0,1fr))!important;
+    gap:4px!important;
+    padding:5px!important;
+    border-radius:16px!important;
+    background:rgba(3,24,50,.82)!important;
+    border:1px solid rgba(190,220,255,.24)!important;
+    backdrop-filter:blur(16px) saturate(140%)!important;
+    -webkit-backdrop-filter:blur(16px) saturate(140%)!important;
+    box-shadow:0 8px 28px rgba(0,0,0,.30)!important;
+  }
+  .bottom-actions button{
+    width:100%!important;
+    min-width:0!important;
+    min-height:48px!important;
+    padding:4px 2px!important;
+    margin:0!important;
+    font-size:7.8px!important;
+    line-height:1.15!important;
+    white-space:normal!important;
+    overflow:hidden!important;
+    text-overflow:clip!important;
+    border-radius:11px!important;
+  }
+  main{padding-bottom:calc(88px + env(safe-area-inset-bottom))!important}
+  .chart-card-visual{margin-bottom:0!important}
+}
+
 </style>
 <link rel="apple-touch-icon" sizes="180x180" href="./public/apple-touch-icon-v194.png?v=194">
 <meta name="theme-color" content="#08284b">
@@ -2028,6 +2067,7 @@ body{--movement-scale:1.125}
 }
 </style>
 
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
 <body>
 
@@ -2813,60 +2853,41 @@ $('#moveForm').onsubmit=async e=>{
   }
 };
 function exportExcel(){
- const fr=filtered(), [s,e]=getRange();
- const esc=s=>String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
- const trs=fr.map(r=>`<tr><td>${esc(fmt(new Date(r.movement_at)))}</td><td>${esc(r.container_no)}</td><td>${esc(r.agent)}</td><td>${r.container_type??''}</td><td>${esc(r.current_location)}</td><td>${esc(r.target_location)}</td><td>${esc(r.note||'')}</td></tr>`).join('');
- const html=`<html dir="rtl"><head><meta charset="utf-8">
-<style id="table-readability-v3">
-/* Readability update: brighter white and larger movement-table text */
-.tablewrap thead th{
-  color:#ffffff!important;
-  font-size:15px!important;
-  font-weight:900!important;
-  letter-spacing:.01em!important;
-  text-shadow:0 1px 2px rgba(0,0,0,.95),0 0 9px rgba(255,255,255,.22)!important;
-}
-.tablewrap tbody td{
-  color:#ffffff!important;
-  font-size:16px!important;
-  font-weight:800!important;
-  line-height:1.35!important;
-  text-shadow:0 1px 2px rgba(0,0,0,.95),0 0 7px rgba(255,255,255,.14)!important;
-}
-.tablewrap tbody td:nth-child(2){
-  font-size:17px!important;
-  font-weight:900!important;
-  letter-spacing:.25px!important;
-}
-.tablewrap tbody td .notice,
-.tablewrap tbody td .missing{
-  text-shadow:none!important;
-}
-.tablewrap tbody tr{
-  min-height:42px!important;
-}
-.tablewrap tbody td{
-  padding-top:10px!important;
-  padding-bottom:10px!important;
-}
-@media(max-width:900px){
-  .tablewrap tbody td{
-    color:#fff!important;
-    font-size:14px!important;
-    font-weight:800!important;
-    text-shadow:0 1px 2px rgba(0,0,0,.95),0 0 7px rgba(255,255,255,.12)!important;
+  const fr=filtered(), [s,e]=getRange();
+  if(typeof XLSX==='undefined'){
+    alert('רכיב יצוא Excel עדיין לא נטען. בדוק חיבור לאינטרנט ונסה שוב.');
+    return;
   }
-  .tablewrap tbody td:nth-child(1){font-size:12px!important;color:#f5f9ff!important;opacity:1!important}
-  .tablewrap tbody td:nth-child(2){font-size:18px!important;font-weight:900!important}
-  .tablewrap tbody td:nth-child(3),
-  .tablewrap tbody td:nth-child(4),
-  .tablewrap tbody td:nth-child(5),
-  .tablewrap tbody td:nth-child(6),
-  .tablewrap tbody td:nth-child(7){font-size:14px!important}
-}
-</style>
-</head><body><h2>מעקב מכולות</h2><p>מתאריך: ${esc(fmt(s))} | עד: ${esc(fmt(e))}</p><p>סה"כ תנועות: ${fr.length}</p><table border="1"><tr><th>תאריך ושעה</th><th>מספר מכולה</th><th>סוכן</th><th>סוג מכולה (פיט)</th><th>איתור נוכחי</th><th>איתור יעד</th><th>הערה</th></tr>${trs}</table></body></html>`;
- const blob=new Blob(['\ufeff',html],{type:'application/vnd.ms-excel'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`מעקב_מכולות_${dateOnly(s)}_${dateOnly(e)}.xls`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)
+  const data=fr.map(r=>({
+    'תאריך ושעה': fmt(new Date(r.movement_at)),
+    'מספר מכולה': r.container_no||'',
+    'סוכן': r.agent||'',
+    'סוג מכולה (פיט)': r.container_type??'',
+    'איתור נוכחי': r.current_location||'',
+    'איתור יעד': r.target_location||'',
+    'הערה': r.note||''
+  }));
+  const ws=XLSX.utils.json_to_sheet(data,{header:['תאריך ושעה','מספר מכולה','סוכן','סוג מכולה (פיט)','איתור נוכחי','איתור יעד','הערה']});
+  ws['!cols']=[{wch:20},{wch:18},{wch:18},{wch:18},{wch:24},{wch:24},{wch:34}];
+  ws['!dir']='rtl';
+  const wb=XLSX.utils.book_new();
+  wb.Workbook={Views:[{RTL:true}]};
+  XLSX.utils.book_append_sheet(wb,ws,'תנועות מכולות');
+  const fileName=`מעקב_מכולות_${dateOnly(s)}_${dateOnly(e)}.xlsx`;
+  try{
+    XLSX.writeFile(wb,fileName,{bookType:'xlsx',compression:true});
+  }catch(err){
+    try{
+      const bytes=XLSX.write(wb,{bookType:'xlsx',type:'array',compression:true});
+      const blob=new Blob([bytes],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+      const url=URL.createObjectURL(blob);
+      const a=document.createElement('a');
+      a.href=url;a.download=fileName;document.body.appendChild(a);a.click();a.remove();
+      setTimeout(()=>URL.revokeObjectURL(url),5000);
+    }catch(err2){
+      alert('יצוא Excel נכשל: '+(err2.message||err.message));
+    }
+  }
 }
 
 function cancelEdit(){editingId=null;pendingPhotoFile=null;pendingPhotoOriginal=null;pendingPhotoPreview='';$('#quickEntryForm').reset();$('#qContainerType').value='';$('#quickSaveBtn').textContent='שמור תנועה';$('#editBanner')?.remove();if($('#scanResult'))$('#scanResult').innerHTML='';updatePhotoPreview();}
