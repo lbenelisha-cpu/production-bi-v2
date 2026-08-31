@@ -1,7 +1,7 @@
 <!doctype html>
 <!-- MAERSK selected-date + password protected server delete 201718 -->
 <!-- MAERSK daily counters rollover -->
-<!-- counters use created_at (actual entry day), Excel uses transfer_date -->
+<!-- counters count ONLY entries saved for TODAY while TODAY is selected; past/future selected dates are history/Excel only -->
 <!-- GLOBAL SUPABASE PUBLISHABLE KEY FIX 2026-08-31 -->
 <!-- MAERSK quantity/auth fix 2026-08-31 -->
 <html lang="he" dir="rtl">
@@ -2781,14 +2781,23 @@ function duplicateSameDateIds(){
 function render(){
  const fr=filtered(), duplicateIds=duplicateSameDateIds(), c=new Set(fr.map(r=>r.container_no)).size, l=new Set(fr.flatMap(r=>[r.current_location,r.target_location])).size, cd=chartData(fr);
  const todayKey=dateOnly(new Date());
- const maerskTotal=maerskTransfers.filter(r=>{
+ const selectedDay=selectedMaerskEntryDate();
+ const countersEnabled=(selectedDay===todayKey);
+
+ const maerskTotal=countersEnabled ? maerskTransfers.filter(r=>{
    const d=new Date(r.created_at);
-   return !Number.isNaN(d.getTime()) && dateOnly(d)===todayKey;
- }).reduce((sum,r)=>sum+(Number(r.quantity)||0),0);
- const containerMovesTotal=rows.filter(r=>{
+   return !Number.isNaN(d.getTime()) && dateOnly(d)===todayKey && String(r.transfer_date||'')===todayKey;
+ }).reduce((sum,r)=>sum+(Number(r.quantity)||0),0) : 0;
+
+ const containerMovesTotal=countersEnabled ? rows.filter(r=>{
    const d=new Date(r.created_at||r.movement_at);
-   return !Number.isNaN(d.getTime()) && dateOnly(d)===todayKey;
- }).length;
+   const movementDate=new Date(r.movement_at);
+   return !Number.isNaN(d.getTime()) &&
+          !Number.isNaN(movementDate.getTime()) &&
+          dateOnly(d)===todayKey &&
+          dateOnly(movementDate)===todayKey;
+ }).length : 0;
+
  $('#kpiMoves').textContent=fr.length;$('#kpiContainers').textContent=c;$('#kpiAverage').textContent=maerskTotal.toLocaleString('he-IL');$('#kpiContainerMovesAllTime').textContent=containerMovesTotal.toLocaleString('he-IL');$('#kpiGrandTotal').textContent=(maerskTotal+containerMovesTotal).toLocaleString('he-IL');$('#rowsLabel').textContent=`${fr.length} רשומות מוצגות`;
  $('#tbody').innerHTML=fr.length?fr.map(r=>{const miss=!r.agent||!r.current_location||!r.target_location;const selected=bulkSelectedIds.has(String(r.id));const isDuplicate=duplicateIds.has(String(r.id));return `<tr class="${isDuplicate?'duplicate-container-row':''}"><td class="bulk-select-col"><input type="checkbox" class="bulk-row-check" data-id="${escapeHtml(r.id)}" ${selected?'checked':''} aria-label="בחר רשומה למחיקה"></td><td>${fmt(new Date(r.movement_at))}</td><td class="mono">${r.container_no?escapeHtml(r.container_no):''}${isDuplicate?'<span class="duplicate-badge">כפול באותו תאריך</span>':''} ${!r.container_no&&r.photo_url?'<span class="unrecognized">📷 צילום בלבד — דורש עריכה</span>':''} ${miss?'<span class="missing">⚠ חסרים פרטים</span>':''} ${r.photo_url?`<a class="photo-link" href="${escapeHtml(r.photo_url)}" target="_blank" title="פתח צילום">📷</a>`:''}</td><td>${escapeHtml(r.agent||'—')}</td><td>${r.container_type?`<span class="pill">${r.container_type} פיט</span>`:'—'}</td><td>⌖ ${escapeHtml(r.current_location||'—')}</td><td>⌖ ${escapeHtml(r.target_location||'—')}</td><td class="movement-note">${escapeHtml(r.note||'')}</td><td class="row-actions"><button class="edit" data-id="${r.id}" title="עריכה">✏️</button><button class="delete ios-trash" data-id="${r.id}" title="מחיקה" aria-label="מחיקה"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 7V5.8C8 4.8 8.8 4 9.8 4h4.4c1 0 1.8.8 1.8 1.8V7M5 7h14M9 10v7M12 10v7M15 10v7M7 7l.7 12.1c.1.6.6.9 1.2.9h6.2c.6 0 1.1-.3 1.2-.9L17 7"/></svg></button></td></tr>`}).join(''):`<tr><td class="empty" colspan="9">אין תנועות בטווח שנבחר</td></tr>`;
  document.body.classList.toggle('bulk-delete-mode',bulkDeleteMode);
