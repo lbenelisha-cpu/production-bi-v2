@@ -39,7 +39,7 @@ main{width:min(1480px,94vw);margin:20px auto 50px;display:grid;gap:16px}
 .kicon{width:47px;height:47px;border-radius:15px;display:grid;place-items:center;background:rgba(31,119,247,.1);font-size:21px}
 .kpi span{display:block;color:#657b94;font-size:12px}.kpi strong{font-size:27px}
 .maersk-kpi-content{flex:1;min-width:0}.maersk-entry-row{display:flex;gap:7px;margin-top:7px}.maersk-entry-row input{width:100%;min-width:0;height:34px;border:1px solid rgba(255,255,255,.18);border-radius:9px;padding:0 9px;background:rgba(255,255,255,.08);color:inherit;font:inherit}.maersk-entry-row button{height:34px;border:0;border-radius:9px;padding:0 13px;background:#2478ff;color:#fff;font-weight:700;cursor:pointer}.maersk-save-status{display:block;min-height:16px;margin-top:3px;font-size:11px!important;color:#75ef9e!important}
-.movement-totals{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:7px}.movement-total-item{min-width:0}.movement-total-item small{display:block;color:var(--text-soft,#a9b9cc);font-size:10px;line-height:1.25}.movement-total-item strong{display:block;font-size:22px!important;margin-top:2px}
+.movement-grand-total{display:flex;align-items:baseline;gap:7px;margin-top:5px}.movement-grand-total small{color:var(--text-soft,#a9b9cc);font-size:11px}.movement-grand-total strong{font-size:27px!important}.movement-totals{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:5px;padding-top:6px;border-top:1px solid rgba(255,255,255,.12)}.movement-total-item{min-width:0}.movement-total-item small{display:block;color:var(--text-soft,#a9b9cc);font-size:10px;line-height:1.25}.movement-total-item strong{display:block;font-size:19px!important;margin-top:2px}
 .card{border-radius:24px;padding:18px}.head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:10px}
 .head h2{margin:0 0 3px;font-size:19px}.head p{margin:0;color:#74879d;font-size:12px}
 #chart{width:100%;height:320px;display:block;overflow:visible}
@@ -2184,7 +2184,7 @@ body{--movement-scale:1.125}
   <div class="kpi glass"><div class="kicon">↔</div><div><span>סה״כ תנועות</span><strong id="kpiMoves">0</strong></div></div>
   <div class="kpi glass"><div class="kicon">▣</div><div><span>מכולות שונות</span><strong id="kpiContainers">0</strong></div></div>
   <div class="kpi glass"><div class="kicon">↗</div><div class="maersk-kpi-content"><span>העברות MAERSK מהשלוחה למסוף</span><div class="maersk-entry-row"><input id="maerskTransferInput" type="number" inputmode="numeric" min="0" step="1" pattern="[0-9]*" placeholder="הזן מספר בלבד" aria-label="מספר העברות MAERSK"><button id="saveMaerskTransferBtn" type="button">שמור</button></div><small class="maersk-save-status" id="maerskSaveStatus"></small></div></div>
-  <div class="kpi glass"><div class="kicon">∑</div><div class="maersk-kpi-content"><span>סה״כ תנועות</span><div class="movement-totals"><div class="movement-total-item"><small>העברות מהשלוחה למסוף</small><strong id="kpiAverage">0</strong></div><div class="movement-total-item"><small>תנועות מכולות</small><strong id="kpiContainerMovesAllTime">0</strong></div></div></div></div>
+  <div class="kpi glass"><div class="kicon">∑</div><div class="maersk-kpi-content"><span>סה״כ תנועות</span><div class="movement-grand-total"><small>סה״כ כללי</small><strong id="kpiGrandTotal">0</strong></div><div class="movement-totals"><div class="movement-total-item"><small>העברות מהשלוחה למסוף</small><strong id="kpiAverage">0</strong></div><div class="movement-total-item"><small>תנועות מכולות</small><strong id="kpiContainerMovesAllTime">0</strong></div></div></div></div>
 </section>
 
 <section class="card glass table-card-visual">
@@ -2716,7 +2716,8 @@ function duplicateSameDateIds(){
 }
 function render(){
  const fr=filtered(), duplicateIds=duplicateSameDateIds(), c=new Set(fr.map(r=>r.container_no)).size, l=new Set(fr.flatMap(r=>[r.current_location,r.target_location])).size, cd=chartData(fr);
- $('#kpiMoves').textContent=fr.length;$('#kpiContainers').textContent=c;$('#kpiAverage').textContent=maerskAllTimeTotal().toLocaleString('he-IL');$('#kpiContainerMovesAllTime').textContent=rows.length.toLocaleString('he-IL');$('#rowsLabel').textContent=`${fr.length} רשומות מוצגות`;
+ const maerskTotal=maerskAllTimeTotal(), containerMovesTotal=rows.length;
+ $('#kpiMoves').textContent=fr.length;$('#kpiContainers').textContent=c;$('#kpiAverage').textContent=maerskTotal.toLocaleString('he-IL');$('#kpiContainerMovesAllTime').textContent=containerMovesTotal.toLocaleString('he-IL');$('#kpiGrandTotal').textContent=(maerskTotal+containerMovesTotal).toLocaleString('he-IL');$('#rowsLabel').textContent=`${fr.length} רשומות מוצגות`;
  $('#tbody').innerHTML=fr.length?fr.map(r=>{const miss=!r.agent||!r.current_location||!r.target_location;const selected=bulkSelectedIds.has(String(r.id));const isDuplicate=duplicateIds.has(String(r.id));return `<tr class="${isDuplicate?'duplicate-container-row':''}"><td class="bulk-select-col"><input type="checkbox" class="bulk-row-check" data-id="${escapeHtml(r.id)}" ${selected?'checked':''} aria-label="בחר רשומה למחיקה"></td><td>${fmt(new Date(r.movement_at))}</td><td class="mono">${r.container_no?escapeHtml(r.container_no):''}${isDuplicate?'<span class="duplicate-badge">כפול באותו תאריך</span>':''} ${!r.container_no&&r.photo_url?'<span class="unrecognized">📷 צילום בלבד — דורש עריכה</span>':''} ${miss?'<span class="missing">⚠ חסרים פרטים</span>':''} ${r.photo_url?`<a class="photo-link" href="${escapeHtml(r.photo_url)}" target="_blank" title="פתח צילום">📷</a>`:''}</td><td>${escapeHtml(r.agent||'—')}</td><td>${r.container_type?`<span class="pill">${r.container_type} פיט</span>`:'—'}</td><td>⌖ ${escapeHtml(r.current_location||'—')}</td><td>⌖ ${escapeHtml(r.target_location||'—')}</td><td class="movement-note">${escapeHtml(r.note||'')}</td><td class="row-actions"><button class="edit" data-id="${r.id}" title="עריכה">✏️</button><button class="delete ios-trash" data-id="${r.id}" title="מחיקה" aria-label="מחיקה"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 7V5.8C8 4.8 8.8 4 9.8 4h4.4c1 0 1.8.8 1.8 1.8V7M5 7h14M9 10v7M12 10v7M15 10v7M7 7l.7 12.1c.1.6.6.9 1.2.9h6.2c.6 0 1.1-.3 1.2-.9L17 7"/></svg></button></td></tr>`}).join(''):`<tr><td class="empty" colspan="9">אין תנועות בטווח שנבחר</td></tr>`;
  document.body.classList.toggle('bulk-delete-mode',bulkDeleteMode);
  syncBulkDeleteUi(fr);
@@ -2912,15 +2913,32 @@ function exportExcel(){
     const key=String(row.transfer_date||'');
     transfersByDay.set(key,(transfersByDay.get(key)||0)+(Number(row.amount)||0));
   });
-  const transferRows=[...transfersByDay.entries()]
-    .sort((a,b)=>a[0].localeCompare(b[0]))
-    .map(([day,amount])=>({'תאריך':day,'העברות MAERSK מהשלוחה למסוף':amount}));
-  const rangeTransferTotal=transferRows.reduce((sum,row)=>sum+row['העברות MAERSK מהשלוחה למסוף'],0);
-  transferRows.push({'תאריך':'סה״כ בטווח הנבחר','העברות MAERSK מהשלוחה למסוף':rangeTransferTotal});
-  const transferWs=XLSX.utils.json_to_sheet(transferRows,{header:['תאריך','העברות MAERSK מהשלוחה למסוף']});
-  transferWs['!cols']=[{wch:22},{wch:38}];
+  const containerMovesByDay=new Map();
+  fr.forEach(row=>{
+    const key=dateOnly(new Date(row.movement_at));
+    containerMovesByDay.set(key,(containerMovesByDay.get(key)||0)+1);
+  });
+  const allDays=[...new Set([...transfersByDay.keys(),...containerMovesByDay.keys()])].sort((a,b)=>a.localeCompare(b));
+  const transferRows=allDays.map(day=>{
+    const transfers=transfersByDay.get(day)||0, containerMoves=containerMovesByDay.get(day)||0;
+    return {'תאריך':day,'העברות מהשלוחה למסוף':transfers,'תנועות מכולות':containerMoves,'סה״כ כללי':transfers+containerMoves};
+  });
+  const rangeTransferTotal=[...transfersByDay.values()].reduce((sum,value)=>sum+value,0);
+  const rangeContainerMovesTotal=fr.length;
+  const rangeGrandTotal=rangeTransferTotal+rangeContainerMovesTotal;
+  transferRows.push({'תאריך':'סה״כ בטווח הנבחר','העברות מהשלוחה למסוף':rangeTransferTotal,'תנועות מכולות':rangeContainerMovesTotal,'סה״כ כללי':rangeGrandTotal});
+  const transferWs=XLSX.utils.json_to_sheet(transferRows,{header:['תאריך','העברות מהשלוחה למסוף','תנועות מכולות','סה״כ כללי']});
+  transferWs['!cols']=[{wch:22},{wch:32},{wch:22},{wch:20}];
   transferWs['!dir']='rtl';
-  XLSX.utils.book_append_sheet(wb,transferWs,'העברות MAERSK');
+  XLSX.utils.book_append_sheet(wb,transferWs,'סיכום תנועות יומי');
+  const totalsWs=XLSX.utils.json_to_sheet([
+    {'טווח נבחר':`${dateOnly(s)} עד ${dateOnly(e)}`,'סוג סיכום':'העברות מהשלוחה למסוף','סה״כ':rangeTransferTotal},
+    {'טווח נבחר':`${dateOnly(s)} עד ${dateOnly(e)}`,'סוג סיכום':'תנועות מכולות','סה״כ':rangeContainerMovesTotal},
+    {'טווח נבחר':`${dateOnly(s)} עד ${dateOnly(e)}`,'סוג סיכום':'סה״כ כללי','סה״כ':rangeGrandTotal}
+  ],{header:['טווח נבחר','סוג סיכום','סה״כ']});
+  totalsWs['!cols']=[{wch:28},{wch:32},{wch:18}];
+  totalsWs['!dir']='rtl';
+  XLSX.utils.book_append_sheet(wb,totalsWs,'סיכום לטווח הנבחר');
   const fileName=`מעקב_מכולות_${dateOnly(s)}_${dateOnly(e)}.xlsx`;
   try{
     XLSX.writeFile(wb,fileName,{bookType:'xlsx',compression:true});
