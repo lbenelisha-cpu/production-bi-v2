@@ -1,4 +1,5 @@
 <!doctype html>
+<!-- MAERSK selected-date + password protected server delete 201718 -->
 <!-- GLOBAL SUPABASE PUBLISHABLE KEY FIX 2026-08-31 -->
 <!-- MAERSK quantity/auth fix 2026-08-31 -->
 <html lang="he" dir="rtl">
@@ -2185,7 +2186,7 @@ body{--movement-scale:1.125}
 <section class="kpis">
   <div class="kpi glass"><div class="kicon">↔</div><div><span>סה״כ תנועות</span><strong id="kpiMoves">0</strong></div></div>
   <div class="kpi glass"><div class="kicon">▣</div><div><span>מכולות שונות</span><strong id="kpiContainers">0</strong></div></div>
-  <div class="kpi glass"><div class="kicon">↗</div><div class="maersk-kpi-content"><span>העברות MAERSK מהשלוחה למסוף</span><div class="maersk-entry-row"><input id="maerskTransferInput" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="הזן מספר בלבד" aria-label="מספר העברות MAERSK"><button id="saveMaerskTransferBtn" type="button">שמור</button></div><small class="maersk-save-status" id="maerskSaveStatus"></small></div></div>
+  <div class="kpi glass"><div class="kicon">↗</div><div class="maersk-kpi-content"><span>העברות MAERSK מהשלוחה למסוף</span><div class="maersk-entry-row"><input id="maerskTransferInput" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="הזן מספר בלבד" aria-label="מספר העברות MAERSK"><button id="saveMaerskTransferBtn" type="button">שמור</button><button id="deleteMaerskTransferBtn" type="button" style="background:linear-gradient(135deg,#d73255,#ef496a)">מחיקה</button></div><small class="maersk-save-status" id="maerskSaveStatus"></small><small id="maerskSelectedDateHint" style="display:block;margin-top:2px;color:rgba(235,245,255,.72);font-size:10px"></small></div></div>
   <div class="kpi glass"><div class="kicon">∑</div><div class="maersk-kpi-content"><span>סה״כ תנועות</span><div class="movement-grand-total"><small>סה״כ כללי</small><strong id="kpiGrandTotal">0</strong></div><div class="movement-totals"><div class="movement-total-item"><small>העברות מהשלוחה למסוף</small><strong id="kpiAverage">0</strong></div><div class="movement-total-item"><small>תנועות מכולות</small><strong id="kpiContainerMovesAllTime">0</strong></div></div></div></div>
 </section>
 
@@ -2633,6 +2634,36 @@ function maerskTransfersInRange(start,end){
   const startKey=dateOnly(start), endKey=dateOnly(end);
   return maerskTransfers.filter(row=>String(row.transfer_date||'')>=startKey && String(row.transfer_date||'')<=endKey);
 }
+function selectedMaerskEntryDate(){
+  if(period==='custom'){
+    const customStart=$('#startDate')?.value;
+    if(customStart) return customStart;
+  }
+  return $('#anchorDate')?.value || dateOnly(anchor) || dateOnly(new Date());
+}
+function updateMaerskSelectedDateHint(){
+  const el=$('#maerskSelectedDateHint');
+  if(!el) return;
+  const iso=selectedMaerskEntryDate();
+  const parts=String(iso).split('-');
+  el.textContent=parts.length===3 ? `שמירה/מחיקה לתאריך הנבחר: ${parts[2]}/${parts[1]}/${parts[0]}` : `שמירה/מחיקה לתאריך הנבחר: ${iso}`;
+}
+async function cloudDeleteMaerskTransfersByDate(transferDate, code){
+  if(!cloudEnabled) throw new Error('אין חיבור לענן');
+  const res=await fetch(`${CLOUD.url}/rest/v1/rpc/delete_maersk_transfers_by_date`,{
+    method:'POST',
+    headers:maerskCloudHeaders(),
+    body:JSON.stringify({p_transfer_date:transferDate,p_code:String(code||'')})
+  });
+  if(!res.ok){
+    const raw=await res.text();
+    if(raw.includes('INVALID_CODE')) throw new Error('הסיסמה שהוזנה אינה נכונה');
+    throw new Error(`Supabase ${res.status}: ${raw}`);
+  }
+  const deletedCount=Number(await res.json())||0;
+  await cloudLoadMaerskTransfers();
+  return deletedCount;
+}
 function getRange(){
  const d=new Date(anchor), s=new Date(d), e=new Date(d);
  if(period==='daily'){s.setHours(0,0,0,0);e.setHours(23,59,59,999)}
@@ -2780,7 +2811,7 @@ function render(){
    $('#deleteModalBg').classList.add('show');
    setTimeout(()=>$('#deletedByInput').focus(),50);
  });
- drawChart(cd); updateLocations()
+ drawChart(cd); updateLocations(); updateMaerskSelectedDateHint()
 }
 $$('#periods button').forEach(b=>b.onclick=()=>{locateCriteria=null;$('#locateBtn')?.classList.remove('active'); if($('#locateBtn')) $('#locateBtn').textContent='⌖ איתור';$$('#periods button').forEach(x=>x.classList.remove('active'));b.classList.add('active');period=b.dataset.period;$('#datebox').style.display=period==='custom'?'none':'flex';$('#customRange').style.display=period==='custom'?'flex':'none';render()});
 $('#anchorDate').onchange=e=>{anchor=new Date(e.target.value+'T12:00:00');render()};
@@ -4747,7 +4778,7 @@ $('#saveMaerskTransferBtn').onclick=async()=>{
   button.disabled=true;
   status.style.color='#dff3ff';
   status.textContent='שומר...';
-  const payload={transfer_date:dateOnly(new Date()),quantity};
+  const payload={transfer_date:selectedMaerskEntryDate(),quantity};
   try{
     await cloudInsertMaerskTransfer(payload);
     saveMaerskTransfersLocal();
@@ -4763,6 +4794,51 @@ $('#saveMaerskTransferBtn').onclick=async()=>{
     status.style.color='#ff9b9b';
     status.textContent='השמירה נכשלה';
     alert('שמירת MAERSK נכשלה:\n\n'+(err.message||err));
+  }finally{
+    button.disabled=false;
+  }
+};
+
+$('#deleteMaerskTransferBtn').onclick=async()=>{
+  const status=$('#maerskSaveStatus');
+  const button=$('#deleteMaerskTransferBtn');
+  const transferDate=selectedMaerskEntryDate();
+  const rowsForDate=maerskTransfers.filter(r=>String(r.transfer_date||'')===transferDate);
+  const totalForDate=rowsForDate.reduce((s,r)=>s+(Number(r.quantity)||0),0);
+
+  if(!rowsForDate.length){
+    alert('אין נתוני MAERSK למחיקה בתאריך הנבחר.');
+    return;
+  }
+
+  const code=prompt(`מחיקת נתוני MAERSK לתאריך ${transferDate}\nסה״כ רשומות: ${rowsForDate.length}\nסה״כ העברות: ${totalForDate}\n\nהזן סיסמה למחיקה:`);
+  if(code===null) return;
+
+  if(String(code).trim()!=='201718'){
+    alert('הסיסמה שהוזנה אינה נכונה.');
+    return;
+  }
+
+  if(!confirm(`האם למחוק מהשרת את כל נתוני MAERSK לתאריך ${transferDate}?\nהפעולה תמחק ${rowsForDate.length} רשומות ולא ניתן לבטל אותה.`)) return;
+
+  button.disabled=true;
+  status.style.color='#ffd28a';
+  status.textContent='מוחק מהשרת...';
+
+  try{
+    const deleted=await cloudDeleteMaerskTransfersByDate(transferDate,code);
+    saveMaerskTransfersLocal();
+    render();
+    status.style.color='#75ef9e';
+    status.textContent=`נמחקו ${deleted} רשומות מהשרת ✓`;
+    setTimeout(()=>{
+      if(status.textContent.includes('נמחקו')) status.textContent='';
+    },3000);
+  }catch(err){
+    console.error('MAERSK delete failed:',err);
+    status.style.color='#ff9b9b';
+    status.textContent='המחיקה נכשלה';
+    alert('מחיקת MAERSK נכשלה:\n\n'+(err.message||err));
   }finally{
     button.disabled=false;
   }
