@@ -38,6 +38,7 @@ main{width:min(1480px,94vw);margin:20px auto 50px;display:grid;gap:16px}
 .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.kpi{border-radius:21px;padding:16px;display:flex;align-items:center;gap:12px}
 .kicon{width:47px;height:47px;border-radius:15px;display:grid;place-items:center;background:rgba(31,119,247,.1);font-size:21px}
 .kpi span{display:block;color:#657b94;font-size:12px}.kpi strong{font-size:27px}
+.maersk-kpi-content{flex:1;min-width:0}.maersk-entry-row{display:flex;gap:7px;margin-top:7px}.maersk-entry-row input{width:100%;min-width:0;height:34px;border:1px solid rgba(255,255,255,.18);border-radius:9px;padding:0 9px;background:rgba(255,255,255,.08);color:inherit;font:inherit}.maersk-entry-row button{height:34px;border:0;border-radius:9px;padding:0 13px;background:#2478ff;color:#fff;font-weight:700;cursor:pointer}.maersk-save-status{display:block;min-height:16px;margin-top:3px;font-size:11px!important;color:#75ef9e!important}
 .card{border-radius:24px;padding:18px}.head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:10px}
 .head h2{margin:0 0 3px;font-size:19px}.head p{margin:0;color:#74879d;font-size:12px}
 #chart{width:100%;height:320px;display:block;overflow:visible}
@@ -2181,8 +2182,8 @@ body{--movement-scale:1.125}
 <section class="kpis">
   <div class="kpi glass"><div class="kicon">↔</div><div><span>סה״כ תנועות</span><strong id="kpiMoves">0</strong></div></div>
   <div class="kpi glass"><div class="kicon">▣</div><div><span>מכולות שונות</span><strong id="kpiContainers">0</strong></div></div>
-  <div class="kpi glass"><div class="kicon">⌖</div><div><span>איתורים שונים</span><strong id="kpiLocations">0</strong></div></div>
-  <div class="kpi glass"><div class="kicon">◴</div><div><span>ממוצע תנועות</span><strong id="kpiAverage">0</strong></div></div>
+  <div class="kpi glass"><div class="kicon">↗</div><div class="maersk-kpi-content"><span>העברות MAERSK מהשלוחה למסוף</span><div class="maersk-entry-row"><input id="maerskTransferInput" type="number" inputmode="numeric" min="0" step="1" pattern="[0-9]*" placeholder="הזן מספר בלבד" aria-label="מספר העברות MAERSK"><button id="saveMaerskTransferBtn" type="button">שמור</button></div><small class="maersk-save-status" id="maerskSaveStatus"></small></div></div>
+  <div class="kpi glass"><div class="kicon">∑</div><div><span>סה״כ העברות MAERSK לכל הזמן</span><strong id="kpiAverage">0</strong></div></div>
 </section>
 
 <section class="card glass table-card-visual">
@@ -2449,6 +2450,25 @@ async function cloudLoadRows(){
   localStorage.setItem('container_movements_static', JSON.stringify(rows));
   return true;
 }
+async function cloudLoadMaerskTransfers(){
+  if(!cloudEnabled) return false;
+  const res=await fetch(`${CLOUD.url}/rest/v1/maersk_transfers?select=*&order=transfer_date.desc,created_at.desc`,{headers:cloudHeaders()});
+  if(!res.ok) throw new Error(await res.text());
+  maerskTransfers=await res.json();
+  localStorage.setItem('maersk_transfers_static',JSON.stringify(maerskTransfers));
+  return true;
+}
+async function cloudInsertMaerskTransfer(payload){
+  if(!cloudEnabled) return null;
+  const res=await fetch(`${CLOUD.url}/rest/v1/maersk_transfers`,{
+    method:'POST',
+    headers:cloudHeaders({'Prefer':'return=representation'}),
+    body:JSON.stringify(payload)
+  });
+  if(!res.ok) throw new Error(await res.text());
+  const data=await res.json();
+  return data[0]||null;
+}
 async function cloudInsertMovement(payload){
   if(!cloudEnabled) return null;
   const res = await fetch(`${CLOUD.url}/rest/v1/container_movements`, {
@@ -2566,6 +2586,7 @@ function seed(){
  return [0,1,2,4,6,8,9].map((h,i)=>({id:crypto.randomUUID(),container_no:names[i],agent:agents[i],container_type:i%2?40:20,current_location:locs[i%locs.length],target_location:locs[(i+1)%locs.length],movement_at:new Date(Date.now()-h*3600000).toISOString()}));
 }
 let rows=JSON.parse(localStorage.getItem('container_movements_static')||'null') || (cloudEnabled ? [] : seed());
+let maerskTransfers=JSON.parse(localStorage.getItem('maersk_transfers_static')||'null') || [];
 let pendingDeleteRow=null;
 let pendingDeleteRows=[];
 let bulkDeleteMode=false;
@@ -2574,6 +2595,12 @@ let archivedRows=[];
 let archiveDeleteMode=false;
 const archiveSelectedIds=new Set();
 function saveLocal(){localStorage.setItem('container_movements_static',JSON.stringify(rows))}
+function saveMaerskTransfersLocal(){localStorage.setItem('maersk_transfers_static',JSON.stringify(maerskTransfers))}
+function maerskAllTimeTotal(){return maerskTransfers.reduce((sum,row)=>sum+(Number(row.amount)||0),0)}
+function maerskTransfersInRange(start,end){
+  const startKey=dateOnly(start), endKey=dateOnly(end);
+  return maerskTransfers.filter(row=>String(row.transfer_date||'')>=startKey && String(row.transfer_date||'')<=endKey);
+}
 function getRange(){
  const d=new Date(anchor), s=new Date(d), e=new Date(d);
  if(period==='daily'){s.setHours(0,0,0,0);e.setHours(23,59,59,999)}
@@ -2688,7 +2715,7 @@ function duplicateSameDateIds(){
 }
 function render(){
  const fr=filtered(), duplicateIds=duplicateSameDateIds(), c=new Set(fr.map(r=>r.container_no)).size, l=new Set(fr.flatMap(r=>[r.current_location,r.target_location])).size, cd=chartData(fr);
- $('#kpiMoves').textContent=fr.length;$('#kpiContainers').textContent=c;$('#kpiLocations').textContent=l;$('#kpiAverage').textContent=cd.length?Math.round(fr.length/cd.length):0;$('#rowsLabel').textContent=`${fr.length} רשומות מוצגות`;
+ $('#kpiMoves').textContent=fr.length;$('#kpiContainers').textContent=c;$('#kpiAverage').textContent=maerskAllTimeTotal().toLocaleString('he-IL');$('#rowsLabel').textContent=`${fr.length} רשומות מוצגות`;
  $('#tbody').innerHTML=fr.length?fr.map(r=>{const miss=!r.agent||!r.current_location||!r.target_location;const selected=bulkSelectedIds.has(String(r.id));const isDuplicate=duplicateIds.has(String(r.id));return `<tr class="${isDuplicate?'duplicate-container-row':''}"><td class="bulk-select-col"><input type="checkbox" class="bulk-row-check" data-id="${escapeHtml(r.id)}" ${selected?'checked':''} aria-label="בחר רשומה למחיקה"></td><td>${fmt(new Date(r.movement_at))}</td><td class="mono">${r.container_no?escapeHtml(r.container_no):''}${isDuplicate?'<span class="duplicate-badge">כפול באותו תאריך</span>':''} ${!r.container_no&&r.photo_url?'<span class="unrecognized">📷 צילום בלבד — דורש עריכה</span>':''} ${miss?'<span class="missing">⚠ חסרים פרטים</span>':''} ${r.photo_url?`<a class="photo-link" href="${escapeHtml(r.photo_url)}" target="_blank" title="פתח צילום">📷</a>`:''}</td><td>${escapeHtml(r.agent||'—')}</td><td>${r.container_type?`<span class="pill">${r.container_type} פיט</span>`:'—'}</td><td>⌖ ${escapeHtml(r.current_location||'—')}</td><td>⌖ ${escapeHtml(r.target_location||'—')}</td><td class="movement-note">${escapeHtml(r.note||'')}</td><td class="row-actions"><button class="edit" data-id="${r.id}" title="עריכה">✏️</button><button class="delete ios-trash" data-id="${r.id}" title="מחיקה" aria-label="מחיקה"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 7V5.8C8 4.8 8.8 4 9.8 4h4.4c1 0 1.8.8 1.8 1.8V7M5 7h14M9 10v7M12 10v7M15 10v7M7 7l.7 12.1c.1.6.6.9 1.2.9h6.2c.6 0 1.1-.3 1.2-.9L17 7"/></svg></button></td></tr>`}).join(''):`<tr><td class="empty" colspan="9">אין תנועות בטווח שנבחר</td></tr>`;
  document.body.classList.toggle('bulk-delete-mode',bulkDeleteMode);
  syncBulkDeleteUi(fr);
@@ -2879,6 +2906,20 @@ function exportExcel(){
   const wb=XLSX.utils.book_new();
   wb.Workbook={Views:[{RTL:true}]};
   XLSX.utils.book_append_sheet(wb,ws,'תנועות מכולות');
+  const transfersByDay=new Map();
+  maerskTransfersInRange(s,e).forEach(row=>{
+    const key=String(row.transfer_date||'');
+    transfersByDay.set(key,(transfersByDay.get(key)||0)+(Number(row.amount)||0));
+  });
+  const transferRows=[...transfersByDay.entries()]
+    .sort((a,b)=>a[0].localeCompare(b[0]))
+    .map(([day,amount])=>({'תאריך':day,'העברות MAERSK מהשלוחה למסוף':amount}));
+  const rangeTransferTotal=transferRows.reduce((sum,row)=>sum+row['העברות MAERSK מהשלוחה למסוף'],0);
+  transferRows.push({'תאריך':'סה״כ בטווח הנבחר','העברות MAERSK מהשלוחה למסוף':rangeTransferTotal});
+  const transferWs=XLSX.utils.json_to_sheet(transferRows,{header:['תאריך','העברות MAERSK מהשלוחה למסוף']});
+  transferWs['!cols']=[{wch:22},{wch:38}];
+  transferWs['!dir']='rtl';
+  XLSX.utils.book_append_sheet(wb,transferWs,'העברות MAERSK');
   const fileName=`מעקב_מכולות_${dateOnly(s)}_${dateOnly(e)}.xlsx`;
   try{
     XLSX.writeFile(wb,fileName,{bookType:'xlsx',compression:true});
@@ -4636,6 +4677,41 @@ $('#quickEntryForm').onsubmit=async e=>{
 
 $('#exportBtn').onclick=exportExcel;
 
+$('#maerskTransferInput').oninput=e=>{
+  e.target.value=e.target.value.replace(/[^0-9]/g,'');
+};
+$('#saveMaerskTransferBtn').onclick=async()=>{
+  const input=$('#maerskTransferInput'), status=$('#maerskSaveStatus'), button=$('#saveMaerskTransferBtn');
+  const raw=input.value.trim();
+  if(!/^\d+$/.test(raw)){
+    status.textContent='יש להזין מספר שלם בלבד';
+    input.focus();
+    return;
+  }
+  const amount=Number(raw);
+  if(!Number.isSafeInteger(amount) || amount<0){
+    status.textContent='המספר שהוזן אינו תקין';
+    input.focus();
+    return;
+  }
+  button.disabled=true;
+  status.textContent='שומר...';
+  const payload={transfer_date:dateOnly(new Date()),amount};
+  try{
+    const saved=await cloudInsertMaerskTransfer(payload);
+    maerskTransfers.unshift(saved||{id:crypto.randomUUID(),created_at:new Date().toISOString(),...payload});
+    saveMaerskTransfersLocal();
+    input.value='';
+    status.textContent='נשמר בהצלחה ✓';
+    render();
+  }catch(err){
+    console.error('MAERSK transfer save failed:',err);
+    status.textContent='השמירה נכשלה — יש לוודא שקובץ ה-SQL הופעל';
+  }finally{
+    button.disabled=false;
+  }
+};
+
 
 
 function syncBulkDeleteUi(fr=filtered()){
@@ -4927,7 +5003,7 @@ if(exportBottom) exportBottom.onclick=()=>exportExcel();
 const refreshBottom=$('#refreshBottom');
 if(refreshBottom) refreshBottom.onclick=async()=>{
   if(cloudEnabled){
-    try{await cloudLoadRows();render();setCloudStatus(true,'מחובר');}
+    try{await Promise.all([cloudLoadRows(),cloudLoadMaerskTransfers()]);render();setCloudStatus(true,'מחובר');}
     catch(e){setCloudStatus(false,'שגיאת חיבור לענן');}
   }else render();
 };
@@ -4939,12 +5015,12 @@ async function initCloud(){
     return;
   }
   try{
-    await cloudLoadRows();
+    await Promise.all([cloudLoadRows(),cloudLoadMaerskTransfers()]);
     setCloudStatus(true,'מחובר');
     render();
     setInterval(async()=>{
       try{
-        await cloudLoadRows();
+        await Promise.all([cloudLoadRows(),cloudLoadMaerskTransfers()]);
         render();
         setCloudStatus(true,'מחובר');
       }catch(e){
