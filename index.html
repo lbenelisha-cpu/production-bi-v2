@@ -1,4 +1,6 @@
 <!doctype html>
+<!-- GLOBAL SUPABASE PUBLISHABLE KEY FIX 2026-08-31 -->
+<!-- MAERSK quantity/auth fix 2026-08-31 -->
 <html lang="he" dir="rtl">
 <head>
 <!-- Container OCR v13: multi-mask vertical reader + tilt-tolerant column fit + two-pass consensus + optional cloud fallback -->
@@ -2183,7 +2185,7 @@ body{--movement-scale:1.125}
 <section class="kpis">
   <div class="kpi glass"><div class="kicon">↔</div><div><span>סה״כ תנועות</span><strong id="kpiMoves">0</strong></div></div>
   <div class="kpi glass"><div class="kicon">▣</div><div><span>מכולות שונות</span><strong id="kpiContainers">0</strong></div></div>
-  <div class="kpi glass"><div class="kicon">↗</div><div class="maersk-kpi-content"><span>העברות MAERSK מהשלוחה למסוף</span><div class="maersk-entry-row"><input id="maerskTransferInput" type="number" inputmode="numeric" min="0" step="1" pattern="[0-9]*" placeholder="הזן מספר בלבד" aria-label="מספר העברות MAERSK"><button id="saveMaerskTransferBtn" type="button">שמור</button></div><small class="maersk-save-status" id="maerskSaveStatus"></small></div></div>
+  <div class="kpi glass"><div class="kicon">↗</div><div class="maersk-kpi-content"><span>העברות MAERSK מהשלוחה למסוף</span><div class="maersk-entry-row"><input id="maerskTransferInput" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="הזן מספר בלבד" aria-label="מספר העברות MAERSK"><button id="saveMaerskTransferBtn" type="button">שמור</button></div><small class="maersk-save-status" id="maerskSaveStatus"></small></div></div>
   <div class="kpi glass"><div class="kicon">∑</div><div class="maersk-kpi-content"><span>סה״כ תנועות</span><div class="movement-grand-total"><small>סה״כ כללי</small><strong id="kpiGrandTotal">0</strong></div><div class="movement-totals"><div class="movement-total-item"><small>העברות מהשלוחה למסוף</small><strong id="kpiAverage">0</strong></div><div class="movement-total-item"><small>תנועות מכולות</small><strong id="kpiContainerMovesAllTime">0</strong></div></div></div></div>
 </section>
 
@@ -2434,12 +2436,29 @@ const CLOUD = {
 };
 const cloudEnabled = Boolean(CLOUD.url && CLOUD.key && !CLOUD.url.includes('YOUR-PROJECT'));
 function cloudHeaders(extra={}) {
-  return {
+  const h = {
     apikey: CLOUD.key,
-    Authorization: `Bearer ${CLOUD.key}`,
     'Content-Type': 'application/json',
     ...extra
   };
+  if(/^eyJ[A-Za-z0-9_-]+\./.test(String(CLOUD.key||''))){
+    h.Authorization = `Bearer ${CLOUD.key}`;
+  }
+  return h;
+}
+/* MAERSK uses the current Supabase publishable key.
+   A publishable key is sent as apikey only; Authorization Bearer is added
+   only for legacy JWT-style keys. */
+function maerskCloudHeaders(extra={}) {
+  const h = {
+    apikey: CLOUD.key,
+    'Content-Type': 'application/json',
+    ...extra
+  };
+  if(/^eyJ[A-Za-z0-9_-]+\./.test(String(CLOUD.key||''))){
+    h.Authorization = `Bearer ${CLOUD.key}`;
+  }
+  return h;
 }
 async function cloudLoadRows(){
   if(!cloudEnabled) return false;
@@ -2453,7 +2472,10 @@ async function cloudLoadRows(){
 }
 async function cloudLoadMaerskTransfers(){
   if(!cloudEnabled) return false;
-  const res=await fetch(`${CLOUD.url}/rest/v1/maersk_transfers?select=*&order=transfer_date.desc,created_at.desc`,{headers:cloudHeaders()});
+  const res=await fetch(
+    `${CLOUD.url}/rest/v1/maersk_transfers?select=id,transfer_date,quantity,created_at&order=transfer_date.desc,created_at.desc`,
+    {headers:maerskCloudHeaders()}
+  );
   if(!res.ok) throw new Error(await res.text());
   maerskTransfers=await res.json();
   localStorage.setItem('maersk_transfers_static',JSON.stringify(maerskTransfers));
@@ -2461,14 +2483,21 @@ async function cloudLoadMaerskTransfers(){
 }
 async function cloudInsertMaerskTransfer(payload){
   if(!cloudEnabled) return null;
+  const fixedPayload={
+    transfer_date:payload.transfer_date,
+    quantity:Number(payload.quantity)
+  };
   const res=await fetch(`${CLOUD.url}/rest/v1/maersk_transfers`,{
     method:'POST',
-    headers:cloudHeaders({'Prefer':'return=representation'}),
-    body:JSON.stringify(payload)
+    headers:maerskCloudHeaders({'Prefer':'return=minimal'}),
+    body:JSON.stringify(fixedPayload)
   });
-  if(!res.ok) throw new Error(await res.text());
-  const data=await res.json();
-  return data[0]||null;
+  if(!res.ok){
+    const raw=await res.text();
+    throw new Error(`Supabase ${res.status}: ${raw}`);
+  }
+  await cloudLoadMaerskTransfers();
+  return true;
 }
 async function cloudInsertMovement(payload){
   if(!cloudEnabled) return null;
@@ -2490,7 +2519,9 @@ async function cloudUploadPhoto(file){
   if(!file) return null;
   if(!cloudEnabled) return pendingPhotoPreview||null;
   const name=`${Date.now()}_${crypto.randomUUID()}.jpg`;
-  const res=await fetch(`${CLOUD.url}/storage/v1/object/container-photos/${name}`,{method:'POST',headers:{apikey:CLOUD.key,Authorization:`Bearer ${CLOUD.key}`,'Content-Type':'image/jpeg','x-upsert':'false'},body:file});
+  const storageHeaders={apikey:CLOUD.key,'Content-Type':'image/jpeg','x-upsert':'false'};
+  if(/^eyJ[A-Za-z0-9_-]+\./.test(String(CLOUD.key||''))) storageHeaders.Authorization=`Bearer ${CLOUD.key}`;
+  const res=await fetch(`${CLOUD.url}/storage/v1/object/container-photos/${name}`,{method:'POST',headers:storageHeaders,body:file});
   if(!res.ok) throw new Error(await res.text());
   return `${CLOUD.url}/storage/v1/object/public/container-photos/${name}`;
 }
@@ -2597,7 +2628,7 @@ let archiveDeleteMode=false;
 const archiveSelectedIds=new Set();
 function saveLocal(){localStorage.setItem('container_movements_static',JSON.stringify(rows))}
 function saveMaerskTransfersLocal(){localStorage.setItem('maersk_transfers_static',JSON.stringify(maerskTransfers))}
-function maerskAllTimeTotal(){return maerskTransfers.reduce((sum,row)=>sum+(Number(row.amount)||0),0)}
+function maerskAllTimeTotal(){return maerskTransfers.reduce((sum,row)=>sum+(Number(row.quantity)||0),0)}
 function maerskTransfersInRange(start,end){
   const startKey=dateOnly(start), endKey=dateOnly(end);
   return maerskTransfers.filter(row=>String(row.transfer_date||'')>=startKey && String(row.transfer_date||'')<=endKey);
@@ -2911,7 +2942,7 @@ function exportExcel(){
   const transfersByDay=new Map();
   maerskTransfersInRange(s,e).forEach(row=>{
     const key=String(row.transfer_date||'');
-    transfersByDay.set(key,(transfersByDay.get(key)||0)+(Number(row.amount)||0));
+    transfersByDay.set(key,(transfersByDay.get(key)||0)+(Number(row.quantity)||0));
   });
   const containerMovesByDay=new Map();
   fr.forEach(row=>{
@@ -4707,25 +4738,31 @@ $('#saveMaerskTransferBtn').onclick=async()=>{
     input.focus();
     return;
   }
-  const amount=Number(raw);
-  if(!Number.isSafeInteger(amount) || amount<0){
+  const quantity=Number(raw);
+  if(!Number.isSafeInteger(quantity) || quantity<0){
     status.textContent='המספר שהוזן אינו תקין';
     input.focus();
     return;
   }
   button.disabled=true;
+  status.style.color='#dff3ff';
   status.textContent='שומר...';
-  const payload={transfer_date:dateOnly(new Date()),amount};
+  const payload={transfer_date:dateOnly(new Date()),quantity};
   try{
-    const saved=await cloudInsertMaerskTransfer(payload);
-    maerskTransfers.unshift(saved||{id:crypto.randomUUID(),created_at:new Date().toISOString(),...payload});
+    await cloudInsertMaerskTransfer(payload);
     saveMaerskTransfersLocal();
     input.value='';
+    status.style.color='#75ef9e';
     status.textContent='נשמר בהצלחה ✓';
     render();
+    setTimeout(()=>{
+      if(status.textContent==='נשמר בהצלחה ✓') status.textContent='';
+    },2500);
   }catch(err){
     console.error('MAERSK transfer save failed:',err);
-    status.textContent='השמירה נכשלה — יש לוודא שקובץ ה-SQL הופעל';
+    status.style.color='#ff9b9b';
+    status.textContent='השמירה נכשלה';
+    alert('שמירת MAERSK נכשלה:\n\n'+(err.message||err));
   }finally{
     button.disabled=false;
   }
