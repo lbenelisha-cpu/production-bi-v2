@@ -44,6 +44,7 @@ main{width:min(1480px,94vw);margin:20px auto 50px;display:grid;gap:16px}
 .kicon{width:47px;height:47px;border-radius:15px;display:grid;place-items:center;background:rgba(31,119,247,.1);font-size:21px}
 .kpi span{display:block;color:#657b94;font-size:12px}.kpi strong{font-size:27px}
 .maersk-kpi-content{flex:1;min-width:0}.maersk-entry-row{display:flex;gap:7px;margin-top:7px}.maersk-entry-row input{width:100%;min-width:0;height:34px;border:1px solid rgba(255,255,255,.18);border-radius:9px;padding:0 9px;background:rgba(255,255,255,.08);color:inherit;font:inherit}.maersk-entry-row button{height:34px;border:0;border-radius:9px;padding:0 13px;background:#2478ff;color:#fff;font-weight:700;cursor:pointer}.maersk-save-status{display:block;min-height:16px;margin-top:3px;font-size:11px!important;color:#75ef9e!important}
+.transfer-import-btn{height:34px;border:0;border-radius:9px;padding:0 12px;background:linear-gradient(135deg,#13a36f,#22c58b);color:#fff;font-weight:700;cursor:pointer;white-space:nowrap}.transfer-import-btn:disabled{opacity:.55;cursor:wait}.wfp-kpi .kicon{background:linear-gradient(135deg,rgba(135,92,246,.9),rgba(74,52,167,.9))}.excel-import-note{display:block;margin-top:3px;color:rgba(235,245,255,.7);font-size:10px}
 .movement-grand-total{display:flex;align-items:baseline;gap:7px;margin-top:5px}.movement-grand-total small{color:var(--text-soft,#a9b9cc);font-size:11px}.movement-grand-total strong{font-size:27px!important}.movement-totals{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:5px;padding-top:6px;border-top:1px solid rgba(255,255,255,.12)}.movement-total-item{min-width:0}.movement-total-item small{display:block;color:var(--text-soft,#a9b9cc);font-size:10px;line-height:1.25}.movement-total-item strong{display:block;font-size:19px!important;margin-top:2px}
 .card{border-radius:24px;padding:18px}.head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:10px}
 .head h2{margin:0 0 3px;font-size:19px}.head p{margin:0;color:#74879d;font-size:12px}
@@ -2187,9 +2188,11 @@ body{--movement-scale:1.125}
 
 <section class="kpis">
   <div class="kpi glass"><div class="kicon">↔</div><div><span>סה״כ תנועות</span><strong id="kpiMoves">0</strong></div></div>
-  <div class="kpi glass"><div class="kicon">▣</div><div><span>מכולות שונות</span><strong id="kpiContainers">0</strong></div></div>
-  <div class="kpi glass"><div class="kicon">↗</div><div class="maersk-kpi-content"><span>העברות MAERSK מהשלוחה למסוף</span><div class="maersk-entry-row"><input id="maerskTransferInput" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="הזן מספר בלבד" aria-label="מספר העברות MAERSK"><button id="saveMaerskTransferBtn" type="button">שמור</button><button id="deleteMaerskTransferBtn" type="button" style="background:linear-gradient(135deg,#d73255,#ef496a)">מחיקה</button></div><small class="maersk-save-status" id="maerskSaveStatus"></small><small id="maerskSelectedDateHint" style="display:block;margin-top:2px;color:rgba(235,245,255,.72);font-size:10px"></small></div></div>
-  <div class="kpi glass"><div class="kicon">∑</div><div class="maersk-kpi-content"><span>סה״כ תנועות</span><div class="movement-grand-total"><small>סה״כ לתקופה הנבחרת</small><strong id="kpiGrandTotal">0</strong></div><div class="movement-totals"><div class="movement-total-item"><small>העברות מהשלוחה למסוף</small><strong id="kpiAverage">0</strong></div><div class="movement-total-item"><small>תנועות מכולות</small><strong id="kpiContainerMovesAllTime">0</strong></div></div></div></div>
+  <div class="kpi glass wfp-kpi"><div class="kicon">⇢</div><div class="maersk-kpi-content"><span>העברות WFP מהרכבת לאומן</span><div class="maersk-entry-row"><input id="wfpTransferInput" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="הזן מספר בלבד" aria-label="מספר העברות WFP"><button id="saveWfpTransferBtn" type="button">שמור</button><button id="deleteWfpTransferBtn" type="button" style="background:linear-gradient(135deg,#d73255,#ef496a)">מחיקה</button><button id="importWfpExcelBtn" class="transfer-import-btn" type="button">Excel</button></div><small class="maersk-save-status" id="wfpSaveStatus"></small><small id="wfpSelectedDateHint" style="display:block;margin-top:2px;color:rgba(235,245,255,.72);font-size:10px"></small></div></div>
+  <div class="kpi glass"><div class="kicon">↗</div><div class="maersk-kpi-content"><span>העברות MAERSK מהשלוחה למסוף</span><div class="maersk-entry-row"><input id="maerskTransferInput" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="הזן מספר בלבד" aria-label="מספר העברות MAERSK"><button id="saveMaerskTransferBtn" type="button">שמור</button><button id="deleteMaerskTransferBtn" type="button" style="background:linear-gradient(135deg,#d73255,#ef496a)">מחיקה</button><button id="importMaerskExcelBtn" class="transfer-import-btn" type="button">Excel</button></div><small class="maersk-save-status" id="maerskSaveStatus"></small><small id="maerskSelectedDateHint" style="display:block;margin-top:2px;color:rgba(235,245,255,.72);font-size:10px"></small></div></div>
+  <div class="kpi glass"><div class="kicon">∑</div><div class="maersk-kpi-content"><span>סה״כ תנועות</span><div class="movement-grand-total"><small>סה״כ לתקופה הנבחרת</small><strong id="kpiGrandTotal">0</strong></div><div class="movement-totals"><div class="movement-total-item"><small>MAERSK שלוחה ← מסוף</small><strong id="kpiAverage">0</strong></div><div class="movement-total-item"><small>WFP רכבת ← אומן</small><strong id="kpiWfp">0</strong></div><div class="movement-total-item"><small>תנועות מכולות</small><strong id="kpiContainerMovesAllTime">0</strong></div></div></div></div>
+  <input id="maerskExcelInput" type="file" accept=".xlsx,.xls" hidden>
+  <input id="wfpExcelInput" type="file" accept=".xlsx,.xls" hidden>
 </section>
 
 <section class="card glass table-card-visual">
@@ -2502,6 +2505,36 @@ async function cloudInsertMaerskTransfer(payload){
   await cloudLoadMaerskTransfers();
   return true;
 }
+async function cloudLoadWfpTransfers(){
+  if(!cloudEnabled) return false;
+  const res=await fetch(
+    `${CLOUD.url}/rest/v1/wfp_transfers?select=id,transfer_date,quantity,created_at&order=transfer_date.desc,created_at.desc`,
+    {headers:maerskCloudHeaders()}
+  );
+  if(!res.ok) throw new Error(await res.text());
+  wfpTransfers=await res.json();
+  localStorage.setItem('wfp_transfers_static',JSON.stringify(wfpTransfers));
+  return true;
+}
+async function cloudInsertWfpTransfer(payload){
+  if(!cloudEnabled) return null;
+  const fixedPayload={transfer_date:payload.transfer_date,quantity:Number(payload.quantity)};
+  const res=await fetch(`${CLOUD.url}/rest/v1/wfp_transfers`,{
+    method:'POST',headers:maerskCloudHeaders({'Prefer':'return=minimal'}),body:JSON.stringify(fixedPayload)
+  });
+  if(!res.ok){const raw=await res.text();throw new Error(`Supabase ${res.status}: ${raw}`);}
+  await cloudLoadWfpTransfers();
+  return true;
+}
+async function cloudInsertMovementsBatch(payloads){
+  if(!payloads.length) return [];
+  if(!cloudEnabled) return payloads.map(p=>({id:crypto.randomUUID(),...p}));
+  const res=await fetch(`${CLOUD.url}/rest/v1/container_movements`,{
+    method:'POST',headers:cloudHeaders({'Prefer':'return=representation'}),body:JSON.stringify(payloads)
+  });
+  if(!res.ok) throw new Error(await res.text());
+  return await res.json();
+}
 async function cloudInsertMovement(payload){
   if(!cloudEnabled) return null;
   const res = await fetch(`${CLOUD.url}/rest/v1/container_movements`, {
@@ -2622,6 +2655,7 @@ function seed(){
 }
 let rows=JSON.parse(localStorage.getItem('container_movements_static')||'null') || (cloudEnabled ? [] : seed());
 let maerskTransfers=JSON.parse(localStorage.getItem('maersk_transfers_static')||'null') || [];
+let wfpTransfers=JSON.parse(localStorage.getItem('wfp_transfers_static')||'null') || [];
 let pendingDeleteRow=null;
 let pendingDeleteRows=[];
 let bulkDeleteMode=false;
@@ -2631,6 +2665,8 @@ let archiveDeleteMode=false;
 const archiveSelectedIds=new Set();
 function saveLocal(){localStorage.setItem('container_movements_static',JSON.stringify(rows))}
 function saveMaerskTransfersLocal(){localStorage.setItem('maersk_transfers_static',JSON.stringify(maerskTransfers))}
+function saveWfpTransfersLocal(){localStorage.setItem('wfp_transfers_static',JSON.stringify(wfpTransfers))}
+function wfpTransfersInRange(start,end){const startKey=dateOnly(start),endKey=dateOnly(end);return wfpTransfers.filter(row=>String(row.transfer_date||'')>=startKey&&String(row.transfer_date||'')<=endKey)}
 function maerskAllTimeTotal(){return maerskTransfers.reduce((sum,row)=>sum+(Number(row.quantity)||0),0)}
 function maerskTransfersInRange(start,end){
   const startKey=dateOnly(start), endKey=dateOnly(end);
@@ -2649,6 +2685,19 @@ function updateMaerskSelectedDateHint(){
   const iso=selectedMaerskEntryDate();
   const parts=String(iso).split('-');
   el.textContent=parts.length===3 ? `שמירה/מחיקה לתאריך הנבחר: ${parts[2]}/${parts[1]}/${parts[0]}` : `שמירה/מחיקה לתאריך הנבחר: ${iso}`;
+}
+function updateWfpSelectedDateHint(){
+  const el=$('#wfpSelectedDateHint');if(!el)return;
+  const iso=selectedMaerskEntryDate(),parts=String(iso).split('-');
+  el.textContent=parts.length===3?`שמירה/מחיקה/Excel לתאריך הנבחר: ${parts[2]}/${parts[1]}/${parts[0]}`:`שמירה/מחיקה/Excel לתאריך הנבחר: ${iso}`;
+}
+async function cloudDeleteWfpTransfersByDate(transferDate,code){
+  if(!cloudEnabled) throw new Error('אין חיבור לענן');
+  const res=await fetch(`${CLOUD.url}/rest/v1/rpc/delete_wfp_transfers_by_date`,{
+    method:'POST',headers:maerskCloudHeaders(),body:JSON.stringify({p_transfer_date:transferDate,p_code:String(code||'')})
+  });
+  if(!res.ok){const raw=await res.text();if(raw.includes('INVALID_CODE'))throw new Error('הסיסמה שהוזנה אינה נכונה');throw new Error(`Supabase ${res.status}: ${raw}`);}
+  const deletedCount=Number(await res.json())||0;await cloudLoadWfpTransfers();return deletedCount;
 }
 async function cloudDeleteMaerskTransfersByDate(transferDate, code){
   if(!cloudEnabled) throw new Error('אין חיבור לענן');
@@ -2792,6 +2841,11 @@ function render(){
    return key>=counterStartKey && key<=counterEndKey;
  }).reduce((sum,r)=>sum+(Number(r.quantity)||0),0);
 
+ const wfpTotal=wfpTransfers.filter(r=>{
+   const key=String(r.transfer_date||'');
+   return key>=counterStartKey && key<=counterEndKey;
+ }).reduce((sum,r)=>sum+(Number(r.quantity)||0),0);
+
  const containerMovesTotal=rows.filter(r=>{
    const movementDate=new Date(r.movement_at);
    if(Number.isNaN(movementDate.getTime())) return false;
@@ -2799,7 +2853,7 @@ function render(){
    return key>=counterStartKey && key<=counterEndKey;
  }).length;
 
- $('#kpiMoves').textContent=fr.length;$('#kpiContainers').textContent=c;$('#kpiAverage').textContent=maerskTotal.toLocaleString('he-IL');$('#kpiContainerMovesAllTime').textContent=containerMovesTotal.toLocaleString('he-IL');$('#kpiGrandTotal').textContent=(maerskTotal+containerMovesTotal).toLocaleString('he-IL');$('#rowsLabel').textContent=`${fr.length} רשומות מוצגות`;
+ $('#kpiMoves').textContent=fr.length;$('#kpiAverage').textContent=maerskTotal.toLocaleString('he-IL');$('#kpiWfp').textContent=wfpTotal.toLocaleString('he-IL');$('#kpiContainerMovesAllTime').textContent=containerMovesTotal.toLocaleString('he-IL');$('#kpiGrandTotal').textContent=(maerskTotal+wfpTotal+containerMovesTotal).toLocaleString('he-IL');$('#rowsLabel').textContent=`${fr.length} רשומות מוצגות`;
  $('#tbody').innerHTML=fr.length?fr.map(r=>{const miss=!r.agent||!r.current_location||!r.target_location;const selected=bulkSelectedIds.has(String(r.id));const isDuplicate=duplicateIds.has(String(r.id));return `<tr class="${isDuplicate?'duplicate-container-row':''}"><td class="bulk-select-col"><input type="checkbox" class="bulk-row-check" data-id="${escapeHtml(r.id)}" ${selected?'checked':''} aria-label="בחר רשומה למחיקה"></td><td>${fmt(new Date(r.movement_at))}</td><td class="mono">${r.container_no?escapeHtml(r.container_no):''}${isDuplicate?'<span class="duplicate-badge">כפול באותו תאריך</span>':''} ${!r.container_no&&r.photo_url?'<span class="unrecognized">📷 צילום בלבד — דורש עריכה</span>':''} ${miss?'<span class="missing">⚠ חסרים פרטים</span>':''} ${r.photo_url?`<a class="photo-link" href="${escapeHtml(r.photo_url)}" target="_blank" title="פתח צילום">📷</a>`:''}</td><td>${escapeHtml(r.agent||'—')}</td><td>${r.container_type?`<span class="pill">${r.container_type} פיט</span>`:'—'}</td><td>⌖ ${escapeHtml(r.current_location||'—')}</td><td>⌖ ${escapeHtml(r.target_location||'—')}</td><td class="movement-note">${escapeHtml(r.note||'')}</td><td class="row-actions"><button class="edit" data-id="${r.id}" title="עריכה">✏️</button><button class="delete ios-trash" data-id="${r.id}" title="מחיקה" aria-label="מחיקה"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 7V5.8C8 4.8 8.8 4 9.8 4h4.4c1 0 1.8.8 1.8 1.8V7M5 7h14M9 10v7M12 10v7M15 10v7M7 7l.7 12.1c.1.6.6.9 1.2.9h6.2c.6 0 1.1-.3 1.2-.9L17 7"/></svg></button></td></tr>`}).join(''):`<tr><td class="empty" colspan="9">אין תנועות בטווח שנבחר</td></tr>`;
  document.body.classList.toggle('bulk-delete-mode',bulkDeleteMode);
  syncBulkDeleteUi(fr);
@@ -2831,7 +2885,7 @@ function render(){
    $('#deleteModalBg').classList.add('show');
    setTimeout(()=>$('#deletedByInput').focus(),50);
  });
- drawChart(cd); updateLocations(); updateMaerskSelectedDateHint()
+ drawChart(cd); updateLocations(); updateMaerskSelectedDateHint(); updateWfpSelectedDateHint()
 }
 $$('#periods button').forEach(b=>b.onclick=()=>{locateCriteria=null;$('#locateBtn')?.classList.remove('active'); if($('#locateBtn')) $('#locateBtn').textContent='⌖ איתור';$$('#periods button').forEach(x=>x.classList.remove('active'));b.classList.add('active');period=b.dataset.period;$('#datebox').style.display=period==='custom'?'none':'flex';$('#customRange').style.display=period==='custom'?'flex':'none';render()});
 $('#anchorDate').onchange=e=>{anchor=new Date(e.target.value+'T12:00:00');render()};
@@ -2995,26 +3049,30 @@ function exportExcel(){
     const key=String(row.transfer_date||'');
     transfersByDay.set(key,(transfersByDay.get(key)||0)+(Number(row.quantity)||0));
   });
+  const wfpByDay=new Map();
+  wfpTransfersInRange(s,e).forEach(row=>{const key=String(row.transfer_date||'');wfpByDay.set(key,(wfpByDay.get(key)||0)+(Number(row.quantity)||0));});
   const containerMovesByDay=new Map();
   fr.forEach(row=>{
     const key=dateOnly(new Date(row.movement_at));
     containerMovesByDay.set(key,(containerMovesByDay.get(key)||0)+1);
   });
-  const allDays=[...new Set([...transfersByDay.keys(),...containerMovesByDay.keys()])].sort((a,b)=>a.localeCompare(b));
+  const allDays=[...new Set([...transfersByDay.keys(),...wfpByDay.keys(),...containerMovesByDay.keys()])].sort((a,b)=>a.localeCompare(b));
   const transferRows=allDays.map(day=>{
-    const transfers=transfersByDay.get(day)||0, containerMoves=containerMovesByDay.get(day)||0;
-    return {'תאריך':day,'העברות מהשלוחה למסוף':transfers,'תנועות מכולות':containerMoves,'סה״כ כללי':transfers+containerMoves};
+    const transfers=transfersByDay.get(day)||0,wfp=wfpByDay.get(day)||0,containerMoves=containerMovesByDay.get(day)||0;
+    return {'תאריך':day,'MAERSK מהשלוחה למסוף':transfers,'WFP מהרכבת לאומן':wfp,'תנועות מכולות':containerMoves,'סה״כ כללי':transfers+wfp+containerMoves};
   });
   const rangeTransferTotal=[...transfersByDay.values()].reduce((sum,value)=>sum+value,0);
+  const rangeWfpTotal=[...wfpByDay.values()].reduce((sum,value)=>sum+value,0);
   const rangeContainerMovesTotal=fr.length;
-  const rangeGrandTotal=rangeTransferTotal+rangeContainerMovesTotal;
-  transferRows.push({'תאריך':'סה״כ בטווח הנבחר','העברות מהשלוחה למסוף':rangeTransferTotal,'תנועות מכולות':rangeContainerMovesTotal,'סה״כ כללי':rangeGrandTotal});
-  const transferWs=XLSX.utils.json_to_sheet(transferRows,{header:['תאריך','העברות מהשלוחה למסוף','תנועות מכולות','סה״כ כללי']});
-  transferWs['!cols']=[{wch:22},{wch:32},{wch:22},{wch:20}];
+  const rangeGrandTotal=rangeTransferTotal+rangeWfpTotal+rangeContainerMovesTotal;
+  transferRows.push({'תאריך':'סה״כ בטווח הנבחר','MAERSK מהשלוחה למסוף':rangeTransferTotal,'WFP מהרכבת לאומן':rangeWfpTotal,'תנועות מכולות':rangeContainerMovesTotal,'סה״כ כללי':rangeGrandTotal});
+  const transferWs=XLSX.utils.json_to_sheet(transferRows,{header:['תאריך','MAERSK מהשלוחה למסוף','WFP מהרכבת לאומן','תנועות מכולות','סה״כ כללי']});
+  transferWs['!cols']=[{wch:22},{wch:30},{wch:28},{wch:22},{wch:20}];
   transferWs['!dir']='rtl';
   XLSX.utils.book_append_sheet(wb,transferWs,'סיכום תנועות יומי');
   const totalsWs=XLSX.utils.json_to_sheet([
     {'טווח נבחר':`${dateOnly(s)} עד ${dateOnly(e)}`,'סוג סיכום':'העברות מהשלוחה למסוף','סה״כ':rangeTransferTotal},
+    {'טווח נבחר':`${dateOnly(s)} עד ${dateOnly(e)}`,'סוג סיכום':'WFP מהרכבת לאומן','סה״כ':rangeWfpTotal},
     {'טווח נבחר':`${dateOnly(s)} עד ${dateOnly(e)}`,'סוג סיכום':'תנועות מכולות','סה״כ':rangeContainerMovesTotal},
     {'טווח נבחר':`${dateOnly(s)} עד ${dateOnly(e)}`,'סוג סיכום':'סה״כ כללי','סה״כ':rangeGrandTotal}
   ],{header:['טווח נבחר','סוג סיכום','סה״כ']});
@@ -4884,6 +4942,76 @@ $('#deleteMaerskTransferBtn').onclick=async()=>{
 
 
 
+$('#wfpTransferInput').oninput=e=>{e.target.value=e.target.value.replace(/[^0-9]/g,'');};
+$('#saveWfpTransferBtn').onclick=async()=>{
+  const input=$('#wfpTransferInput'),status=$('#wfpSaveStatus'),button=$('#saveWfpTransferBtn'),raw=input.value.trim();
+  if(!/^\d+$/.test(raw)){status.textContent='יש להזין מספר שלם בלבד';input.focus();return;}
+  const quantity=Number(raw);if(!Number.isSafeInteger(quantity)||quantity<0){status.textContent='המספר שהוזן אינו תקין';input.focus();return;}
+  button.disabled=true;status.style.color='#dff3ff';status.textContent='שומר...';
+  try{await cloudInsertWfpTransfer({transfer_date:selectedMaerskEntryDate(),quantity});saveWfpTransfersLocal();input.value='';status.style.color='#75ef9e';status.textContent='נשמר בהצלחה ✓';render();setTimeout(()=>{if(status.textContent==='נשמר בהצלחה ✓')status.textContent='';},2500);}
+  catch(err){status.style.color='#ff9b9b';status.textContent='השמירה נכשלה';alert('שמירת WFP נכשלה:\n\n'+(err.message||err));}
+  finally{button.disabled=false;}
+};
+$('#deleteWfpTransferBtn').onclick=async()=>{
+  const status=$('#wfpSaveStatus'),button=$('#deleteWfpTransferBtn'),transferDate=selectedMaerskEntryDate();
+  const rowsForDate=wfpTransfers.filter(r=>String(r.transfer_date||'')===transferDate),totalForDate=rowsForDate.reduce((a,r)=>a+(Number(r.quantity)||0),0);
+  if(!rowsForDate.length){alert('אין נתוני WFP למחיקה בתאריך הנבחר.');return;}
+  const code=prompt(`מחיקת נתוני WFP לתאריך ${transferDate}\nסה״כ רשומות: ${rowsForDate.length}\nסה״כ העברות: ${totalForDate}\n\nהזן סיסמה למחיקה:`);if(code===null)return;
+  if(String(code).trim()!=='201718'){alert('הסיסמה שהוזנה אינה נכונה.');return;}
+  if(!confirm(`האם למחוק מהשרת את כל נתוני WFP לתאריך ${transferDate}?\nהפעולה תמחק ${rowsForDate.length} רשומות ולא ניתן לבטל אותה.`))return;
+  button.disabled=true;status.style.color='#ffd28a';status.textContent='מוחק מהשרת...';
+  try{const deleted=await cloudDeleteWfpTransfersByDate(transferDate,code);saveWfpTransfersLocal();render();status.style.color='#75ef9e';status.textContent=`נמחקו ${deleted} רשומות מהשרת ✓`;setTimeout(()=>{if(status.textContent.includes('נמחקו'))status.textContent='';},3000);}
+  catch(err){status.style.color='#ff9b9b';status.textContent='המחיקה נכשלה';alert('מחיקת WFP נכשלה:\n\n'+(err.message||err));}
+  finally{button.disabled=false;}
+};
+
+function normalizeExcelHeader(v){return String(v||'').trim().toLowerCase().replace(/["'׳״`]/g,'').replace(/[\s_\-.:()]/g,'');}
+function findHeaderIndex(headers,aliases){const norm=headers.map(normalizeExcelHeader);return norm.findIndex(h=>aliases.some(a=>h===normalizeExcelHeader(a)||h.includes(normalizeExcelHeader(a))));}
+function normalizeImportedContainer(v){return String(v||'').toUpperCase().replace(/[^A-Z0-9]/g,'');}
+function selectedDateMovementIso(selectedDate,index){const [y,m,d]=String(selectedDate).split('-').map(Number);const dt=new Date(y,m-1,d,12,0,index%60,Math.floor(index/60)%1000);return dt.toISOString();}
+async function importTransferExcel(file,kind){
+  if(typeof XLSX==='undefined')throw new Error('רכיב Excel לא נטען. בדוק חיבור לאינטרנט ונסה שוב.');
+  const buf=await file.arrayBuffer(),book=XLSX.read(buf,{type:'array',cellDates:false}),sheet=book.Sheets[book.SheetNames[0]];
+  const matrix=XLSX.utils.sheet_to_json(sheet,{header:1,defval:'',raw:false});
+  const headerRow=matrix.findIndex(row=>row.some(v=>/מכולה/.test(String(v)))&&row.some(v=>/איתור/.test(String(v))));
+  if(headerRow<0)throw new Error('לא נמצאה שורת כותרות הכוללת מספר מכולה ואיתור.');
+  const headers=matrix[headerRow];
+  const cNo=findHeaderIndex(headers,["מס' מכולה",'מס מכולה','מספר מכולה','container','container no']);
+  const cType=findHeaderIndex(headers,['גודל מכולה','סוג מכולה','גודל','size','type']);
+  const cCurrent=findHeaderIndex(headers,['איתור נוכחי','מיקום נוכחי','current location','current']);
+  const cTarget=findHeaderIndex(headers,['איתור חדש','איתור יעד','מיקום יעד','target location','target','new location']);
+  if(cNo<0||cType<0||cCurrent<0||cTarget<0)throw new Error('מבנה הקובץ אינו תואם. נדרשות עמודות: מספר מכולה, גודל מכולה, איתור נוכחי, איתור חדש/יעד.');
+  const selectedDate=selectedMaerskEntryDate(),agent=kind==='maersk'?'MAERSK':'WFP';
+  const existing=new Set(rows.filter(r=>dateOnly(new Date(r.movement_at))===selectedDate).map(r=>[normalizeImportedContainer(r.container_no),String(r.current_location||'').trim(),String(r.target_location||'').trim(),String(r.agent||'').toUpperCase()].join('|')));
+  const payloads=[];let invalid=0,duplicates=0;
+  matrix.slice(headerRow+1).forEach((row,i)=>{
+    const no=normalizeImportedContainer(row[cNo]);if(!no&&!String(row[cCurrent]||'').trim()&&!String(row[cTarget]||'').trim())return;
+    const typeNum=Number(String(row[cType]||'').replace(/[^0-9]/g,''));
+    const current=String(row[cCurrent]||'').trim(),target=String(row[cTarget]||'').trim();
+    if(!/^[A-Z]{4}\d{7}$/.test(no)||![20,40].includes(typeNum)||!current||!target){invalid++;return;}
+    const key=[no,current,target,agent].join('|');if(existing.has(key)){duplicates++;return;}existing.add(key);
+    payloads.push({container_no:no,agent,container_type:typeNum,current_location:current,target_location:target,movement_at:selectedDateMovementIso(selectedDate,payloads.length),note:`יובא מאקסל — ${kind==='maersk'?'MAERSK מהשלוחה למסוף':'WFP מהרכבת לאומן'}`});
+  });
+  if(!payloads.length)throw new Error(`לא נמצאו שורות חדשות ותקינות לטעינה.${invalid?` שורות לא תקינות: ${invalid}.`:''}${duplicates?` כפילויות שנדחו: ${duplicates}.`:''}`);
+  const saved=await cloudInsertMovementsBatch(payloads);rows=[...saved,...rows];saveLocal();
+  const quantity=payloads.length;
+  if(kind==='maersk'){await cloudInsertMaerskTransfer({transfer_date:selectedDate,quantity});saveMaerskTransfersLocal();}
+  else{await cloudInsertWfpTransfer({transfer_date:selectedDate,quantity});saveWfpTransfersLocal();}
+  render();
+  return {quantity,invalid,duplicates,selectedDate};
+}
+function wireExcelImport(kind){
+  const btn=$(kind==='maersk'?'#importMaerskExcelBtn':'#importWfpExcelBtn'),input=$(kind==='maersk'?'#maerskExcelInput':'#wfpExcelInput'),status=$(kind==='maersk'?'#maerskSaveStatus':'#wfpSaveStatus');
+  btn.onclick=()=>{input.value='';input.click();};
+  input.onchange=async()=>{const file=input.files?.[0];if(!file)return;btn.disabled=true;status.style.color='#dff3ff';status.textContent='טוען Excel...';
+    try{const r=await importTransferExcel(file,kind);status.style.color='#75ef9e';status.textContent=`נטענו ${r.quantity} מכולות לתאריך ${r.selectedDate} ✓${r.invalid?` · ${r.invalid} לא תקינות`:''}${r.duplicates?` · ${r.duplicates} כפילויות`:''}`;}
+    catch(err){status.style.color='#ff9b9b';status.textContent='טעינת Excel נכשלה';alert('טעינת Excel נכשלה:\n\n'+(err.message||err));}
+    finally{btn.disabled=false;input.value='';}
+  };
+}
+wireExcelImport('maersk');wireExcelImport('wfp');
+
+
 function syncBulkDeleteUi(fr=filtered()){
   const modeBtn=$('#bulkDeleteModeBtn'), actions=$('#bulkDeleteActions'), count=$('#bulkSelectedCount'), confirm=$('#bulkArchiveDeleteBtn'), selectAll=$('#bulkSelectAll');
   if(modeBtn)modeBtn.classList.toggle('active',bulkDeleteMode);
@@ -5173,7 +5301,7 @@ if(exportBottom) exportBottom.onclick=()=>exportExcel();
 const refreshBottom=$('#refreshBottom');
 if(refreshBottom) refreshBottom.onclick=async()=>{
   if(cloudEnabled){
-    try{await Promise.all([cloudLoadRows(),cloudLoadMaerskTransfers()]);render();setCloudStatus(true,'מחובר');}
+    try{await Promise.all([cloudLoadRows(),cloudLoadMaerskTransfers(),cloudLoadWfpTransfers()]);render();setCloudStatus(true,'מחובר');}
     catch(e){setCloudStatus(false,'שגיאת חיבור לענן');}
   }else render();
 };
@@ -5185,12 +5313,12 @@ async function initCloud(){
     return;
   }
   try{
-    await Promise.all([cloudLoadRows(),cloudLoadMaerskTransfers()]);
+    await Promise.all([cloudLoadRows(),cloudLoadMaerskTransfers(),cloudLoadWfpTransfers()]);
     setCloudStatus(true,'מחובר');
     render();
     setInterval(async()=>{
       try{
-        await Promise.all([cloudLoadRows(),cloudLoadMaerskTransfers()]);
+        await Promise.all([cloudLoadRows(),cloudLoadMaerskTransfers(),cloudLoadWfpTransfers()]);
         render();
         setCloudStatus(true,'מחובר');
       }catch(e){
