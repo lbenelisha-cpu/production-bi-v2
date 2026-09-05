@@ -2846,14 +2846,23 @@ function render(){
    return key>=counterStartKey && key<=counterEndKey;
  }).reduce((sum,r)=>sum+(Number(r.quantity)||0),0);
 
- const containerMovesTotal=rows.filter(r=>{
+ const rowsInCounterRange=rows.filter(r=>{
    const movementDate=new Date(r.movement_at);
    if(Number.isNaN(movementDate.getTime())) return false;
    const key=dateOnly(movementDate);
    return key>=counterStartKey && key<=counterEndKey;
- }).length;
+ });
+ const containerMovesTotal=rowsInCounterRange.length;
 
- $('#kpiMoves').textContent=fr.length;$('#kpiAverage').textContent=maerskTotal.toLocaleString('he-IL');$('#kpiWfp').textContent=wfpTotal.toLocaleString('he-IL');$('#kpiContainerMovesAllTime').textContent=containerMovesTotal.toLocaleString('he-IL');$('#kpiGrandTotal').textContent=(maerskTotal+wfpTotal+containerMovesTotal).toLocaleString('he-IL');$('#rowsLabel').textContent=`${fr.length} רשומות מוצגות`;
+ // טעינה מ-Excel יוצרת גם שורת תנועה וגם רישום בקאונטר MAERSK/WFP.
+ // לכן בסה"כ הכללי סופרים כל תנועה פיזית פעם אחת בלבד.
+ const importedMaerskMoves=rowsInCounterRange.filter(r=>String(r.note||'').includes('יובא מאקסל') && String(r.agent||'').toUpperCase()==='MAERSK').length;
+ const importedWfpMoves=rowsInCounterRange.filter(r=>String(r.note||'').includes('יובא מאקסל') && String(r.agent||'').toUpperCase()==='WFP').length;
+ const unmatchedMaersk=Math.max(0,maerskTotal-importedMaerskMoves);
+ const unmatchedWfp=Math.max(0,wfpTotal-importedWfpMoves);
+ const grandTotal=containerMovesTotal+unmatchedMaersk+unmatchedWfp;
+
+ $('#kpiMoves').textContent=fr.length;$('#kpiAverage').textContent=maerskTotal.toLocaleString('he-IL');$('#kpiWfp').textContent=wfpTotal.toLocaleString('he-IL');$('#kpiContainerMovesAllTime').textContent=containerMovesTotal.toLocaleString('he-IL');$('#kpiGrandTotal').textContent=grandTotal.toLocaleString('he-IL');$('#rowsLabel').textContent=`${fr.length} רשומות מוצגות`;
  $('#tbody').innerHTML=fr.length?fr.map(r=>{const miss=!r.agent||!r.current_location||!r.target_location;const selected=bulkSelectedIds.has(String(r.id));const isDuplicate=duplicateIds.has(String(r.id));return `<tr class="${isDuplicate?'duplicate-container-row':''}"><td class="bulk-select-col"><input type="checkbox" class="bulk-row-check" data-id="${escapeHtml(r.id)}" ${selected?'checked':''} aria-label="בחר רשומה למחיקה"></td><td>${fmt(new Date(r.movement_at))}</td><td class="mono">${r.container_no?escapeHtml(r.container_no):''}${isDuplicate?'<span class="duplicate-badge">כפול באותו תאריך</span>':''} ${!r.container_no&&r.photo_url?'<span class="unrecognized">📷 צילום בלבד — דורש עריכה</span>':''} ${miss?'<span class="missing">⚠ חסרים פרטים</span>':''} ${r.photo_url?`<a class="photo-link" href="${escapeHtml(r.photo_url)}" target="_blank" title="פתח צילום">📷</a>`:''}</td><td>${escapeHtml(r.agent||'—')}</td><td>${r.container_type?`<span class="pill">${r.container_type} פיט</span>`:'—'}</td><td>⌖ ${escapeHtml(r.current_location||'—')}</td><td>⌖ ${escapeHtml(r.target_location||'—')}</td><td class="movement-note">${escapeHtml(r.note||'')}</td><td class="row-actions"><button class="edit" data-id="${r.id}" title="עריכה">✏️</button><button class="delete ios-trash" data-id="${r.id}" title="מחיקה" aria-label="מחיקה"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 7V5.8C8 4.8 8.8 4 9.8 4h4.4c1 0 1.8.8 1.8 1.8V7M5 7h14M9 10v7M12 10v7M15 10v7M7 7l.7 12.1c.1.6.6.9 1.2.9h6.2c.6 0 1.1-.3 1.2-.9L17 7"/></svg></button></td></tr>`}).join(''):`<tr><td class="empty" colspan="9">אין תנועות בטווח שנבחר</td></tr>`;
  document.body.classList.toggle('bulk-delete-mode',bulkDeleteMode);
  syncBulkDeleteUi(fr);
@@ -3057,14 +3066,26 @@ function exportExcel(){
     containerMovesByDay.set(key,(containerMovesByDay.get(key)||0)+1);
   });
   const allDays=[...new Set([...transfersByDay.keys(),...wfpByDay.keys(),...containerMovesByDay.keys()])].sort((a,b)=>a.localeCompare(b));
+  const importedByDay=(agent)=>{
+    const m=new Map();
+    fr.filter(r=>String(r.note||'').includes('יובא מאקסל') && String(r.agent||'').toUpperCase()===agent).forEach(r=>{
+      const key=dateOnly(new Date(r.movement_at));m.set(key,(m.get(key)||0)+1);
+    });
+    return m;
+  };
+  const importedMaerskByDay=importedByDay('MAERSK'), importedWfpByDay=importedByDay('WFP');
   const transferRows=allDays.map(day=>{
     const transfers=transfersByDay.get(day)||0,wfp=wfpByDay.get(day)||0,containerMoves=containerMovesByDay.get(day)||0;
-    return {'תאריך':day,'MAERSK מהשלוחה למסוף':transfers,'WFP מהרכבת לאומן':wfp,'תנועות מכולות':containerMoves,'סה״כ כללי':transfers+wfp+containerMoves};
+    const unmatchedMaersk=Math.max(0,transfers-(importedMaerskByDay.get(day)||0));
+    const unmatchedWfp=Math.max(0,wfp-(importedWfpByDay.get(day)||0));
+    return {'תאריך':day,'MAERSK מהשלוחה למסוף':transfers,'WFP מהרכבת לאומן':wfp,'תנועות מכולות':containerMoves,'סה״כ כללי':containerMoves+unmatchedMaersk+unmatchedWfp};
   });
   const rangeTransferTotal=[...transfersByDay.values()].reduce((sum,value)=>sum+value,0);
   const rangeWfpTotal=[...wfpByDay.values()].reduce((sum,value)=>sum+value,0);
   const rangeContainerMovesTotal=fr.length;
-  const rangeGrandTotal=rangeTransferTotal+rangeWfpTotal+rangeContainerMovesTotal;
+  const importedMaerskTotal=[...importedMaerskByDay.values()].reduce((sum,value)=>sum+value,0);
+  const importedWfpTotal=[...importedWfpByDay.values()].reduce((sum,value)=>sum+value,0);
+  const rangeGrandTotal=rangeContainerMovesTotal+Math.max(0,rangeTransferTotal-importedMaerskTotal)+Math.max(0,rangeWfpTotal-importedWfpTotal);
   transferRows.push({'תאריך':'סה״כ בטווח הנבחר','MAERSK מהשלוחה למסוף':rangeTransferTotal,'WFP מהרכבת לאומן':rangeWfpTotal,'תנועות מכולות':rangeContainerMovesTotal,'סה״כ כללי':rangeGrandTotal});
   const transferWs=XLSX.utils.json_to_sheet(transferRows,{header:['תאריך','MAERSK מהשלוחה למסוף','WFP מהרכבת לאומן','תנועות מכולות','סה״כ כללי']});
   transferWs['!cols']=[{wch:22},{wch:30},{wch:28},{wch:22},{wch:20}];
